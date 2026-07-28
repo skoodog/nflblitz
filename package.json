@@ -1,0 +1,23 @@
+{
+  "name": "blitz-reloaded",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "BLITZ RELOADED — arcade football, real-time three.js/WebGL2 world + deterministic Canvas2D overlay.",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5177",
+    "build": "vite build",
+    "preview": "node scripts/serve.mjs --dist",
+    "shoot": "node scripts/shoot.mjs",
+    "compare": "node scripts/compare.mjs",
+    "lint": "node scripts/lint-determinism.mjs",
+    "progress": "node tools/progress.mjs",
+    "serve:progress": "node scripts/serve.mjs --progress"
+  },
+  "dependencies": {
+    "three": "0.185.1"
+  },
+  "devDependencies": {
+    "vite": "8.1.5"
+  }
+}

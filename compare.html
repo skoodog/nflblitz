@@ -1,0 +1,184 @@
+<!doctype html>
+<!--
+  FOUNDATION — FROZEN after t=0. Do not edit.
+  Zero-dependency A/B composite. No ImageMagick and no PIL on this box, so the
+  compositing is done by Chromium itself and screenshotted by scripts/compare.mjs.
+
+  Served with the REPO ROOT as docroot (port 5179), so /bar/ and /shots/ are both
+  reachable by relative fetch.
+
+    compare.html?panel=truck&shot=shots/pose-animation/truck.png
+                &wipe=0.5        single split composite instead of side by side
+                &crop=hud        crop both to a named region before scaling
+                &h=720           matched height (default 720)
+                &label=OURS
+
+  CRITICAL: both images are scaled to the SAME height. The bar panels are only
+  310-376 px tall; comparing them at unmatched scale would confound the judgement.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>BLITZ — A/B</title>
+<style>
+  html,body{margin:0;background:#0a0a0d;color:#e8e8ec;
+    font-family:"Liberation Sans","DejaVu Sans",Arial,sans-serif;}
+  #wrap{display:inline-block;padding:0;}
+  .row{display:flex;align-items:flex-start;gap:16px;background:#0a0a0d;}
+  .cell{position:relative;background:#000;}
+  .cell img{display:block;}
+  .cap{position:absolute;left:0;top:0;padding:4px 10px;
+    font:700 15px/1.2 "Liberation Sans",Arial,sans-serif;letter-spacing:.08em;
+    background:rgba(0,0,0,.72);color:#f0d78a;border-right:1px solid rgba(255,255,255,.18);
+    border-bottom:1px solid rgba(255,255,255,.18);}
+  .cap.b{color:#8ad8f0;}
+  #wipe{position:relative;background:#000;overflow:hidden;}
+  #wipe img{position:absolute;left:0;top:0;display:block;}
+  #wipe .clip{position:absolute;left:0;top:0;overflow:hidden;}
+  #seam{position:absolute;top:0;width:2px;background:#f0d78a;box-shadow:0 0 8px rgba(240,215,138,.9);}
+  #missing{padding:24px;font:600 18px/1.6 monospace;color:#ff8a8a;}
+</style>
+</head>
+<body>
+<div id="wrap"><div id="missing" style="display:none"></div></div>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  var panel = q.get('panel') || 'truck';
+  var shot = q.get('shot') || '';
+  var H = parseInt(q.get('h') || '720', 10);
+  var wipe = q.get('wipe');
+  var crop = q.get('crop') || '';
+  var labelA = q.get('labelA') || 'BAR';
+  var labelB = q.get('label') || q.get('labelB') || 'OURS';
+  var gutter = parseInt(q.get('gutter') || '16', 10);
+
+  // Named crop regions, expressed as fractions of each image's own box so the
+  // same name means "the same part of the frame" at any resolution.
+  var CROPS = {
+    hud:     { x: 0.00, y: 0.00, w: 0.46, h: 0.26 },
+    callout: { x: 0.50, y: 0.52, w: 0.50, h: 0.48 },
+    turbo:   { x: 0.00, y: 0.80, w: 0.36, h: 0.20 },
+    face:    { x: 0.34, y: 0.05, w: 0.32, h: 0.45 },
+    left:    { x: 0.00, y: 0.00, w: 0.50, h: 1.00 },
+    right:   { x: 0.50, y: 0.00, w: 0.50, h: 1.00 }
+  };
+
+  var barSrc = 'bar/panel-' + panel + '.png';
+  var wrap = document.getElementById('wrap');
+  var miss = document.getElementById('missing');
+
+  function load(src) {
+    return new Promise(function (res) {
+      if (!src) { res(null); return; }
+      var im = new Image();
+      im.onload = function () { res(im); };
+      im.onerror = function () { res(null); };
+      im.src = src;
+    });
+  }
+
+  function boxFor(im) {
+    var c = CROPS[crop];
+    if (!c) return { sx: 0, sy: 0, sw: im.naturalWidth, sh: im.naturalHeight };
+    return {
+      sx: Math.round(c.x * im.naturalWidth),
+      sy: Math.round(c.y * im.naturalHeight),
+      sw: Math.round(c.w * im.naturalWidth),
+      sh: Math.round(c.h * im.naturalHeight)
+    };
+  }
+
+  function toCanvas(im, targetH) {
+    var b = boxFor(im);
+    var scale = targetH / b.sh;
+    var w = Math.max(1, Math.round(b.sw * scale));
+    var cv = document.createElement('canvas');
+    cv.width = w; cv.height = targetH;
+    var c = cv.getContext('2d');
+    c.imageSmoothingEnabled = true;
+    c.imageSmoothingQuality = 'high';
+    c.drawImage(im, b.sx, b.sy, b.sw, b.sh, 0, 0, w, targetH);
+    return cv;
+  }
+
+  function placeholder(w, h, text) {
+    var cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    var c = cv.getContext('2d');
+    c.fillStyle = '#1b1b20'; c.fillRect(0, 0, w, h);
+    c.strokeStyle = '#5a5a64'; c.lineWidth = 3;
+    c.setLineDash([12, 10]); c.strokeRect(6, 6, w - 12, h - 12);
+    c.fillStyle = '#8a8a94';
+    c.font = '600 20px "Liberation Sans",Arial,sans-serif';
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText('NOT CAPTURED YET', w / 2, h / 2 - 14);
+    c.font = '400 14px "DejaVu Sans Mono",monospace';
+    c.fillText(text, w / 2, h / 2 + 16);
+    return cv;
+  }
+
+  Promise.all([load(barSrc), load(shot)]).then(function (r) {
+    var barIm = r[0], ourIm = r[1];
+    if (!barIm) {
+      miss.style.display = 'block';
+      miss.textContent = 'missing bar panel: ' + barSrc;
+      document.documentElement.dataset.cmpReady = '1';
+      window.__CMP_READY__ = true;
+      return;
+    }
+    var A = toCanvas(barIm, H);
+    var B = ourIm ? toCanvas(ourIm, H) : placeholder(Math.round(A.width * 1.4), H, shot || '(no --shot given)');
+
+    if (wipe !== null && wipe !== undefined && wipe !== '') {
+      var k = Math.max(0, Math.min(1, parseFloat(wipe)));
+      var W = Math.max(A.width, B.width);
+      var host = document.createElement('div');
+      host.id = 'wipe';
+      host.style.width = W + 'px';
+      host.style.height = H + 'px';
+      var ia = document.createElement('img'); ia.src = A.toDataURL(); ia.style.width = A.width + 'px';
+      var clip = document.createElement('div'); clip.className = 'clip';
+      clip.style.width = Math.round(W * k) + 'px'; clip.style.height = H + 'px';
+      var ib = document.createElement('img'); ib.src = B.toDataURL(); ib.style.width = B.width + 'px';
+      clip.appendChild(ib);
+      host.appendChild(ia); host.appendChild(clip);
+      var seam = document.createElement('div');
+      seam.id = 'seam'; seam.style.left = Math.round(W * k) + 'px'; seam.style.height = H + 'px';
+      host.appendChild(seam);
+      var ca = document.createElement('div'); ca.className = 'cap b'; ca.textContent = labelB;
+      var cb = document.createElement('div'); cb.className = 'cap'; cb.style.left = 'auto'; cb.style.right = '0'; cb.textContent = labelA;
+      host.appendChild(ca); host.appendChild(cb);
+      wrap.appendChild(host);
+    } else {
+      var row = document.createElement('div');
+      row.className = 'row';
+      row.style.gap = gutter + 'px';
+      [[A, labelA, ''], [B, labelB, 'b']].forEach(function (pair) {
+        var cell = document.createElement('div');
+        cell.className = 'cell';
+        var im = document.createElement('img');
+        im.src = pair[0].toDataURL();
+        im.style.width = pair[0].width + 'px';
+        im.style.height = H + 'px';
+        cell.appendChild(im);
+        var cap = document.createElement('div');
+        cap.className = 'cap ' + pair[2];
+        cap.textContent = pair[1];
+        cell.appendChild(cap);
+        row.appendChild(cell);
+      });
+      wrap.appendChild(row);
+    }
+
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        document.documentElement.dataset.cmpReady = '1';
+        window.__CMP_READY__ = true;
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

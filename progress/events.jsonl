@@ -1,0 +1,4 @@
+{"ts":"2026-07-28T02:42:41.928Z","round":0,"piece":null,"agent":"lead","event":"round_open","text":"Foundation frozen. 16 piece directories handed off. Fallbacks installed for every contract."}
+{"ts":"2026-07-28T02:42:41.975Z","round":0,"piece":"foundation","agent":"lead","event":"build_done","text":"Vite+three app, registry, rig, ShotSpec, world assembler, texlab, typeface, overlay, capture + compare tooling, determinism linter, progress page."}
+{"ts":"2026-07-28T02:42:42.024Z","round":0,"piece":"foundation","agent":"lead","event":"shot","shot":"shots/foundation.png","text":"node scripts/shoot.mjs --scene=truck --out=shots/foundation.png — 1920x1080, accum=32, ssaa=1.5, byte-identical across two runs"}
+{"ts":"2026-07-28T02:42:42.076Z","round":0,"piece":"foundation","agent":"lead","event":"note","text":"Sanity gate: node scripts/lint-determinism.mjs passes; md5 of two identical captures matches."}

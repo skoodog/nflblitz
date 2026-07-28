@@ -3,3 +3,5 @@ dist/
 .DS_Store
 *.log
 shots/tmp/
+progress/index.built.html
+.build.lock
