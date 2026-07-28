@@ -35,6 +35,12 @@ ORDER = [
 ]
 COLS, ROWS = 4, 8
 
+# The supplied sheet carries the RETIRED Washington mark in the WAS cell. The
+# club is the Commanders, so that cell is skipped and Washington falls through to
+# the procedural crest -- a 'W' monogram in burgundy and gold, which is the
+# current mark. Pass --include-was to override.
+SKIP_DEFAULT = {"WAS"}
+
 
 def is_bg(px, thresh):
     """Near-black and near-neutral: the sheet's field, not a club's black ink."""
@@ -95,6 +101,8 @@ def main():
     ap.add_argument("--sheet", required=True, help="path to the 4x8 logo sheet")
     ap.add_argument("--thresh", type=int, default=42, help="background luminance cutoff")
     ap.add_argument("--contact", action="store_true", help="also write a QA contact sheet")
+    ap.add_argument("--include-was", action="store_true",
+                    help="also extract the Washington cell (retired mark; off by default)")
     a = ap.parse_args()
 
     sheet = Image.open(a.sheet).convert("RGBA")
@@ -102,8 +110,12 @@ def main():
     cw, ch = W // COLS, H // ROWS
     OUT.mkdir(parents=True, exist_ok=True)
 
-    made, empty = {}, []
+    skip = set() if a.include_was else SKIP_DEFAULT
+    made, empty, skipped = {}, [], []
     for i, abbr in enumerate(ORDER):
+        if abbr in skip:
+            skipped.append(abbr)
+            continue
         c, r = i % COLS, i // COLS
         cell = sheet.crop((c * cw, r * ch, (c + 1) * cw, (r + 1) * ch))
         keyed = trim(key_background(cell, a.thresh))
@@ -117,11 +129,13 @@ def main():
         {"source": Path(a.sheet).name, "grid": [COLS, ROWS], "order": ORDER,
          "sizes": {k: list(v) for k, v in made.items()}}, indent=1))
 
-    print(f"[logos] {len(made)}/32 -> bar/logos/")
+    print(f"[logos] {len(made)}/{32 - len(skipped)} -> bar/logos/")
     for abbr, size in made.items():
         print(f"   {abbr:4s} {size[0]:4d}x{size[1]:<4d}")
     if empty:
         print(f"   EMPTY (nothing above threshold): {', '.join(empty)}")
+    if skipped:
+        print(f"   SKIPPED (retired mark, uses procedural crest): {', '.join(skipped)}")
 
     if a.contact:
         tile = 190
@@ -129,7 +143,7 @@ def main():
         for i, abbr in enumerate(ORDER):
             p = OUT / f"{abbr}.png"
             if not p.exists():
-                continue
+                continue  # skipped or empty; procedural crest covers it
             im = Image.open(p)
             k = min((tile - 22) / im.width, (tile - 22) / im.height)
             im = im.resize((max(1, round(im.width * k)), max(1, round(im.height * k))), Image.LANCZOS)

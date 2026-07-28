@@ -33,6 +33,11 @@ export function mix(a, b, t) {
 }
 export function lighten(c, t) { return mix(c, [255, 255, 255], t); }
 export function darken(c, t) { return mix(c, [0, 0, 0], t); }
+/** Brighten by SCALING channels, so hue survives — unlike mixing toward white. */
+export function brighten(c, k) {
+  const v = Array.isArray(c) ? c : hex2rgb(c);
+  return [Math.min(255, v[0] * k), Math.min(255, v[1] * k), Math.min(255, v[2] * k)];
+}
 /** Push a colour toward full chroma so a muddy team primary still reads as a colour. */
 export function vivid(c, k) {
   const v = Array.isArray(c) ? c : hex2rgb(c);
@@ -49,6 +54,46 @@ export function vivid(c, k) {
 export function lum(c) {
   const v = Array.isArray(c) ? c : hex2rgb(c);
   return (0.299 * v[0] + 0.587 * v[1] + 0.114 * v[2]) / 255;
+}
+export function chroma(c) {
+  const v = Array.isArray(c) ? c : hex2rgb(c);
+  return (Math.max(v[0], v[1], v[2]) - Math.min(v[0], v[1], v[2])) / 255;
+}
+
+/**
+ * THE HUD COLOUR. A club's `accent` is picked by the brand piece as the
+ * brightest non-primary official, which for half the roster is silver or white
+ * — and a white momentum bar tells a player nothing. The HUD instead wants the
+ * most CHROMATIC colour the club owns, lifted until it survives a dark plate.
+ * Deterministic, cached by the caller through the bake.
+ */
+export function hudColor(colors) {
+  const cand = [];
+  const push = (v) => {
+    if (typeof v !== 'string' || v[0] !== '#') return;
+    const k = v.toLowerCase();
+    if (!cand.some((q) => q.k === k)) cand.push({ k, c: hex2rgb(v) });
+  };
+  if (colors) {
+    if (Array.isArray(colors.officials)) for (const o of colors.officials) push(o);
+    push(colors.accent); push(colors.secondary); push(colors.primary); push(colors.metal);
+  }
+  let best = null, bestScore = -1;
+  for (const q of cand) {
+    const ch = chroma(q.c), l = lum(q.c);
+    const score = ch * (0.34 + 0.66 * Math.min(1, l / 0.5));
+    if (score > bestScore) { bestScore = score; best = q.c; }
+  }
+  if (!best || bestScore < 0.055) best = hex2rgb('#5f9ad8');
+  // Lift by SCALING, not by mixing toward white: a club red must stay red on a
+  // dark plate instead of drifting to pink.
+  let out = vivid(best, 1.38);
+  const l = Math.max(0.02, lum(out));
+  const k = Math.min(2.6, 0.44 / l);
+  out = [Math.min(255, out[0] * k), Math.min(255, out[1] * k), Math.min(255, out[2] * k)];
+  let n = 0;
+  while (lum(out) < 0.30 && n++ < 5) out = lighten(out, 0.10);
+  return out;
 }
 
 /* ------------------------------------------------------------------- paths */

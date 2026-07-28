@@ -10,6 +10,7 @@ import { backdrop } from './backdrop.js';
 import { GEO } from './lockup.js';
 import { animate } from './anim.js';
 import { drawLockup } from './draw.js';
+import { RAMPS } from './palette.js';
 
 const W = 1920, H = 1080;
 
@@ -82,8 +83,8 @@ function fiveSheet(c2d, t, state, ui) {
   const ch = Math.floor((H - top - pad * (rows + 1)) / rows);
 
   label(c2d, faces, 'SCORE CALLOUT LOCKUPS', 34, 46, 26, 'rgba(232,236,244,0.92)');
-  label(c2d, faces, 'LINE 1 WHITE  ·  LINE 2 = ACCENT WHEN LINE 1 EXISTS, ELSE WHITE  ·  GOLD NUMERALS + PTS',
-    360, 44, 15, 'rgba(150,160,176,0.72)');
+  label(c2d, faces, 'LINE 1 WHITE · LINE 2 TAKES THE ACCENT WHEN LINE 1 EXISTS, ELSE WHITE · GOLD NUMERALS + PTS',
+    620, 45, 14, 'rgba(150,160,176,0.72)');
 
   for (let i = 0; i < FIVE.length; i++) {
     const cx0 = pad + (i % cols) * (cw + pad);
@@ -95,8 +96,8 @@ function fiveSheet(c2d, t, state, ui) {
     c2d.drawImage(backdrop(FIVE[i].bg, cw, ch, 11 + i * 3), cx0, cy0, cw, ch);
     const s = Object.assign({ visible: true, age: 0.30 }, FIVE[i]);
     // Fit the tile: the lockup is laid out for a 1920-wide frame.
-    const k = cw / 900;
-    drawOne(c2d, faces, s, cx0 + cw * 0.5, cy0 + ch * 0.74, k, 7 + i, 0.30);
+    const k = cw / 1010;
+    drawOne(c2d, faces, s, cx0 + cw * 0.5, cy0 + ch * 0.72, k, 7 + i, 0.30);
     c2d.restore();
     frame(c2d, cx0, cy0, cw, ch);
     label(c2d, faces, (FIVE[i].line1 ? FIVE[i].line1 + ' ' : '') + FIVE[i].line2,
@@ -109,18 +110,18 @@ function fiveSheet(c2d, t, state, ui) {
   c2d.save();
   c2d.fillStyle = '#101218';
   c2d.fillRect(cx0, cy0, cw, ch);
-  const RAMPS = [
-    ['LINE 2 · WHITE', ['#fffdf6', '#f1eee6', '#ddd7cc', '#c4bdb1', '#a49c91']],
-    ['LINE 2 · RED', ['#f4705f', '#dd2c22', '#c11715', '#a41012', '#6d080d']],
-    ['LINE 2 · GOLD', ['#ffeea4', '#f9d13a', '#eeb903', '#dfa000', '#a15f02']],
-    ['NUMERALS · GOLD', ['#fff5b8', '#ffdd4e', '#f7c604', '#eaad00', '#b06803']],
+  const SWATCH = [
+    ['LINE 2 · WHITE', RAMPS.white],
+    ['LINE 2 · RED', RAMPS.red],
+    ['LINE 2 · GOLD', RAMPS.goldLine],
+    ['NUMERALS · GOLD', RAMPS.gold],
   ];
-  for (let r = 0; r < RAMPS.length; r++) {
+  for (let r = 0; r < SWATCH.length; r++) {
     const y = cy0 + 60 + r * 74;
-    label(c2d, faces, RAMPS[r][0], cx0 + 22, y - 12, 14, 'rgba(190,198,212,0.7)');
-    const sw = (cw - 44) / RAMPS[r][1].length;
-    for (let s = 0; s < RAMPS[r][1].length; s++) {
-      c2d.fillStyle = RAMPS[r][1][s];
+    label(c2d, faces, SWATCH[r][0], cx0 + 22, y - 12, 14, 'rgba(190,198,212,0.7)');
+    const sw = (cw - 44) / SWATCH[r][1].length;
+    for (let s = 0; s < SWATCH[r][1].length; s++) {
+      c2d.fillStyle = SWATCH[r][1][s][1];
       c2d.fillRect(cx0 + 22 + s * sw, y, sw - 3, 40);
     }
   }
@@ -137,9 +138,9 @@ function animSheet(c2d, t, state, ui) {
   const faces = ui.faces;
   c2d.fillStyle = '#0a0b0e';
   c2d.fillRect(0, 0, W, H);
-  label(c2d, faces, 'CALLOUT ANIMATION · PURE FUNCTION OF callout.age', 34, 46, 26, 'rgba(232,236,244,0.92)');
-  label(c2d, faces, 'SLAM-IN STREAK → IMPACT FLASH → DAMPED SHAKE → HOLD DRIFT → LIFT-OFF FADE',
-    700, 44, 15, 'rgba(150,160,176,0.72)');
+  label(c2d, faces, 'CALLOUT ANIMATION · PURE FUNCTION OF CALLOUT.AGE', 34, 46, 26, 'rgba(232,236,244,0.92)');
+  label(c2d, faces, 'SLAM-IN STREAK · IMPACT FLASH · DAMPED SHAKE · HOLD DRIFT · LIFT-OFF FADE',
+    810, 45, 14, 'rgba(150,160,176,0.72)');
 
   const pad = 14, top = 72;
   const cols = 5, rows = 2;
@@ -147,7 +148,7 @@ function animSheet(c2d, t, state, ui) {
   const ch = Math.floor((H - top - pad * (rows + 1)) / rows);
   const s = { visible: true, line1: '', line2: 'TOUCHDOWN!', pts: 200, accent: 'gold' };
 
-  const scr = { alpha: 1, scale: 1, dx: 0, dy: 0, rot: 0, streak: 0, hot: 0, blur: 0 };
+  const scr = { alpha: 1, scale: 1, dx: 0, dy: 0, rot: 0, streak: 0, hot: 0 };
   for (let i = 0; i < AGES.length; i++) {
     const cx0 = pad + (i % cols) * (cw + pad);
     const cy0 = top + Math.floor(i / cols) * (ch + pad);
@@ -156,7 +157,7 @@ function animSheet(c2d, t, state, ui) {
     c2d.rect(cx0, cy0, cw, ch);
     c2d.clip();
     c2d.drawImage(backdrop('night', cw, ch, 5), cx0, cy0, cw, ch);
-    drawOne(c2d, faces, s, cx0 + cw * 0.52, cy0 + ch * 0.70, cw / 1080, 7, AGES[i]);
+    drawOne(c2d, faces, s, cx0 + cw * 0.52, cy0 + ch * 0.66, cw / 1180, 7, AGES[i]);
     c2d.restore();
     frame(c2d, cx0, cy0, cw, ch);
     animate(AGES[i], scr);
@@ -175,7 +176,7 @@ function hostileSheet(c2d, t, state, ui) {
   c2d.fillRect(0, 0, W, H);
   label(c2d, faces, 'LEGIBILITY OVER HOSTILE BACKGROUNDS', 34, 46, 26, 'rgba(232,236,244,0.92)');
   label(c2d, faces, 'HALO + KEYLINE + TWO-PASS SHADOW · NO BACKGROUND SHOULD EAT THE LOCKUP',
-    560, 44, 15, 'rgba(150,160,176,0.72)');
+    700, 45, 14, 'rgba(150,160,176,0.72)');
 
   const BG = ['bright', 'crowd', 'grey', 'night'];
   const NAME = ['BLOWN-OUT WHITE', 'LIT CROWD', 'FLAT MID-GREY', 'NIGHT FIELD'];
@@ -192,7 +193,7 @@ function hostileSheet(c2d, t, state, ui) {
     c2d.rect(cx0, cy0, cw, ch);
     c2d.clip();
     c2d.drawImage(backdrop(BG[i], cw, ch, 3 + i), cx0, cy0, cw, ch);
-    drawOne(c2d, faces, s, cx0 + cw * 0.52, cy0 + ch * 0.72, cw / 1180, 7, 0.30);
+    drawOne(c2d, faces, s, cx0 + cw * 0.52, cy0 + ch * 0.70, cw / 1260, 7, 0.30);
     c2d.restore();
     frame(c2d, cx0, cy0, cw, ch);
     label(c2d, faces, NAME[i], cx0 + 14, cy0 + 26, 16, 'rgba(240,215,138,0.85)');
@@ -204,11 +205,11 @@ function hostileSheet(c2d, t, state, ui) {
 const SHEETS = {
   iso_callout_hero: heroSheet('night', {
     line1: 'MID-AIR', line2: 'MURDER!', pts: 250, accent: 'red', age: 0.30,
-    x: 1404, y: 966, scale: 1,
+    x: 1400, y: 1000, scale: 1,
   }),
   iso_callout_truck: heroSheet('nightWarm', {
     line1: '', line2: 'TRUCK!', pts: 150, accent: 'gold', age: 0.30,
-    x: 1404, y: 966, scale: 1,
+    x: 1400, y: 1000, scale: 1,
   }),
   iso_callouts: fiveSheet,
   iso_callout_anim: animSheet,

@@ -17,7 +17,7 @@ import {
 export const PLATE = { x: 48, y: 954, w: 306, h: 82 };
 const MG = 26;
 
-export const TRK = { x: 20, y: 47, w: 252, h: 24 };
+export const TRK = { x: 18, y: 47, w: 270, h: 24 };
 
 const BLUE = '#2a5cf0';
 const BLUE_HI = '#7ea6ff';
@@ -29,11 +29,11 @@ export function setQuality(q) { quality = q; }
 
 function outlinePts(w, h) {
   return [
-    [16, 0],
-    [w - 34, 0],
-    [w - 16, h * 0.44],
-    [w, h * 0.70],
-    [w - 30, h],
+    [15, 0],
+    [w - 24, 0],
+    [w - 10, h * 0.38],
+    [w - 1, h * 0.62],
+    [w - 16, h],
     [0, h],
   ];
 }
@@ -100,12 +100,12 @@ function bakeFill(W, H, s) {
   ]);
   c.fillRect(0, 0, w, h);
 
-  // segment dividers
-  c.fillStyle = 'rgba(3,7,22,0.85)';
-  const seg = 6;
-  for (let i = 1; i < seg; i++) c.fillRect(Math.round((w * i) / seg) - 1, 0, 2, h);
-  c.fillStyle = 'rgba(150,190,255,0.20)';
-  for (let i = 1; i < seg; i++) c.fillRect(Math.round((w * i) / seg) + 1, 0, 1, h);
+  // segment dividers — four, thin, dark only. Six with a light side read as a
+  // battery gauge; the bar's meter reads as one glowing bar that happens to be
+  // notched.
+  c.fillStyle = 'rgba(3,7,22,0.62)';
+  const seg = 4;
+  for (let i = 1; i < seg; i++) c.fillRect(Math.round((w * i) / seg) - 0.6, 0, 1.2, h);
 
   grain(c, poly([[0, 0], [w, 0], [w, h], [0, h]], 0), 0, 0, w, h, 0x7be1, 0.5 * quality);
   c.restore();
@@ -154,12 +154,20 @@ function bakeChrome(ui, s) {
   const pts = outlinePts(W, H);
   const outer = poly(pts, 7);
 
-  // drop shadow ring
+  // drop shadow ring, plus the blue spill the panel throws onto the turf
   c.save();
   c.shadowColor = 'rgba(2,5,14,0.80)';
   c.shadowBlur = 20;
   c.shadowOffsetY = 7;
   c.fillStyle = 'rgba(0,0,0,0.99)';
+  c.fill(outer);
+  c.restore();
+  c.save();
+  c.globalCompositeOperation = 'lighter';
+  c.shadowColor = 'rgba(46,104,255,0.62)';
+  c.shadowBlur = 22;
+  c.shadowOffsetY = 4;
+  c.fillStyle = 'rgba(30,70,200,0.85)';
   c.fill(outer);
   c.restore();
   c.save();
@@ -208,20 +216,22 @@ function bakeChrome(ui, s) {
   c.strokeStyle = 'rgba(0,0,0,0.85)';
   c.lineWidth = 1.4;
   c.strokeRect(TRK.x + 0.7, TRK.y + 0.7, TRK.w - 1.4, TRK.h - 1.4);
-  c.fillStyle = 'rgba(60,96,190,0.16)';
-  const seg = 6;
+  c.fillStyle = 'rgba(60,96,190,0.14)';
+  const seg = 4;
   for (let i = 1; i < seg; i++) c.fillRect(TRK.x + Math.round((TRK.w * i) / seg) - 0.5, TRK.y + 2, 1, TRK.h - 4);
   c.restore();
 
   // TURBO — blitz-techno, scaled to the plate's measured 0.60 width ratio
-  let size = 47;
+  const TRACK = 0.018;                 // the face defaults to 0.10 — far looser
+  let size = 47;                       // than the bar's tight, chunky lockup
   try {
-    const m = F.measure('TURBO', 'blitz-techno', 100);
-    if (m && m.w > 0) size = Math.min(52, (W * 0.60) / (m.w / 100));
+    const m = F.measure('TURBO', 'blitz-techno', 100, { tracking: TRACK });
+    if (m && m.w > 0) size = Math.min(56, (W * 0.625) / (m.w / 100));
   } catch (e) { /* keep the default */ }
-  F.draw(c, 'TURBO', 36, 39, {
+  F.draw(c, 'TURBO', 34, 39.5, {
     face: 'blitz-techno',
     size,
+    tracking: TRACK,
     gradient: [
       [0.00, '#ffffff'],
       [0.30, '#f2f7ff'],

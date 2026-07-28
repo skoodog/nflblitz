@@ -34,10 +34,12 @@ export const PIECE = 'hud-overlay';
 
 // Persistent scratch. Nothing in the compare-or-bake path allocates.
 const S = {
-  clock: '', dist: '', yards: '',
+  clock: '', dist: '', yards: '', quarter: '', timeouts: 3,
   teamA: '', teamB: '', scoreA: -1, scoreB: -1,
   momA: -1, momB: -1, possess: -1,
 };
+
+const ORD = ['1ST', '2ND', '3RD', '4TH', 'OT'];
 let baked = false;
 let lastFaces = null, lastBrand = null;
 let lastTurboQ = -1;
@@ -56,16 +58,21 @@ function ensure(ui, st) {
   const mA = st.momentumA === undefined || st.momentumA === null ? 0.5 : st.momentumA;
   const mB = st.momentumB === undefined || st.momentumB === null ? 0.5 : st.momentumB;
   const poss = st.possess === undefined ? (mA >= mB ? 0 : 1) : (st.possess | 0);
+  const qi = (st.quarter === undefined || st.quarter === null) ? 2 : (st.quarter | 0);
+  const quarter = ORD[Math.max(1, Math.min(5, qi)) - 1];
+  const tos = st.timeouts === undefined ? 3 : (st.timeouts | 0);
 
   const dirty = !baked
     || ui.faces !== lastFaces || ui.brand !== lastBrand
     || clock !== S.clock || dist !== S.dist || yards !== S.yards
+    || quarter !== S.quarter || tos !== S.timeouts
     || teamA !== S.teamA || teamB !== S.teamB
     || scoreA !== S.scoreA || scoreB !== S.scoreB
     || q(mA) !== q(S.momA) || q(mB) !== q(S.momB) || poss !== S.possess;
 
   if (dirty) {
     S.clock = clock; S.dist = dist; S.yards = yards;
+    S.quarter = quarter; S.timeouts = tos;
     S.teamA = teamA; S.teamB = teamB;
     S.scoreA = scoreA; S.scoreB = scoreB;
     S.momA = mA; S.momB = mB; S.possess = poss;

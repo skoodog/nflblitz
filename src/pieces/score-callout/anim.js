@@ -22,7 +22,7 @@ function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
 
 export function animate(age, out) {
   const a = age > 0 ? age : 0;
-  let alpha = 1, scale = 1, dx = 0, dy = 0, rot = 0, streak = 0, hot = 0, blur = 0;
+  let alpha = 1, scale = 1, dx = 0, dy = 0, rot = 0, streak = 0, hot = 0;
 
   // ---- slam in
   const u = clamp01(a / IN_T);
@@ -35,7 +35,6 @@ export function animate(age, out) {
     rot += (1 - eo) * 0.055;
     alpha = clamp01(u * 2.6);
     streak = inv * inv * 0.9 + inv * 0.1;
-    blur = inv;
   }
 
   // ---- impact: damped shake + scale overshoot
@@ -79,7 +78,6 @@ export function animate(age, out) {
   out.rot = rot;
   out.streak = streak;
   out.hot = hot;
-  out.blur = blur;
   return out;
 }
 

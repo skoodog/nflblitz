@@ -3,21 +3,26 @@
 // One styled display line, painted the way the bar's lettering is painted:
 //
 //   1. hand-set layout      per-glyph scale / baseline bounce / rotation jitter,
-//                           line-initial cap emphasis, tight negative tracking.
+//                           line-initial cap emphasis, tight negative tracking,
+//                           horizontal widening with the shear divided back out
 //   2. dark keyline         stroked UNDER the fill so internal subpath seams never show
-//   3. gradient fill        ramps sampled off the bar (see palette.js)
-//   4. inner crown light    a soft top-lit band + a deep foot, clipped to the glyphs
-//   5. specular sweep       one raking band across the gold — material response
-//   6. dry-brush skips      streaks ALONG the brush axis, thinning the ink
-//   7. torn edge            silhouette MINUS an eroded copy = an edge band; noise is
+//   3. bolden               the glyph stroked with its OWN fill, dilating the contour
+//                           to the bar's ink weight without exposing a single seam
+//   4. gradient fill        narrow ramps sampled off the bar (see palette.js)
+//   5. per-letter density   a brush reloads between strokes; no two caps are the same
+//                           weight of ink
+//   6. inner crown light    a soft top-lit band + a deep foot, clipped to the glyphs
+//   7. specular sweep       one raking band across the gold — material response
+//   8. dry-brush skips      long faint streaks ALONG the brush axis, thinning the ink
+//   9. torn edge            silhouette MINUS an eroded copy = an edge band; noise is
 //                           intersected with that band and punched out, so terminals
 //                           come out ragged instead of vector-clean
-//   8. outward flecks       the same trick with a DILATED band, filled with ink, so a
+//  10. outward flecks       the same trick with a DILATED band, filled with ink, so a
 //                           few specks of spatter sit off the letter
-//   9. shadow + halo        derived from the FINISHED, already-chewed silhouette, blurred
+//  11. shadow + halo        derived from the FINISHED, already-chewed silhouette, blurred
 //                           with ctx.filter — so the shadow follows the torn edge and no
 //                           dark under-fill shows through the bite marks
-//  10. warm glow            same silhouette, tinted, added — gold only
+//  12. warm glow            same silhouette, tinted, added — gold only
 //
 // Everything here runs at BAKE time only. The frame path never enters this file.
 
@@ -74,6 +79,20 @@ function advOf(faces, ch, face, size) {
   try { return faces.measure(ch, face, size, { tracking: 0 }).w; } catch (e) { return size * 0.5; }
 }
 
+/**
+ * The face's own italic shear. Needed because widening a glyph horizontally also
+ * multiplies its shear: at xScale 1.15 the brush face's 15 deg lean becomes 17.2 deg,
+ * which is visibly steeper than the bar. The layout pre-divides by xScale so the
+ * widening restores exactly the face's intended angle.
+ */
+function slantOfFace(faces, face) {
+  try {
+    const d = faces.data && faces.data[face];
+    if (d && typeof d.defaultSlant === 'number') return d.defaultSlant;
+  } catch (e) { /* fall through */ }
+  return face === 'blitz-brush' ? 0.27 : 0;
+}
+
 /* ----------------------------------------------------------------- layout */
 
 /**
@@ -91,6 +110,11 @@ export function layoutLine(faces, text, o) {
   const track = (o.tracking || 0) * capH;
   const jit = o.jitter === undefined ? 1 : o.jitter;
   const minor = o.minor === undefined ? 0.855 : o.minor;
+  // The bar's caps are ~12% wider per unit cap height than the brush face draws them
+  // (MURDER! measures w/cap = 4.23 on panel-midair_hit, 3.77 straight off the face).
+  const xs = o.xScale === undefined ? 1.12 : o.xScale;
+  const faceSlant = o.slant === undefined ? slantOfFace(faces, face) : o.slant;
+  const drawSlant = faceSlant / xs;      // widening will multiply it straight back
   const s = String(text);
   const n = s.length;
   const rng = makeRng(hash(seedFromString('sc.line|' + s + '|' + face), Math.round(capH * 4)));
@@ -116,7 +140,10 @@ export function layoutLine(faces, text, o) {
   for (let i = 0; i < n; i++) {
     const dy = rng.range(-0.028, 0.028) * capH * jit;
     const rot = rng.range(-0.021, 0.021) * jit;
-    glyphs.push({ ch: s[i], x, s: scales[i], dy, rot });
+    // Ink density per letter. A brush reloads between strokes; two adjacent caps are
+    // never the same weight of black in real lettering.
+    const ink = rng.range(-1, 1) * jit;
+    glyphs.push({ ch: s[i], x, s: scales[i], dy, rot, adv: adv[i], ink });
     top = Math.min(top, dy - capH * scales[i] * 1.10);
     bot = Math.max(bot, dy + capH * scales[i] * 0.34);
     let step = adv[i] * scales[i];
@@ -129,58 +156,73 @@ export function layoutLine(faces, text, o) {
     x += step;
   }
 
-  return { glyphs, width: x, size, capH, face, top, bot };
+  return { glyphs, width: x * xs, size, capH, face, top, bot, xScale: xs, drawSlant, slant: faceSlant };
 }
 
 /** All glyphs of a laid-out line as one Path2D, origin = baseline at x = 0. */
 export function linePath(faces, L) {
   const P = new Path2D();
+  const xs = L.xScale === undefined ? 1 : L.xScale;
   for (let i = 0; i < L.glyphs.length; i++) {
     const g = L.glyphs[i];
     if (g.ch === ' ') continue;
     let gp = null;
-    try { gp = faces.path(g.ch, L.face, L.size, { tracking: 0 }); } catch (e) { gp = null; }
+    try { gp = faces.path(g.ch, L.face, L.size, { tracking: 0, slant: L.drawSlant }); } catch (e) { gp = null; }
     if (!gp) continue;
     const co = Math.cos(g.rot), si = Math.sin(g.rot), sc = g.s;
-    P.addPath(gp, { a: sc * co, b: sc * si, c: -sc * si, d: sc * co, e: g.x, f: g.dy });
+    // Horizontal scale is applied in LINE space (post-rotation), so it widens the
+    // letterform without shearing the baseline bounce.
+    P.addPath(gp, {
+      a: xs * sc * co, b: sc * si,
+      c: -xs * sc * si, d: sc * co,
+      e: xs * g.x, f: g.dy,
+    });
   }
   return P;
 }
 
 /* ------------------------------------------------------------- treatments */
 
-/** Dry-brush skips: thin streaks running ALONG the italic axis, thinning the ink. */
+/**
+ * Dry-brush skips: streaks running ALONG the italic axis.
+ *
+ * These MODULATE the ink, they do not punch through it. An earlier pass used
+ * `destination-out` and the holes let the dark field show through, which at frame size
+ * read as dirt on the lens rather than as a brush running dry — the bar's skips are
+ * thin and thick paint, not gaps. Real gaps belong at the terminals only, and that is
+ * what tornEdge() is for.
+ */
 function dryBrush(ctx, P, box, capH, slant, seed, amount) {
   if (amount <= 0) return;
   const rng = makeRng(seed);
   const w = box.x1 - box.x0, h = box.y1 - box.y0;
   ctx.save();
   ctx.clip(P);
-  ctx.globalCompositeOperation = 'destination-out';
   ctx.lineCap = 'butt';
-  const n = Math.round(16 + (w / capH) * 12 * amount);
+  const n = Math.round(9 + (w / capH) * 8 * amount);
   for (let i = 0; i < n; i++) {
     const x = box.x0 + rng() * w;
     const y = box.y0 + rng() * h;
-    const len = capH * (0.18 + rng() * 0.85);
-    ctx.lineWidth = capH * (0.005 + rng() * rng() * 0.018);
-    ctx.strokeStyle = `rgba(0,0,0,${(0.10 + rng() * 0.40) * amount})`;
+    const len = capH * (0.55 + rng() * 1.25);
+    ctx.lineWidth = capH * (0.004 + rng() * rng() * 0.013);
+    ctx.strokeStyle = rng() < 0.58
+      ? `rgba(26,12,16,${((0.05 + rng() * 0.20) * amount).toFixed(4)})`
+      : `rgba(255,248,232,${((0.04 + rng() * 0.15) * amount).toFixed(4)})`;
     ctx.beginPath();
     ctx.moveTo(x + len * slant * 0.5, y - len * 0.5);
     ctx.lineTo(x - len * slant * 0.5, y + len * 0.5);
     ctx.stroke();
   }
   // Fine tooth so a flat gradient never reads as vector-flat.
-  ctx.globalCompositeOperation = 'source-over';
   const m = Math.round(60 + (w / capH) * 40 * amount);
   for (let i = 0; i < m; i++) {
     const x = box.x0 + rng() * w;
     const y = box.y0 + rng() * h;
-    const r = capH * (0.003 + rng() * 0.009);
+    const r = capH * (0.0022 + rng() * 0.0062);
     ctx.fillStyle = rng() < 0.46
-      ? `rgba(255,246,226,${(0.035 + rng() * 0.070) * amount})`
-      : `rgba(24,12,16,${(0.035 + rng() * 0.080) * amount})`;
-    ctx.fillRect(x, y, r * 1.5, r * 3.1);
+      ? `rgba(255,246,226,${(0.014 + rng() * 0.030) * amount})`
+      : `rgba(24,12,16,${(0.014 + rng() * 0.034) * amount})`;
+    ctx.fillRect(x, y, r * 1.2, r * 2.0);
   }
   ctx.restore();
 }
@@ -203,7 +245,7 @@ const RING = [
  */
 function tornEdge(lctx, P, box, capH, slant, seed, amount, W, H, ox, oy) {
   if (amount <= 0) return;
-  const r = Math.max(0.9, capH * 0.030 * amount);
+  const r = Math.max(0.9, capH * 0.034 * amount);
   const A = scratch(0, W, H);
   const B = scratch(1, W, H);
   A.ctx.translate(ox, oy);
@@ -326,7 +368,7 @@ export function paintLine(target, faces, spec) {
   const capH = spec.capH;
   const L = spec.layout || layoutLine(faces, spec.text, spec);
   const P = spec.path || linePath(faces, L);
-  const slant = spec.slant === undefined ? 0.28 : spec.slant;
+  const slant = L.slant === undefined ? 0.27 : L.slant;
   const key = spec.rampKey || 'white';
   const seed = hash(seedFromString('sc.ink|' + spec.text), Math.round(capH * 8), spec.seed | 0);
 
@@ -344,32 +386,68 @@ export function paintLine(target, faces, spec) {
   const g = cv.getContext('2d');
   g.translate(ox, oy);
 
-  if (spec.keyline !== 0) {
+  // The brush face draws lighter than the bar's ink, so the glyph is dilated by
+  // stroking it with its OWN fill before filling. Same paint on both sides of the
+  // contour means the internal subpath seams a stroke would normally expose simply
+  // cannot show. The keyline is then sized to sit OUTSIDE the dilated contour.
+  const bold = spec.bolden === undefined ? 0.034 : spec.bolden;
+  const keyOut = spec.keyOut === undefined ? 0.019 : spec.keyOut;
+  const fill = spec.fillStyle || ramp(g, key, y0 * 0.94, capH * 0.05);
+
+  if (keyOut > 0) {
     g.save();
     g.lineJoin = 'round';
     g.lineCap = 'round';
-    g.lineWidth = capH * (spec.keylineW === undefined ? 0.072 : spec.keylineW);
+    g.lineWidth = capH * (bold + keyOut * 2);
     g.strokeStyle = spec.keylineColor || OUTLINE;
     g.stroke(P);
     g.restore();
   }
 
-  g.fillStyle = spec.fillStyle || ramp(g, key, y0 * 0.94, capH * 0.05);
+  g.fillStyle = fill;
+  if (bold > 0) {
+    g.save();
+    g.lineJoin = 'round';
+    g.lineCap = 'round';
+    g.lineWidth = capH * bold;
+    g.strokeStyle = fill;
+    g.stroke(P);
+    g.restore();
+  }
   g.fill(P);
+
+  // per-letter ink density
+  if (spec.density !== 0) {
+    const da = spec.density === undefined ? 1 : spec.density;
+    const xs = L.xScale === undefined ? 1 : L.xScale;
+    g.save();
+    g.clip(P);
+    for (let i = 0; i < L.glyphs.length; i++) {
+      const gl = L.glyphs[i];
+      if (gl.ch === ' ') continue;
+      const v = gl.ink * 0.055 * da;
+      g.fillStyle = v >= 0
+        ? `rgba(255,250,238,${v.toFixed(4)})`
+        : `rgba(16,8,12,${(-v).toFixed(4)})`;
+      g.fillRect(gl.x * xs - capH * 0.10, gl.dy - capH * 1.25,
+        gl.adv * gl.s * xs + capH * 0.20, capH * 1.7);
+    }
+    g.restore();
+  }
 
   if (spec.crown !== 0) {
     const ca = spec.crown === undefined ? 1 : spec.crown;
     g.save();
     g.clip(P);
-    const cg = g.createLinearGradient(0, -capH * 1.02, 0, -capH * 0.52);
-    cg.addColorStop(0, `rgba(255,252,238,${0.30 * ca})`);
-    cg.addColorStop(0.6, `rgba(255,248,226,${0.08 * ca})`);
+    const cg = g.createLinearGradient(0, -capH * 1.04, 0, -capH * 0.62);
+    cg.addColorStop(0, `rgba(255,252,238,${0.15 * ca})`);
+    cg.addColorStop(0.6, `rgba(255,248,226,${0.04 * ca})`);
     cg.addColorStop(1, 'rgba(255,248,226,0)');
     g.fillStyle = cg;
     g.fillRect(box.x0, box.y0, box.x1 - box.x0, box.y1 - box.y0);
-    const fg = g.createLinearGradient(0, -capH * 0.36, 0, capH * 0.05);
-    fg.addColorStop(0, 'rgba(38,14,6,0)');
-    fg.addColorStop(1, `rgba(38,14,6,${0.24 * ca})`);
+    const fg = g.createLinearGradient(0, -capH * 0.30, 0, capH * 0.05);
+    fg.addColorStop(0, 'rgba(34,12,6,0)');
+    fg.addColorStop(1, `rgba(34,12,6,${0.13 * ca})`);
     g.fillStyle = fg;
     g.fillRect(box.x0, box.y0, box.x1 - box.x0, box.y1 - box.y0);
     g.restore();
@@ -392,7 +470,7 @@ export function paintLine(target, faces, spec) {
     g.restore();
   }
 
-  dryBrush(g, P, box, capH, slant, hash(seed, 11), spec.grain === undefined ? 0.62 : spec.grain);
+  dryBrush(g, P, box, capH, slant, hash(seed, 11), spec.grain === undefined ? 0.30 : spec.grain);
   tornEdge(g, P, box, capH, slant, hash(seed, 23), spec.torn === undefined ? 1 : spec.torn, W, H, ox, oy);
   fleck(g, P, box, capH, slant, hash(seed, 37), spec.flecks === undefined ? 1 : spec.flecks,
     spec.fleckColour || midColour(key), W, H, ox, oy);
@@ -412,10 +490,10 @@ export function paintLine(target, faces, spec) {
       target.drawImage(S.cv, dx + capH * 0.02, dy + capH * 0.10);
       target.drawImage(S.cv, dx + capH * 0.02, dy + capH * 0.10);
     }
-    target.filter = `blur(${(capH * 0.062).toFixed(2)}px)`;
-    target.globalAlpha = 0.80 * sh;
-    target.drawImage(S.cv, dx + capH * 0.030, dy + capH * 0.075);
-    target.drawImage(S.cv, dx + capH * 0.030, dy + capH * 0.075);
+    target.filter = `blur(${(capH * 0.055).toFixed(2)}px)`;
+    target.globalAlpha = 0.88 * sh;
+    target.drawImage(S.cv, dx + capH * 0.034, dy + capH * 0.082);
+    target.drawImage(S.cv, dx + capH * 0.034, dy + capH * 0.082);
     target.filter = 'none';
     target.restore();
   }

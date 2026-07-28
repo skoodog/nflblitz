@@ -213,7 +213,7 @@ export const TEAMS = Object.keys(RAW).sort().map((id) => {
 const BY_ID = new Map(TEAMS.map((t) => [t.id, t]));
 
 /** Legacy ids the frozen foundation still references. */
-const ALIAS = { NYC: 'NYG', LAR: 'LA', WSH: 'WAS', OAK: 'LV', SD: 'LAC', STL: 'LA', JAC: 'JAX' };
+const ALIAS = { NYC: 'NYG', LA: 'LAR', WSH: 'WAS', OAK: 'LV', SD: 'LAC', STL: 'LAR', JAC: 'JAX' };
 
 export function byId(id) {
   const k = String(id || '').toUpperCase();
