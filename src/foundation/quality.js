@@ -1,21 +1,32 @@
-// FOUNDATION — PERFCORE. Device tiering, the 16-rung quality ladder, and the
-// closed-loop adaptive scaler.
+// FOUNDATION — PERFCORE. Device tiering, the 16-rung quality ladder, the PRESENT RATE
+// axis, and the closed-loop adaptive scaler.
 //
 // Visual quality is a DEPENDENT VARIABLE. The frame wall is the independent one. This
 // file is what makes that true at runtime instead of in a design document.
 //
-// THREE STAGES. Stage 3 is the authority; 1 and 2 only pick a starting rung so the
+// TWO AXES, NOT ONE
+//   RATE  60 or 30 presents per second. 60 is the CAP and is never exceeded. 30 is a
+//         first-class shipping mode. A rate change is VISIBLE, so it is rarer and far
+//         more hysteretic than a rung change.
+//   RUNG  0..15 continuous quality ladder. A rung change should not be visible at all.
+//   The scaler picks the highest RATE it can hold, then walks the RUNGS within it.
+//
+// THREE STAGES. Stage 3 is the authority; 1 and 2 only pick a starting rate+rung so the
 // first two seconds are neither ugly nor stuttering.
 //   1 STATIC   (<2 ms)   renderer string, cores, DPR, screen area, GL limits.
 //   2 PROBE    (<=250 ms) a real CPU workload shaped like our skinning, and a real
 //                        fill-rate slope measured on the actual GPU. No device database.
 //   3 SCALER   (forever) rolling 30-frame windows; DOWN fast, UP slow, 8:2 hysteresis,
-//                        one change per 3 s, never allocates, never compiles a shader.
+//                        one rung change per 3 s, one rate change per 10 s, never
+//                        allocates, never compiles a shader.
 //
 // WHAT NEVER SCALES: colour grade + LUT, value structure, key/rim direction, silhouette
-// and proportion, camera staging, ALL typography, HUD layout, team colour, and the sim
-// itself. A floor-tier frame is a well-composed, correctly graded, sharply lettered
-// arcade football frame with simpler lighting. It is never a stuttering one.
+// and proportion, camera staging, ALL typography, HUD layout, team colour, and THE SIM
+// ITSELF — every tier and BOTH RATES play exactly the same game with exactly the same
+// timing windows. A floor-tier frame is a well-composed, correctly graded, sharply
+// lettered arcade football frame with simpler lighting. It is never a stuttering one.
+
+import { rateSpec, pacingTargets } from './clock.js';
 
 /* ------------------------------------------------------------------- tiers */
 
@@ -23,24 +34,24 @@ export const TIER_NAMES = ['floor', 'low', 'mid', 'high'];
 
 export const TIERS = Object.freeze({
   floor: {
-    name: 'floor', rungLo: 0, rungHi: 2, throttle: 6,
+    name: 'floor', rungLo: 0, rungHi: 2, throttle: 6, bootRate: 30,
     ref: 'this container (SwiftShader), llvmpipe, old low-RAM Android, any thermally collapsed device',
     caps: { drawCalls: 60, triangles: 90000, programs: 12, textureMB: 24, renderTargets: 1, particles: 0, overdraw: 1.6, shadowCasters: 0, skinned: 6, imposter: 8, postPasses: 0 },
   },
   low: {
-    name: 'low', rungLo: 3, rungHi: 6, throttle: 4,
+    name: 'low', rungLo: 3, rungHi: 6, throttle: 4, bootRate: 60,
     ref: 'Mali-G52/G57, Adreno 610/619, iPhone 8 / SE2 class',
     caps: { drawCalls: 110, triangles: 180000, programs: 18, textureMB: 48, renderTargets: 2, particles: 400, overdraw: 2.0, shadowCasters: 14, skinned: 10, imposter: 4, postPasses: 1 },
   },
   mid: {
-    name: 'mid', rungLo: 7, rungHi: 11, throttle: 2,
+    name: 'mid', rungLo: 7, rungHi: 11, throttle: 2, bootRate: 60,
     ref: 'Adreno 64x/730, Mali-G78, A14/A15, Pixel 6 class',
     caps: { drawCalls: 180, triangles: 400000, programs: 26, textureMB: 96, renderTargets: 3, particles: 1500, overdraw: 2.6, shadowCasters: 20, skinned: 14, imposter: 0, postPasses: 3 },
   },
   high: {
-    name: 'high', rungLo: 12, rungHi: 15, throttle: 1,
+    name: 'high', rungLo: 12, rungHi: 15, throttle: 1, bootRate: 60,
     ref: 'A16+/M-series, Adreno 740+, desktop dGPU',
-    caps: { drawCalls: 280, triangles: 950000, programs: 38, textureMB: 192, renderTargets: 5, particles: 4000, overdraw: 3.4, shadowCasters: 30, skinned: 14, imposter: 0, postPasses: 5 },
+    caps: { drawCalls: 280, triangles: 950000, programs: 38, textureMB: 192, renderTargets: 5, particles: 4000, overdraw: 3.4, skinned: 14, imposter: 0, postPasses: 5, shadowCasters: 30 },
   },
 });
 
@@ -55,7 +66,7 @@ export function tierOfRung(r) {
 
 /**
  * 16 rungs. Tier boundaries land EXACTLY on the tier's structural cap so
- * `budget.mjs --tier=X` and `quality.rungFor(X)` agree by construction.
+ * `budget.mjs --tier=X` and `rungForTier(X)` agree by construction.
  *
  * Columns: renderScale, dprCap, shadowSize (0=off, blob decals), shadowCasters,
  *          postPasses, particles, skinned actors, imposter actors, bones evaluated,
@@ -312,13 +323,22 @@ void main(){
   return res;
 }
 
-/** Combine stages 1+2 into a starting rung. */
+/**
+ * Combine stages 1+2 into a starting RATE and RUNG.
+ *
+ * The rate choice at boot is deliberately conservative in one direction only: a device
+ * that boots at 30 and turns out to have headroom is promoted by the scaler within a
+ * few seconds and the player sees a smooth ramp UP. A device that boots at 60 and
+ * cannot hold it stutters first and gets demoted after — which is exactly the failure
+ * the user forbade. So: floor tier boots at 30; everything else boots at 60.
+ */
 export function classify(sig, cpu, gpu) {
   let tier = sig.tier;
   const notes = [];
 
   // CPU: msPerFullPose is one full 14-actor x 26-bone pose evaluation. The `anim`
-  // budget is 3.20 ms; a device needing more than that for one pose cannot be mid.
+  // budget is 3.20 ms at 60 Hz; a device needing more than that for one pose cannot
+  // be mid at 60.
   if (cpu && cpu.msPerFullPose !== undefined) {
     const p = cpu.msPerFullPose;
     notes.push(`cpu ${p.toFixed(3)} ms/pose`);
@@ -349,31 +369,74 @@ export function classify(sig, cpu, gpu) {
   // has headroom and we would rather be pretty in 3 s than stutter in the first 1 s.
   const T = TIERS[tier];
   const rung = Math.round((T.rungLo + T.rungHi) / 2);
-  return { tier, rung, notes: notes.join(' | ') };
+  const rate = T.bootRate;
+  notes.push(`boot rate ${rate} Hz`);
+  return { tier, rung, rate, notes: notes.join(' | ') };
 }
 
 /* ------------------------------------------------------------- the scaler */
 
 export const SCALER = Object.freeze({
   windowFrames: 30,
-  downP95Ms: 17.5,      // pacing has already failed
-  downWindows: 2,       // fast: stutter is the thing we refuse to ship
-  upIntervalMs: 17.5,   // pacing is healthy
-  upCpuP95Ms: 9.0,      // AND real CPU headroom exists
-  upWindows: 8,         // slow: 8:2 hysteresis, so it never oscillates
-  rateLimitMs: 3000,
+  /** Rung moves. Fast down, slow up: 8:2 hysteresis. */
+  downWindows: 2,
+  upWindows: 8,
+  rungRateLimitMs: 3000,
   crossFadeMs: 250,
+  /**
+   * RATE moves. A rate change is VISIBLE, so it is much rarer and much more
+   * hysteretic than a rung change, exactly as the amendment requires.
+   *   - down only after the rung ladder is EXHAUSTED (rung is at the floor of the
+   *     allowed range) and pacing is still failing.
+   *   - up only after a long clean streak with CPU that would fit the 60 Hz wall.
+   */
+  rateDownWindows: 6,
+  rateUpWindows: 16,
+  rateLimitMs: 10000,
+  /**
+   * CPU p95 that must be beaten at 30 Hz before the scaler will even consider 60 Hz.
+   * The 60 Hz wall is 13.00 ms; require a 2 ms margin so we do not promote a device
+   * that would immediately fail and demote again.
+   */
+  rateUpCpuMs: 11.0,
+  /**
+   * How many times a 60 Hz promotion may fail before 60 is LATCHED OFF for the
+   * session. This is what turns "try the better thing, remember it failed" into
+   * "spend the headroom on looks instead" — see `rate60Latched` below.
+   */
+  rate60MaxFailures: 2,
+  /** A promotion that is reversed within this long counts as a FAILED promotion. */
+  rate60FailWindowMs: 20000,
 });
 
 /** Reasons, as small ints, so logging never allocates a string in the frame path. */
-export const RUNG_REASON = Object.freeze({ BOOT: 0, DOWN_PACING: 1, UP_HEADROOM: 2, MANUAL: 3, DEFER_COMMIT: 4 });
-export const RUNG_REASON_NAME = ['boot', 'down(pacing)', 'up(headroom)', 'manual', 'deferred-commit'];
+export const RUNG_REASON = Object.freeze({
+  BOOT: 0, DOWN_PACING: 1, UP_HEADROOM: 2, MANUAL: 3, DEFER_COMMIT: 4,
+  RATE_DOWN: 5, RATE_UP: 6, RATE_LATCH: 7,
+});
+export const RUNG_REASON_NAME = [
+  'boot', 'down(pacing)', 'up(headroom)', 'manual', 'deferred-commit',
+  'rate-down(ladder exhausted)', 'rate-up(headroom)', 'rate-latched-30',
+];
+export const CHANGE_KIND = Object.freeze({ RUNG: 0, RATE: 1 });
 
 /**
- * createScaler({ telemetry, onRung }) — stage 3, the authority.
+ * createScaler({ rung, rate, onRung, onRate, minRung, maxRung }) — stage 3, the authority.
  *
  * `sample(nowMs, intervalMs, cpuMs)` is called once per presented frame. It is O(1),
  * allocation-free, and costs well under its 0.10 ms budget line.
+ *
+ * THE PRIORITY ORDER, and why it is this way round:
+ *   1. If pacing is failing -> drop a RUNG. Always. Stutter is the thing we refuse to
+ *      ship and a rung change is invisible.
+ *   2. If pacing is failing AND the rung ladder is exhausted -> drop the RATE.
+ *   3. If there is headroom and we are at 30 Hz -> spend it on RATE first, not looks.
+ *      A player feels 60 Hz more than they feel one more rung of particles. The rung
+ *      up-check is deliberately BLOCKED at 30 Hz while a promotion is still plausible,
+ *      so headroom cannot be quietly eaten by quality before rate gets a chance at it.
+ *   4. If 60 Hz has been tried and failed `rate60MaxFailures` times, LATCH to 30 and
+ *      unblock rung climbing. This is the amendment's "spend that headroom on looks
+ *      rather than idling", and it happens only after 60 has been honestly attempted.
  */
 export function createScaler(opts) {
   const o = opts || {};
@@ -383,9 +446,21 @@ export function createScaler(opts) {
   const sortBuf = new Float64Array(W);
   let n = 0, i = 0;
   let downStreak = 0, upStreak = 0;
-  let lastChangeMs = -1e9;
+  let rateDownStreak = 0, rateUpStreak = 0;
+  let lastRungChangeMs = -1e9;
+  let lastRateChangeMs = -1e9;
   let rung = o.rung !== undefined ? o.rung : 8;
+  let rate = o.rate === 30 ? 30 : 60;
   let locked = !!o.locked;
+  let rateLocked = !!o.rateLocked;
+  let minRung = o.minRung !== undefined ? o.minRung : 0;
+  let maxRung = o.maxRung !== undefined ? o.maxRung : 15;
+  // 60 Hz promotion memory
+  let rate60Failures = 0;
+  let rate60Latched = false;
+  let promotedAtMs = -1e9;
+
+  let targets = pacingTargets(rate);
 
   function p95(src) {
     for (let k = 0; k < W; k++) sortBuf[k] = src[k];
@@ -395,16 +470,27 @@ export function createScaler(opts) {
 
   const scaler = {
     get rung() { return rung; },
+    get rate() { return rate; },
     get tier() { return tierOfRung(rung); },
     get locked() { return locked; },
     set locked(v) { locked = !!v; },
+    get rateLocked() { return rateLocked; },
+    set rateLocked(v) { rateLocked = !!v; },
+    get rate60Latched() { return rate60Latched; },
+    get rate60Failures() { return rate60Failures; },
+    get wallMs() { return rateSpec(rate).wallMs; },
     lastP95Interval: 0,
     lastP95Cpu: 0,
     downStreak: 0,
     upStreak: 0,
+    rateDownStreak: 0,
+    rateUpStreak: 0,
+
+    setRungRange(lo, hi) { minRung = lo; maxRung = hi; },
 
     setRung(r, reason) {
-      const next = r < 0 ? 0 : r > 15 ? 15 : r | 0;
+      let next = r < minRung ? minRung : r > maxRung ? maxRung : r | 0;
+      if (next < 0) next = 0; if (next > 15) next = 15;
       if (next === rung) return false;
       const from = rung;
       rung = next;
@@ -412,39 +498,108 @@ export function createScaler(opts) {
       return true;
     },
 
+    setRate(r, reason) {
+      const next = r === 30 ? 30 : 60;
+      if (next === rate) return false;
+      const from = rate;
+      rate = next;
+      targets = pacingTargets(rate);
+      if (o.onRate) o.onRate(next, from, reason === undefined ? RUNG_REASON.MANUAL : reason);
+      return true;
+    },
+
     sample(nowMs, intervalMs, cpuMs) {
+      // EXACTLY W samples per window, then evaluate and start a fresh one.
+      //
+      // The obvious spelling of this — write, advance, `if (n < W) { n++; return; }` —
+      // makes the cycle W+1 samples long, because the sample that triggers the
+      // evaluation is written into the buffer and then discarded from the count. The
+      // windows then drift against any regular signal and a strictly alternating
+      // good/bad input reads as uniformly bad. `simtest.mjs --suite=scaler` caught
+      // exactly that: 60 alternating windows produced 9 rung changes and walked the
+      // ladder to the floor when the correct answer is zero changes.
       iv[i] = intervalMs; cp[i] = cpuMs;
-      i = (i + 1) % W;
-      if (n < W) { n++; return false; }
+      i++;
+      if (i < W) return false;
+      i = 0; n = W;
 
       const pi = p95(iv), pc = p95(cp);
       scaler.lastP95Interval = pi; scaler.lastP95Cpu = pc;
 
-      // Window is consumed: reset the fill so windows do not overlap.
-      n = 0; i = 0;
+      // Health of the window, judged against the ACTIVE period.
+      const paceBad = pi > targets.p95;
+      const paceGood = pi <= targets.p95 && pc < rateSpec(rate).wallMs * 0.70;
 
-      if (pi > SCALER.downP95Ms) { downStreak++; upStreak = 0; }
-      else if (pi <= SCALER.upIntervalMs && pc < SCALER.upCpuP95Ms) { upStreak++; downStreak = 0; }
-      else { downStreak = 0; upStreak = 0; }
+      if (paceBad) { downStreak++; upStreak = 0; rateDownStreak++; rateUpStreak = 0; }
+      else if (paceGood) { upStreak++; downStreak = 0; rateUpStreak++; rateDownStreak = 0; }
+      else { downStreak = 0; upStreak = 0; rateDownStreak = 0; rateUpStreak = 0; }
+
       scaler.downStreak = downStreak; scaler.upStreak = upStreak;
+      scaler.rateDownStreak = rateDownStreak; scaler.rateUpStreak = rateUpStreak;
 
-      if (locked) return false;
-      if (nowMs - lastChangeMs < SCALER.rateLimitMs) return false;
+      // A promotion to 60 that is about to be reversed counts as a FAILED promotion.
+      if (rate === 60 && paceBad && (nowMs - promotedAtMs) < SCALER.rate60FailWindowMs
+        && rung <= minRung && rateDownStreak >= SCALER.rateDownWindows) {
+        rate60Failures++;
+        if (rate60Failures >= SCALER.rate60MaxFailures) {
+          rate60Latched = true;
+          if (o.onLatch) o.onLatch(rate60Failures);
+        }
+      }
 
-      if (downStreak >= SCALER.downWindows && rung > 0) {
-        downStreak = 0; lastChangeMs = nowMs;
+      if (locked && rateLocked) return false;
+
+      /* ---- 1. DOWN a rung. Fast, invisible, always first. -------------------- */
+      if (!locked && downStreak >= SCALER.downWindows && rung > minRung
+        && (nowMs - lastRungChangeMs) >= SCALER.rungRateLimitMs) {
+        downStreak = 0; lastRungChangeMs = nowMs;
         return scaler.setRung(rung - 1, RUNG_REASON.DOWN_PACING);
       }
-      if (upStreak >= SCALER.upWindows && rung < 15) {
-        upStreak = 0; lastChangeMs = nowMs;
-        return scaler.setRung(rung + 1, RUNG_REASON.UP_HEADROOM);
+
+      /* ---- 2. DOWN the rate, but ONLY with the ladder exhausted. ------------- */
+      if (!rateLocked && rate === 60 && rung <= minRung
+        && rateDownStreak >= SCALER.rateDownWindows
+        && (nowMs - lastRateChangeMs) >= SCALER.rateLimitMs) {
+        rateDownStreak = 0; lastRateChangeMs = nowMs;
+        return scaler.setRate(30, RUNG_REASON.RATE_DOWN);
+      }
+
+      /* ---- 3. UP the rate before UP the rung. Frames beat looks. ------------- */
+      const promotionPlausible = !rate60Latched && !rateLocked;
+      if (rate === 30 && promotionPlausible
+        && rateUpStreak >= SCALER.rateUpWindows
+        && pc < SCALER.rateUpCpuMs
+        && (nowMs - lastRateChangeMs) >= SCALER.rateLimitMs) {
+        rateUpStreak = 0; upStreak = 0; lastRateChangeMs = nowMs; promotedAtMs = nowMs;
+        return scaler.setRate(60, RUNG_REASON.RATE_UP);
+      }
+
+      /* ---- 4. UP a rung. At 30 Hz this is BLOCKED while 60 is still plausible
+                and the measured CPU says 60 might be reachable — headroom must be
+                offered to the rate axis first. Once 60 is latched off, or once the
+                cost is clearly past what 60 could carry, quality gets the headroom. */
+      if (!locked && upStreak >= SCALER.upWindows && rung < maxRung
+        && (nowMs - lastRungChangeMs) >= SCALER.rungRateLimitMs) {
+        const rateWantsIt = rate === 30 && promotionPlausible && pc < SCALER.rateUpCpuMs;
+        if (!rateWantsIt) {
+          upStreak = 0; lastRungChangeMs = nowMs;
+          return scaler.setRung(rung + 1, RUNG_REASON.UP_HEADROOM);
+        }
       }
       return false;
     },
 
-    reset(r) {
-      n = 0; i = 0; downStreak = 0; upStreak = 0; lastChangeMs = -1e9;
+    /** Test hook: force the latch so a harness can exercise the 30 Hz equilibrium. */
+    latch60Off() { rate60Latched = true; },
+
+    reset(r, rt) {
+      n = 0; i = 0;
+      for (let k = 0; k < W; k++) { iv[k] = 0; cp[k] = 0; }
+      downStreak = 0; upStreak = 0; rateDownStreak = 0; rateUpStreak = 0;
+      lastRungChangeMs = -1e9; lastRateChangeMs = -1e9; promotedAtMs = -1e9;
+      rate60Failures = 0; rate60Latched = false;
       if (r !== undefined) rung = r;
+      if (rt !== undefined) { rate = rt === 30 ? 30 : 60; targets = pacingTargets(rate); }
     },
   };
   return scaler;
@@ -468,5 +623,5 @@ export function expensiveClass(rung) {
 export default {
   TIERS, TIER_NAMES, RUNGS, tierOfRung, rungForTier,
   staticSignals, cpuProbe, gpuProbe, classify,
-  createScaler, SCALER, RUNG_REASON, RUNG_REASON_NAME, expensiveClass,
+  createScaler, SCALER, RUNG_REASON, RUNG_REASON_NAME, CHANGE_KIND, expensiveClass,
 };

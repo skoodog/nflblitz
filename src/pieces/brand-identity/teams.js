@@ -1,83 +1,233 @@
-// PIECE brand-identity — the league roster.
+// PIECE brand-identity — the league roster: all 32 REAL NFL clubs.
 //
-// The eight identities (ids, cities, names, abbreviations, colour values and stats)
-// are FROZEN by the foundation because uniform-kit, hud-overlay and menu-team-select
-// key off them. We import them rather than restating them, and layer the art system
-// on top: crest palettes, shard colours, card border colour, skyline id.
+// Identity data (city, nick, conference, division, official colour set) is read
+// from src/data/teams.json (nflverse team_colors_logos). Ratings-derived club
+// stats are read from src/data/players.json (Madden 26 / season 2025). Nothing
+// here is invented: every hex value and every number traces to those files.
 //
-// FICTIONAL LEAGUE ONLY. No real shield, no real club marks.
+// On top of that we layer an ART record per club — the mascot form the crest
+// generator draws, plus the shading ramp, backdrop shard colour, glow and card
+// border. Those derived tints are *shades of the club's own official colours*,
+// never new hues.
 
-import { TEAMS as BASE } from '../../foundation/fallbacks/brand.js';
+import teamData from '../../data/teams.json';
+import playerData from '../../data/players.json';
+import { mix, lighten, darken, vivid, luma } from './gfx.js';
 
-/** Art layer, keyed by frozen team id. */
+const RAW = teamData.teams;
+const BY_TEAM = playerData.byTeam || {};
+
+/* ------------------------------------------------------------------ stats */
+// Club stat values are means of the top-N real Madden 26 attributes on the
+// actual roster, then mapped across the observed league range so the bars in
+// the UI use their full travel. Deterministic; computed once at module load.
+
+function topMean(list, key, n) {
+  if (!list || !list.length) return 60;
+  const v = list.map((p) => p[key] || 0).sort((a, b) => b - a).slice(0, n);
+  let s = 0;
+  for (let i = 0; i < v.length; i++) s += v[i];
+  return v.length ? s / v.length : 60;
+}
+
+const RAW_STATS = {};
+for (const id of Object.keys(RAW)) {
+  const roster = BY_TEAM[id] || [];
+  const skill = roster.filter((p) => p.grp === 'o_rush' || p.grp === 'o_pass' || p.grp === 'd_field');
+  const front = roster.filter((p) => p.grp === 'd_line' || p.grp === 'd_lb' || p.grp === 'd_field');
+  const carry = roster.filter((p) => p.grp === 'o_rush' || p.grp === 'o_pass' || p.grp === 'o_te');
+  RAW_STATS[id] = {
+    speed: topMean(skill, 'spd', 6),
+    hitPower: topMean(front, 'pow', 6),
+    turbo: topMean(carry, 'acc', 6) * 0.5 + topMean(skill, 'agi', 6) * 0.5,
+  };
+}
+
+function spread(key, lo, hi) {
+  let mn = Infinity, mx = -Infinity;
+  for (const id of Object.keys(RAW_STATS)) {
+    const v = RAW_STATS[id][key];
+    if (v < mn) mn = v;
+    if (v > mx) mx = v;
+  }
+  const out = {};
+  const d = mx - mn || 1;
+  for (const id of Object.keys(RAW_STATS)) {
+    out[id] = lo + ((RAW_STATS[id][key] - mn) / d) * (hi - lo);
+  }
+  return out;
+}
+const S_SPEED = spread('speed', 0.50, 0.97);
+const S_POWER = spread('hitPower', 0.48, 0.96);
+const S_TURBO = spread('turbo', 0.52, 0.95);
+
+/** The best real player on a club by overall — used for the card's "star" line. */
+function starOf(id) {
+  const roster = BY_TEAM[id] || [];
+  let best = null;
+  for (const p of roster) if (!best || p.ovr > best.ovr) best = p;
+  return best;
+}
+
+/* -------------------------------------------------------------------- art */
+// crest  : which mascot form the generator draws
+// p      : per-club parameters for that form
+// body/bodyHi/bodyLo : the mascot's own material ramp
+// trim   : secondary material (beak, horns, helmet furniture)
+// shard  : the faceted burst behind the mascot
+// glow   : inner/outer glow + card rim light
+// border : card keyline
+
 const ART = {
-  NYC: {
-    crest: 'liberty',
-    // weathered oxidised copper / patina steel
-    body: '#3d8e8c', bodyHi: '#a8e3d2', bodyLo: '#08222a',
-    trim: '#7fb4b2', ink: '#040d12',
-    shard: '#1d5a63', glow: '#3fd0e6', border: '#d8dee6',
-    skyline: 'NYC',
-  },
-  CHI: {
-    crest: 'bulldog',
-    body: '#7e8088', bodyHi: '#dcdee6', bodyLo: '#191a1f',
-    trim: '#a9abb3', ink: '#08080a',
-    shard: '#8c1116', glow: '#e03a3a', border: '#e03a3a',
-    skyline: 'CHI',
-  },
-  DAL: {
-    crest: 'longhorn',
-    body: '#d8d2bf', bodyHi: '#fbf9f0', bodyLo: '#575246',
-    trim: '#a8a294', ink: '#060b07',
-    shard: '#1c6b34', glow: '#3ec46d', border: '#3ec46d',
-    skyline: 'DAL',
-  },
-  LA: {
-    crest: 'spartan',
-    body: '#26262e', bodyHi: '#6e6f7c', bodyLo: '#0c0c10',
-    trim: '#f2c033', ink: '#050506',
-    shard: '#7a5c10', glow: '#f2c033', border: '#f2c033',
-    skyline: 'LA',
-  },
-  SEA: {
-    crest: 'stormcrow',
-    body: '#26474a', bodyHi: '#93cfc4', bodyLo: '#08191b',
-    trim: '#38e0b0', ink: '#03090a',
-    shard: '#10534a', glow: '#38e0b0', border: '#38e0b0',
-    skyline: 'SEA',
-  },
-  MIA: {
-    crest: 'voltage',
-    body: '#452063', bodyHi: '#d6a8f2', bodyLo: '#120520',
-    trim: '#c04df0', ink: '#080312',
-    shard: '#5b1a80', glow: '#c04df0', border: '#c04df0',
-    skyline: 'MIA',
-  },
-  BAL: {
-    crest: 'ironside',
-    body: '#3d3763', bodyHi: '#b4addf', bodyLo: '#100d20',
-    trim: '#7c6cf0', ink: '#060414',
-    shard: '#332a7a', glow: '#7c6cf0', border: '#7c6cf0',
-    skyline: 'BAL',
-  },
-  PHI: {
-    crest: 'forge',
-    body: '#354b34', bodyHi: '#bcdba6', bodyLo: '#0b1610',
-    trim: '#8fe04a', ink: '#040a06',
-    shard: '#31641f', glow: '#8fe04a', border: '#8fe04a',
-    skyline: 'PHI',
-  },
+  ARI: { crest: 'raptor', p: { kind: 'cardinal' }, body: '#b3294e', bodyHi: '#f4909f', bodyLo: '#3d0a1a',
+    trim: '#ffb612', ink: '#12040a', shard: '#7d1935', glow: '#ffb612', border: '#97233F', skyline: 'PHX' },
+  ATL: { crest: 'raptor', p: { kind: 'falcon' }, body: '#22232a', bodyHi: '#8e939f', bodyLo: '#050507',
+    trim: '#A71930', ink: '#050506', shard: '#7c1425', glow: '#d8253f', border: '#A71930', skyline: 'ATL' },
+  BAL: { crest: 'raptor', p: { kind: 'raven' }, body: '#231a44', bodyHi: '#8f7fd0', bodyLo: '#08050f',
+    trim: '#9E7C0C', ink: '#04030a', shard: '#241773', glow: '#9E7C0C', border: '#241773', skyline: 'BAL' },
+  BUF: { crest: 'ungulate', p: { kind: 'buffalo' }, body: '#2b3a63', bodyHi: '#93a8d8', bodyLo: '#070c1c',
+    trim: '#C60C30', ink: '#03060f', shard: '#00338D', glow: '#C60C30', border: '#00338D', skyline: 'BUF' },
+  CAR: { crest: 'feline', p: { kind: 'panther' }, body: '#1b2026', bodyHi: '#6fa9cc', bodyLo: '#040608',
+    trim: '#0085CA', ink: '#020406', shard: '#0a4f74', glow: '#0085CA', border: '#0085CA', skyline: 'CLT' },
+  CHI: { crest: 'bear', p: {}, body: '#4a3a2e', bodyHi: '#c79a6c', bodyLo: '#0b0705',
+    trim: '#E64100', ink: '#050303', shard: '#0B162A', glow: '#E64100', border: '#E64100', skyline: 'CHI' },
+  CIN: { crest: 'feline', p: { kind: 'tiger' }, body: '#e0620f', bodyHi: '#ffc07a', bodyLo: '#2a0d02',
+    trim: '#000000', ink: '#060302', shard: '#8a3208', glow: '#FB4F14', border: '#FB4F14', skyline: 'CIN' },
+  CLE: { crest: 'canine', p: {}, body: '#5d3a14', bodyHi: '#d3a066', bodyLo: '#120a02',
+    trim: '#FF3C00', ink: '#060301', shard: '#311D00', glow: '#FF3C00', border: '#FF3C00', skyline: 'CLE' },
+  DAL: { crest: 'star', p: {}, body: '#a9b2b9', bodyHi: '#ffffff', bodyLo: '#39424b',
+    trim: '#002244', ink: '#03070d', shard: '#0d2848', glow: '#acc0c6', border: '#B0B7BC', skyline: 'DAL' },
+  DEN: { crest: 'ungulate', p: { kind: 'horse', mane: '#FB4F14' }, body: '#2b3d55', bodyHi: '#9db6d4', bodyLo: '#050a14',
+    trim: '#FB4F14', ink: '#03060c', shard: '#002244', glow: '#FB4F14', border: '#FB4F14', skyline: 'DEN' },
+  DET: { crest: 'feline', p: { kind: 'lion' }, body: '#1f7fc0', bodyHi: '#a8dcff', bodyLo: '#04223a',
+    trim: '#B0B7BC', ink: '#02080f', shard: '#004e89', glow: '#0076B6', border: '#0076B6', skyline: 'DET' },
+  GB: { crest: 'monogram', p: { text: 'G', style: 'oval' }, body: '#26402f', bodyHi: '#7fc296', bodyLo: '#050d08',
+    trim: '#FFB612', ink: '#030805', shard: '#203731', glow: '#FFB612', border: '#FFB612', skyline: 'GB' },
+  HOU: { crest: 'ungulate', p: { kind: 'bull' }, body: '#0d2a3c', bodyHi: '#7fb2cc', bodyLo: '#010508',
+    trim: '#A71930', ink: '#010406', shard: '#03202F', glow: '#A71930', border: '#A71930', skyline: 'HOU' },
+  IND: { crest: 'ungulate', p: { kind: 'colt' }, body: '#b9c0c4', bodyHi: '#ffffff', bodyLo: '#3c4348',
+    trim: '#002C5F', ink: '#040a12', shard: '#002C5F', glow: '#9ba1a2', border: '#002C5F', skyline: 'IND' },
+  JAX: { crest: 'feline', p: { kind: 'jaguar' }, body: '#0d6b74', bodyHi: '#7fd8d8', bodyLo: '#02181c',
+    trim: '#9f792c', ink: '#010708', shard: '#006778', glow: '#d7a22a', border: '#006778', skyline: 'JAX' },
+  KC: { crest: 'arrowhead', p: {}, body: '#d31b34', bodyHi: '#ff8e9c', bodyLo: '#3d0410',
+    trim: '#FFB612', ink: '#0d0206', shard: '#8e0f22', glow: '#FFB612', border: '#E31837', skyline: 'KC' },
+  LA: { crest: 'ungulate', p: { kind: 'ram' }, body: '#12408f', bodyHi: '#9dc0ff', bodyLo: '#020c22',
+    trim: '#FFD100', ink: '#010409', shard: '#003594', glow: '#FFD100', border: '#FFD100', skyline: 'LA' },
+  LAC: { crest: 'bolt', p: {}, body: '#0e8ad4', bodyHi: '#b6e6ff', bodyLo: '#02243c',
+    trim: '#ffc20e', ink: '#01090f', shard: '#001532', glow: '#ffc20e', border: '#007BC7', skyline: 'LA' },
+  LV: { crest: 'raider', p: {}, body: '#8f979b', bodyHi: '#ffffff', bodyLo: '#181c1e',
+    trim: '#0a0a0b', ink: '#000000', shard: '#1a1c1f', glow: '#A5ACAF', border: '#A5ACAF', skyline: 'LV' },
+  MIA: { crest: 'dolphin', p: {}, body: '#0a9aa3', bodyHi: '#9fecef', bodyLo: '#012a30',
+    trim: '#F58220', ink: '#010b0d', shard: '#005778', glow: '#F58220', border: '#008E97', skyline: 'MIA' },
+  MIN: { crest: 'viking', p: {}, body: '#5b2e94', bodyHi: '#c39ceb', bodyLo: '#150629',
+    trim: '#FFC62F', ink: '#08030f', shard: '#4F2683', glow: '#FFC62F', border: '#FFC62F', skyline: 'MSP' },
+  NE: { crest: 'minuteman', p: {}, body: '#1c3category', bodyHi: '#93aacc', bodyLo: '#040915',
+    trim: '#C60C30', ink: '#02050c', shard: '#002244', glow: '#C60C30', border: '#C60C30', skyline: 'BOS' },
+  NO: { crest: 'fleur', p: {}, body: '#c8ae7e', bodyHi: '#fff2d0', bodyLo: '#4a3c22',
+    trim: '#0a0a09', ink: '#070604', shard: '#5c4c2c', glow: '#D3BC8D', border: '#D3BC8D', skyline: 'NOLA' },
+  NYG: { crest: 'monogram', p: { text: 'NY', style: 'plain' }, body: '#16336f', bodyHi: '#8fb0f0', bodyLo: '#030a1c',
+    trim: '#A71930', ink: '#02050d', shard: '#0B2265', glow: '#A71930', border: '#0B2265', skyline: 'NYC' },
+  NYJ: { crest: 'jet', p: {}, body: '#0c5d43', bodyHi: '#8ce0bf', bodyLo: '#01130d',
+    trim: '#e8eef0', ink: '#010806', shard: '#003F2D', glow: '#3fd08f', border: '#003F2D', skyline: 'NYC' },
+  PHI: { crest: 'raptor', p: { kind: 'eagle' }, body: '#0a6a72', bodyHi: '#8fe0e2', bodyLo: '#01181b',
+    trim: '#A5ACAF', ink: '#01090a', shard: '#004C54', glow: '#7fe3e6', border: '#004C54', skyline: 'PHI' },
+  PIT: { crest: 'hypocycloid', p: {}, body: '#191a1c', bodyHi: '#7c8088', bodyLo: '#030304',
+    trim: '#FFB612', ink: '#000000', shard: '#1c1d20', glow: '#FFB612', border: '#FFB612', skyline: 'PIT' },
+  SEA: { crest: 'raptor', p: { kind: 'seahawk' }, body: '#1b3c63', bodyHi: '#9ccbe8', bodyLo: '#020814',
+    trim: '#69be28', ink: '#01050c', shard: '#002244', glow: '#69be28', border: '#69be28', skyline: 'SEA' },
+  SF: { crest: 'monogram', p: { text: 'SF', style: 'oval' }, body: '#9d1414', bodyHi: '#ff8f7a', bodyLo: '#2c0303',
+    trim: '#B3995D', ink: '#0a0202', shard: '#7a0808', glow: '#B3995D', border: '#AA0000', skyline: 'SF' },
+  TB: { crest: 'buccaneer', p: {}, body: '#c6c0b0', bodyHi: '#fffaf0', bodyLo: '#4a463d',
+    trim: '#A71930', ink: '#0a0605', shard: '#7c1220', glow: '#ff7900', border: '#A71930', skyline: 'TPA' },
+  TEN: { crest: 'flameT', p: {}, body: '#2f6fa8', bodyHi: '#a8dcff', bodyLo: '#04182c',
+    trim: '#D50A0A', ink: '#02070d', shard: '#123c63', glow: '#4495D2', border: '#4495D2', skyline: 'NSH' },
+  WAS: { crest: 'monogram', p: { text: 'W', style: 'plain' }, body: '#6d1d1d', bodyHi: '#d08a7a', bodyLo: '#1a0505',
+    trim: '#FFB612', ink: '#060202', shard: '#5A1414', glow: '#FFB612', border: '#FFB612', skyline: 'DC' },
 };
+// (typo guard — NE body must be a hex)
+ART.NE.body = '#1c3a63';
 
-export const TEAMS = BASE.map((t) => Object.assign({}, t, { art: ART[t.id] || ART.NYC }));
+/* ------------------------------------------------------------------ build */
+
+function pick(cols, i, fallback) {
+  const v = cols && cols[i];
+  return typeof v === 'string' && v[0] === '#' ? v : fallback;
+}
+
+/** Official colours -> the five-slot system the rest of the game consumes. */
+function colorSystem(cols, art) {
+  const primary = pick(cols, 0, '#101018');
+  const secondary = pick(cols, 1, '#000000');
+  const third = pick(cols, 2, secondary);
+  const fourth = pick(cols, 3, third);
+  // accent = the most chromatic / brightest of the non-primary officials
+  let accent = secondary;
+  let bestScore = -1;
+  for (const c of [secondary, third, fourth]) {
+    const v = vivid(c, 0);
+    const l = luma(v);
+    const score = l * 0.6 + (l > 0.12 ? 0.4 : 0);
+    if (score > bestScore) { bestScore = score; accent = c; }
+  }
+  if (luma(accent) < 0.06) accent = art.trim;
+  // nflverse repeats a club's primary in slots 3/4 for several clubs; show each
+  // distinct official value once.
+  const officials = [];
+  for (const v of [primary, secondary, third, fourth]) {
+    const k = String(v).toLowerCase();
+    if (!officials.some((o) => o.toLowerCase() === k)) officials.push(v);
+  }
+  return {
+    primary,
+    secondary,
+    accent,
+    metal: art.trim,
+    helmet: darken(primary, 0.22),
+    officials,
+  };
+}
+
+export const TEAMS = Object.keys(RAW).sort().map((id) => {
+  const r = RAW[id];
+  const art = ART[id] || ART.CHI;
+  const st = starOf(id);
+  return {
+    id,
+    abbr: r.abbr,
+    city: String(r.city).toUpperCase(),
+    name: String(r.nick).toUpperCase(),
+    full: r.name,
+    conf: r.conf,
+    div: r.div,
+    colors: colorSystem(r.colors, art),
+    stats: {
+      speed: S_SPEED[id],
+      hitPower: S_POWER[id],
+      turbo: S_TURBO[id],
+    },
+    star: st ? { name: st.name, pos: st.pos, num: st.num, ovr: st.ovr } : null,
+    art,
+  };
+});
 
 const BY_ID = new Map(TEAMS.map((t) => [t.id, t]));
 
+/** Legacy ids the frozen foundation still references. */
+const ALIAS = { NYC: 'NYG', LAR: 'LA', WSH: 'WAS', OAK: 'LV', SD: 'LAC', STL: 'LA', JAC: 'JAX' };
+
 export function byId(id) {
-  return BY_ID.get(String(id || '').toUpperCase()) || TEAMS[0];
+  const k = String(id || '').toUpperCase();
+  return BY_ID.get(k) || BY_ID.get(ALIAS[k]) || BY_ID.get('CHI');
 }
 
-export const HERO_IDS = ['NYC', 'CHI', 'DAL', 'LA'];
+/** The four clubs the hero sheet fields: distinct forms, distinct palettes. */
+export const HERO_IDS = ['CHI', 'ARI', 'PHI', 'MIN'];
 
-export default { TEAMS, byId, HERO_IDS };
+export const CONFERENCES = ['AFC', 'NFC'];
+export const DIVISIONS = ['East', 'North', 'South', 'West'];
+
+export function division(conf, div) {
+  return TEAMS.filter((t) => t.conf === conf && t.div === div);
+}
+
+export default { TEAMS, byId, HERO_IDS, division, CONFERENCES, DIVISIONS };

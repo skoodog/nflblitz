@@ -13,12 +13,20 @@
 //   returns the sub-frame samples the OS captured between vsyncs, which is what makes
 //   a swipe's direction accurate instead of a two-sample guess.
 //
-// LATENCY MODEL
-//   Events land in a preallocated ring from the DOM callback. `drain(nowMs)` is called
-//   at the TOP of the frame, BEFORE the sim step, and each event is assigned to the sim
-//   tick its OWN timestamp falls in. So a touch that landed 4 ms before this frame's
-//   step affects THAT step, not the next one. That is the difference between 2-frame
-//   and 3-frame response and it is free.
+// LATENCY MODEL — AND WHY THIS SURVIVES 30 Hz
+//   Events land in a preallocated ring from the DOM callback, timestamped with the
+//   event's OWN DOMHighResTimeStamp, at whatever rate the OS delivers them — which is
+//   NOT the present rate. `drain(nowMs, clock)` runs at the top of the frame, AFTER
+//   clock.accumulate() has decided how many sim steps this frame owes, and assigns each
+//   event to the sim tick its own timestamp falls in via `clock.tickForStamp()`.
+//
+//   That decoupling is the whole answer to the amendment's timing risk. At 30 Hz a
+//   frame runs sim ticks T and T+1. An event stamped in the first half of the 33.3 ms
+//   window lands on T; one stamped in the second half lands on T+1. So a juke window is
+//   still judged at 60 Hz granularity even though only 30 frames are drawn, and the
+//   sim state a player is judged against is identical to what it would have been at
+//   60 Hz. Presenting at 30 costs the player DISPLAY latency; it does not cost them
+//   TIMING resolution. Those are different things and only one of them was traded.
 
 export const EV_DOWN = 0, EV_MOVE = 1, EV_UP = 2, EV_CANCEL = 3;
 export const MAX_POINTERS = 10;
@@ -83,6 +91,7 @@ export function createTouch(element, opts) {
     return Object.assign(state, {
       drain() { frameEventN = 0; return 0; },
       dispose() { }, releaseAll() { }, measure() { },
+      eventsOnTick() { return 0; },
     });
   }
   state.enabled = true;
@@ -226,22 +235,37 @@ export function createTouch(element, opts) {
   }
 
   /**
-   * drain(nowMs, clock, telemetry) — call at the TOP of the frame, before the sim step.
-   * Returns the number of events applied. Allocation-free.
+   * drain(nowMs, clock, telemetry) — call at the TOP of the frame, AFTER
+   * clock.accumulate() and BEFORE the sim steps run. Returns the number of events
+   * applied. Allocation-free.
+   *
+   * The ordering matters and is not negotiable: `clock.tickForStamp` can only place an
+   * event on one of THIS frame's pending steps once accumulate() has decided how many
+   * there are. Draining before accumulate would quantise every input to the present
+   * rate, which is precisely the 30 Hz timing risk this design exists to avoid.
    */
   function drain(nowMs, clock, telemetry) {
     frameEventN = 0;
     let applied = 0;
+    const lastTick = clock ? clock.lastPendingTick : 0;
     while (qTail !== qHead) {
       const i = qTail;
-      qTail = (qTail + 1) % QCAP;
       const type = qType[i], id = qId[i], x = qX[i], y = qY[i], ms = qT[i];
 
       // Assign the event to the sim tick ITS OWN timestamp falls in.
-      const ageSec = (nowMs - ms) / 1000;
-      const tick = clock ? clock.tickForOffset(-ageSec) : 0;
+      const tick = clock ? clock.tickForStamp(ms) : 0;
+
+      // DEFERRAL, not clamping. An event that lands on a tick this frame is not going
+      // to simulate stays in the queue and is drained next frame, on its real tick.
+      // The queue is time-ordered, so the first deferral ends the drain. Clamping it
+      // down instead would apply the input earlier than the player made it and would
+      // make the same input resolve differently at 60 Hz and at 30 Hz.
+      if (clock && tick > lastTick) break;
+
+      qTail = (qTail + 1) % QCAP;
 
       let slot = byId.get(id);
+      let entry = null;
       if (type === EV_DOWN) {
         if (slot === undefined) {
           slot = slotFor(id);
@@ -255,7 +279,8 @@ export function createTouch(element, opts) {
         p.dx = 0; p.dy = 0; p.totalDx = 0; p.totalDy = 0;
         p.startMs = ms; p.lastMs = ms; p.downTick = tick;
         p.moved = false; p.maxDist = 0; p.claim = 0; p.claimData = 0;
-        p.logEntry = telemetry ? telemetry.logInput(id, EV_DOWN, x, y, ms, nowMs, tick) : null;
+        entry = telemetry ? telemetry.logInput(id, EV_DOWN, x, y, ms, nowMs, tick) : null;
+        p.logEntry = entry;
       } else if (slot !== undefined) {
         const p = pointers[slot];
         if (type === EV_MOVE) {
@@ -267,12 +292,12 @@ export function createTouch(element, opts) {
           if (d > p.maxDist) p.maxDist = d;
           if (d > TOUCH_SLOP_PX) p.moved = true;
           p.lastMs = ms;
-          if (telemetry) telemetry.logInput(id, EV_MOVE, x, y, ms, nowMs, tick);
+          entry = telemetry ? telemetry.logInput(id, EV_MOVE, x, y, ms, nowMs, tick) : null;
         } else {
           // UP or CANCEL: the slot stays readable for THIS frame so the controller can
           // resolve a tap, then is freed at the end of drain.
           p.x = x; p.y = y; p.lastMs = ms;
-          if (telemetry) telemetry.logInput(id, type, x, y, ms, nowMs, tick);
+          entry = telemetry ? telemetry.logInput(id, type, x, y, ms, nowMs, tick) : null;
         }
       } else {
         continue;                                  // UP/CANCEL for a pointer we never saw
@@ -282,7 +307,10 @@ export function createTouch(element, opts) {
         const fe = frameEvents[frameEventN++];
         fe.type = type; fe.id = id; fe.slot = slot;
         fe.x = x; fe.y = y; fe.ms = ms; fe.tick = tick;
-        fe.entry = (type === EV_DOWN && slot !== undefined) ? pointers[slot].logEntry : null;
+        // EVERY event carries its own log entry, not just DOWN. Latency is measured on
+        // whichever event actually moved the player: a stick MOVE is as much an input
+        // as a button press, and reporting only DOWN latency would flatter the number.
+        fe.entry = entry;
       }
       applied++;
     }
@@ -305,6 +333,28 @@ export function createTouch(element, opts) {
     return applied;
   }
 
+  /**
+   * Indices of this frame's events assigned to sim tick `tick`, written into the
+   * caller's preallocated Int32Array. Returns the count. Allocation-free.
+   *
+   * THIS IS THE API A SIM STEP MUST USE. Inside `onStep(tick, dt)` a controller reads
+   * only the events belonging to THAT tick:
+   *
+   *   const n = touch.eventsOnTick(tick, scratchIdx);
+   *   for (let i = 0; i < n; i++) { const ev = touch.events[scratchIdx[i]]; ... }
+   *
+   * Consuming `touch.events` wholesale inside a step is a bug at 30 Hz: it would apply
+   * the same input twice (once per step) and it would apply an event to a tick that
+   * had not happened yet when the finger landed.
+   */
+  function eventsOnTick(tick, outIdx) {
+    let n = 0;
+    for (let i = 0; i < frameEventN; i++) {
+      if (frameEvents[i].tick === tick) { if (n >= outIdx.length) break; outIdx[n++] = i; }
+    }
+    return n;
+  }
+
   function dispose() {
     element.removeEventListener('pointerdown', onDown);
     element.removeEventListener('pointermove', onMove);
@@ -321,7 +371,7 @@ export function createTouch(element, opts) {
     for (let i = 0; i < MAX_POINTERS; i++) pointers[i].active = false;
   }
 
-  return Object.assign(state, { drain, dispose, releaseAll, measure });
+  return Object.assign(state, { drain, dispose, releaseAll, measure, eventsOnTick });
 }
 
 export default { createTouch, EV_DOWN, EV_MOVE, EV_UP, EV_CANCEL, MAX_POINTERS, TOUCH_SLOP_PX };

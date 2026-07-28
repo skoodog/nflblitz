@@ -1,8 +1,10 @@
 // PIECE brand-identity — league mark, BLITZ logotype, team wordmark lockups.
 //
-// FICTIONAL LEAGUE ONLY. The badge below is an angular hex-chevron plate with a
-// bolt-through-ball device — deliberately unlike any real league shield, and it
-// carries no real club marks.
+// The league badge is the NFL shield, drawn the way the concept sheet's title
+// panel draws it: not a flat vector reproduction but a heavy illustrated plate
+// with a chrome rim, a deep navy field, a raised star band, cut-in NFL letters
+// and a bevelled football. Authored in a 100 x 118 unit space and scaled, so it
+// stays readable from a 26 px HUD chip up to a 300 px title lockup.
 
 import { REG } from '../../foundation/registry.js';
 import {
@@ -15,92 +17,141 @@ const faces = () => REG.faces;
 
 /* ------------------------------------------------------------- league mark */
 
-/** Fictional league badge. Angular hex-chevron plate, bolt through a football. */
+/** Shield outline in the 100 x 118 local space. `k` insets it toward the centre. */
+function shieldPath(k) {
+  const sx = (v) => 50 + (v - 50) * k;
+  const sy = (v) => 59 + (v - 59) * k;
+  return [
+    ['m', sx(5), sy(20)],
+    ['c', sx(20), sy(6), sx(80), sy(6), sx(95), sy(20)],
+    ['c', sx(95), sy(46), sx(88), sy(74), sx(66), sy(96)],
+    ['c', sx(59), sy(103), sx(53), sy(110), sx(50), sy(116)],
+    ['c', sx(47), sy(110), sx(41), sy(103), sx(34), sy(96)],
+    ['c', sx(12), sy(74), sx(5), sy(46), sx(5), sy(20)],
+  ];
+}
+
+/** The NFL shield, as an illustrated metal badge. */
 export function leagueMark(c, box, opts = {}) {
   const { x, y, w, h } = box;
   const s = Math.min(w / 100, h / 118);
-  const navy = opts.field || '#101a34';
-  const met = opts.metal || '#c9d2de';
-  const accent = opts.accent || '#d8342e';
+  const navy = opts.field || '#0b2049';
+  const met = opts.metal || '#d3dae4';
+  const accent = opts.accent || '#e8eef6';
+  const tiny = Math.min(w, h) < 46;
 
   c.save();
   c.translate(x + w / 2, y);
   c.scale(s, s);
   c.translate(-50, 0);
 
-  const outline = [
-    [50, 0], [96, 20], [96, 62], [50, 118], [4, 62], [4, 20],
-  ];
-
-  // outer glow
+  // outer bloom
   c.save();
   c.globalCompositeOperation = 'lighter';
-  c.fillStyle = rad(c, 50, 56, 6, 50, 56, 92, [[0, rgba(accent, 0.20)], [1, rgba(accent, 0)]]);
-  c.fillRect(-40, -30, 180, 200);
+  c.fillStyle = rad(c, 50, 56, 6, 50, 56, 96, [[0, rgba(accent, 0.16)], [0.55, rgba(accent, 0.05)], [1, rgba(accent, 0)]]);
+  c.fillRect(-46, -34, 192, 208);
   c.restore();
 
-  // metal rim
-  pathOf(c, outline, true);
-  c.fillStyle = metal(c, [4, 0, 92, 118], met, { dir: 1.25, hi: 0.75, lo: 0.6 });
+  // drop shadow
+  c.save();
+  c.translate(0, 3.2);
+  pathOf(c, shieldPath(1.03), true);
+  c.fillStyle = 'rgba(0,0,0,0.55)';
+  c.fill();
+  c.restore();
+
+  // chrome rim
+  pathOf(c, shieldPath(1.0), true);
+  c.fillStyle = metal(c, [4, 0, 92, 118], met, { dir: 1.25, hi: 0.8, lo: 0.62 });
   c.fill();
   c.lineJoin = 'round';
-  c.strokeStyle = '#05080e';
-  c.lineWidth = 3.2;
+  c.strokeStyle = '#04070d';
+  c.lineWidth = 3.0;
   c.stroke();
 
-  // inner field
-  const inner = [[50, 8], [88, 25], [88, 60], [50, 108], [12, 60], [12, 25]];
-  pathOf(c, inner, true);
-  c.fillStyle = lin(c, 20, 8, 80, 108, [[0, lighten(navy, 0.22)], [0.42, navy], [1, '#05070e']]);
+  // navy field
+  pathOf(c, shieldPath(0.885), true);
+  c.fillStyle = lin(c, 16, 6, 84, 112, [
+    [0, lighten(navy, 0.34)], [0.32, lighten(navy, 0.08)], [0.62, navy], [1, '#03060f'],
+  ]);
   c.fill();
   c.strokeStyle = 'rgba(0,0,0,0.85)';
-  c.lineWidth = 2.4;
+  c.lineWidth = 1.9;
   c.stroke();
 
-  // top band
   c.save();
-  pathOf(c, inner, true);
+  pathOf(c, shieldPath(0.885), true);
   c.clip();
-  c.fillStyle = lin(c, 12, 22, 12, 40, [[0, rgba(met, 0.9)], [1, rgba(met, 0.45)]]);
-  c.fillRect(12, 24, 76, 12);
-  c.fillStyle = 'rgba(0,0,0,0.75)';
-  for (let i = 0; i < 5; i++) {
-    const cx = 22 + i * 14;
+
+  // raised star band
+  c.fillStyle = lin(c, 12, 24, 12, 40, [[0, '#ffffff'], [0.55, '#dfe6ef'], [1, '#8d97a5']]);
+  c.beginPath();
+  c.moveTo(6, 26.5); c.lineTo(94, 26.5); c.lineTo(94, 40); c.lineTo(6, 40); c.closePath();
+  c.fill();
+  c.fillStyle = 'rgba(0,0,0,0.35)';
+  c.fillRect(6, 39.4, 88, 1.8);
+  // eight stars, cut dark out of the band
+  const starN = tiny ? 5 : 8;
+  for (let i = 0; i < starN; i++) {
+    const cx = 50 + (i - (starN - 1) / 2) * (tiny ? 15 : 10.6);
     c.beginPath();
-    c.moveTo(cx, 27); c.lineTo(cx + 5, 33); c.lineTo(cx, 33.5); c.lineTo(cx - 5, 33);
-    c.closePath(); c.fill();
+    for (let k = 0; k < 10; k++) {
+      const a = -Math.PI / 2 + (k / 10) * Math.PI * 2;
+      const r = k % 2 ? 1.5 : 4.0;
+      const px = cx + Math.cos(a) * r, py = 33.3 + Math.sin(a) * r;
+      if (k === 0) c.moveTo(px, py); else c.lineTo(px, py);
+    }
+    c.closePath();
+    c.fillStyle = lin(c, cx - 4, 29, cx + 4, 38, [[0, lighten(navy, 0.2)], [0.6, navy], [1, '#020509']]);
+    c.fill();
   }
-  // bolt behind
-  c.fillStyle = lin(c, 30, 42, 74, 100, [[0, '#ffe58a'], [0.5, accent], [1, darken(accent, 0.55)]]);
-  c.beginPath();
-  c.moveTo(66, 40); c.lineTo(40, 70); c.lineTo(53, 72); c.lineTo(34, 104);
-  c.lineTo(66, 66); c.lineTo(52, 64); c.closePath();
-  c.fill();
-  c.strokeStyle = 'rgba(0,0,0,0.8)'; c.lineWidth = 1.6; c.stroke();
 
-  // football
+  // NFL letters — heavy chrome, cut into the field
+  const F = faces();
   c.save();
-  c.translate(50, 66);
-  c.rotate(-0.34);
-  c.beginPath();
-  c.ellipse(0, 0, 26, 14, 0, 0, Math.PI * 2);
-  c.fillStyle = lin(c, -26, -14, 26, 14, [[0, '#8c5a30'], [0.35, '#6a3d1c'], [1, '#2c1608']]);
-  c.fill();
-  c.strokeStyle = '#05060a'; c.lineWidth = 2.2; c.stroke();
-  c.strokeStyle = 'rgba(240,240,244,0.92)'; c.lineWidth = 2.4;
-  c.beginPath(); c.moveTo(-16, -9.5); c.lineTo(-16, 9.5); c.stroke();
-  c.beginPath(); c.moveTo(16, -9.5); c.lineTo(16, 9.5); c.stroke();
-  c.lineWidth = 1.7;
-  c.beginPath(); c.moveTo(-7, 0); c.lineTo(8, 0); c.stroke();
-  for (let i = -2; i <= 2; i++) {
-    c.beginPath(); c.moveTo(i * 4 + 0.5, -3.2); c.lineTo(i * 4 + 0.5, 3.2); c.stroke();
+  c.translate(50, 68);
+  c.scale(0.98, 1);
+  if (F && typeof F.draw === 'function') {
+    F.draw(c, 'NFL', 0, 1.1, { face: 'blitz-block', size: 27, align: 'center', tracking: -0.01, fill: 'rgba(2,4,10,0.9)' });
+    F.draw(c, 'NFL', 0, 0, {
+      face: 'blitz-block', size: 27, align: 'center', tracking: -0.01,
+      fill: lin(c, 0, -22, 0, 4, [[0, '#ffffff'], [0.42, '#f0f4f9'], [0.68, '#b3bcc8'], [1, '#5d6672']]),
+    });
   }
   c.restore();
+
+  // football, bevelled, lower third
+  c.save();
+  c.translate(50, 88);
+  c.rotate(-0.38);
+  c.beginPath();
+  c.ellipse(0, 0, 15.5, 8.4, 0, 0, Math.PI * 2);
+  c.fillStyle = lin(c, -15, -9, 15, 9, [[0, '#ffffff'], [0.4, '#e2e8f0'], [1, '#7c8592']]);
+  c.fill();
+  c.strokeStyle = '#04070d'; c.lineWidth = 1.7; c.stroke();
+  c.strokeStyle = 'rgba(11,32,73,0.9)'; c.lineWidth = 1.5;
+  c.beginPath(); c.moveTo(-9, -5.6); c.lineTo(-9, 5.6); c.stroke();
+  c.beginPath(); c.moveTo(9, -5.6); c.lineTo(9, 5.6); c.stroke();
+  c.lineWidth = 1.2;
+  c.beginPath(); c.moveTo(-4.4, 0); c.lineTo(4.8, 0); c.stroke();
+  for (let i = -1; i <= 1; i++) {
+    c.beginPath(); c.moveTo(i * 3, -2.1); c.lineTo(i * 3, 2.1); c.stroke();
+  }
   c.restore();
 
-  // rim specular
-  pathOf(c, [[50, 1], [94, 21], [94, 30], [50, 11], [6, 30], [6, 21]], true);
-  c.fillStyle = 'rgba(255,255,255,0.42)';
+  // internal light falloff
+  c.fillStyle = lin(c, 10, 4, 90, 116, [
+    [0, 'rgba(255,255,255,0.16)'], [0.35, 'rgba(255,255,255,0)'], [1, 'rgba(0,0,0,0.42)'],
+  ]);
+  c.fillRect(0, 0, 100, 118);
+  c.restore();
+
+  // rim specular along the top-left
+  pathOf(c, [
+    ['m', 6, 20], ['c', 21, 7, 50, 5, 50, 5], [50, 10],
+    ['c', 50, 10, 23, 12, 10, 24],
+  ], true);
+  c.fillStyle = 'rgba(255,255,255,0.55)';
   c.fill();
 
   c.restore();

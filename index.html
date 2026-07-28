@@ -2,7 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<!-- viewport-fit=cover so env(safe-area-inset-*) resolves to real numbers on a notched
+     phone; user-scalable=no + maximum-scale=1 so a double-tap on the action button is a
+     double-tap and not a zoom. -->
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="theme-color" content="#05060a" />
 <title>BLITZ RELOADED</title>
 <style>
   html, body {
@@ -10,19 +17,37 @@
     overflow: hidden; width: 100%; height: 100%;
     font-family: "Liberation Sans", "DejaVu Sans", Arial, sans-serif;
   }
+  /* TOUCH RULES — these five properties are load-bearing for a phone build.
+     touch-action:none      kill scroll/pan/pinch so a thumbstick drag is ours alone
+     overscroll-behavior    kill pull-to-refresh and the rubber-band bounce
+     -webkit-touch-callout  kill the long-press "copy image" sheet on iOS
+     user-select:none       kill text selection on a long press
+     tap-highlight          kill the grey flash Android paints on every tap */
+  html, body, #stage, #gl, #ui {
+    touch-action: none;
+    overscroll-behavior: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
   #stage {
     position: absolute; left: 0; top: 0;
     width: 1920px; height: 1080px;
     transform-origin: 0 0;
     background: #05060a;
   }
-  /* Layer 1: the three.js world. Layer 2: the fixed 1920x1080 Canvas2D overlay. */
+  /* Layer 1: the three.js world. Layer 2: the Canvas2D overlay. */
   #gl, #ui {
     position: absolute; left: 0; top: 0; display: block;
     width: 100%; height: 100%;
   }
   #gl { z-index: 1; }
+  /* CAPTURE: the overlay is a passive image layer, exactly as before.
+     PLAY:    the stage is the TOUCH SURFACE — `touch.js` binds its pointer listeners to
+              it, so it must actually receive pointer events. */
   #ui { z-index: 2; pointer-events: none; }
+  html[data-blitz-mode="play"] #stage { width: 100%; height: 100%; }
   #fatal {
     display: none; position: absolute; z-index: 99; left: 0; top: 0; right: 0;
     padding: 24px; background: #1a0000; color: #ff8080;

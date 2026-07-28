@@ -15,6 +15,23 @@
 import * as THREE from 'three';
 import { REG } from './registry.js';
 import { MAT_SLOTS } from './contracts.js';
+import { tagPiece } from './budget.js';
+
+/**
+ * Which PIECE owns each world slot. `budget.mjs` attributes every draw call and every
+ * triangle through `userData.piece`, so the assembler stamps it as it builds — a piece
+ * must not have to remember, and a piece that forgets must not become "unattributed"
+ * and therefore un-billable. Before this existed, 119 of 120 drawables in `live_play`
+ * were unattributed and the per-piece table was useless.
+ */
+const SLOT_PIECE = {
+  turf: 'turf-field',
+  stadium: 'stadium-env',
+  lighting: 'stadium-lighting',
+  anatomy: 'character-anatomy',
+  fx: 'impact-fx',
+  post: 'cinematography',
+};
 
 function safe(label, fn, fallbackValue) {
   try {
@@ -50,16 +67,16 @@ export function buildFromShot(shot, ctx) {
   const turfImpl = REG.world.turf;
   safe('turf.reset', () => turfImpl.reset && turfImpl.reset());
   const turfObj = safe('turf.build', () => turfImpl.build(ctx), null);
-  if (turfObj) { root.add(turfObj); world.turf = turfObj; }
+  if (turfObj) { tagPiece(turfObj, SLOT_PIECE.turf); root.add(turfObj); world.turf = turfObj; }
 
   // 2. STADIUM --------------------------------------------------------------
   const stadObj = safe('stadium.build', () => REG.world.stadium.build(ctx), null);
-  if (stadObj) { root.add(stadObj); world.stadium = stadObj; }
+  if (stadObj) { tagPiece(stadObj, SLOT_PIECE.stadium); root.add(stadObj); world.stadium = stadObj; }
 
   // 3. LIGHTING -------------------------------------------------------------
   const lit = safe('lighting.build', () => REG.world.lighting.build(ctx), null);
   if (lit) {
-    if (lit.group) root.add(lit.group);
+    if (lit.group) { tagPiece(lit.group, SLOT_PIECE.lighting); root.add(lit.group); }
     if (lit.env !== undefined && lit.env !== null) scene.environment = lit.env;
     if (typeof lit.applyToRenderer === 'function') {
       safe('lighting.applyToRenderer', () => lit.applyToRenderer(ctx.renderer));
@@ -97,6 +114,7 @@ export function buildFromShot(shot, ctx) {
     actor.root.position.set(a.pos[0], a.pos[1], a.pos[2]);
     actor.root.rotation.y = a.rotY;
     if (a.scale !== 1) actor.root.scale.setScalar(a.scale);
+    tagPiece(actor.root, SLOT_PIECE.anatomy);
     actor.root.name = `actor:${a.id}`;
     actor.spec = a;
     root.add(actor.root);
@@ -107,7 +125,7 @@ export function buildFromShot(shot, ctx) {
   const fxImpl = REG.world.fx;
   safe('fx.reset', () => fxImpl.reset && fxImpl.reset());
   const fxObj = safe('fx.build', () => fxImpl.build(ctx), null);
-  if (fxObj) { root.add(fxObj); world.fx = fxObj; }
+  if (fxObj) { tagPiece(fxObj, SLOT_PIECE.fx); root.add(fxObj); world.fx = fxObj; }
 
   if (shot.ball && shot.ball.visible) {
     const ball = safe('fx.ball', () => fxImpl.ball(ctx), null);
@@ -118,6 +136,7 @@ export function buildFromShot(shot, ctx) {
       }
       safe('ball.setFlame', () => ball.setFlame && ball.setFlame(shot.ball.flame || 0));
       safe('ball.setSpin', () => ball.setSpin && ball.setSpin(shot.ball.spin || 0));
+      tagPiece(ball.mesh, SLOT_PIECE.fx);
       root.add(ball.mesh);
       world.ball = ball;
     }
@@ -143,17 +162,46 @@ export function buildFromShot(shot, ctx) {
   world.post = safe('cinema.buildPost', () => REG.cinema.buildPost(ctx, shot), null) || null;
 
   // ---- per-frame ----------------------------------------------------------
+  //
+  // ZERO ALLOCATION. This runs every frame on the runtime path, so it may not allocate
+  // — and the obvious spelling of it did. `safe(label, () => impl.update(t, cc))`
+  // allocates a closure per subsystem per frame, and `for (const a of world.actors)`
+  // allocates an array iterator. At 60 Hz with ~10 subsystems and 14 actors that is
+  // roughly 1.4 million short-lived objects a minute, which is exactly the heap
+  // sawtooth the contract caps at 8 MB — measured at 8.45 MB before this was fixed,
+  // together with GC pauses showing up as dropped frames in otherwise clean windows.
+  //
+  // try/catch itself costs nothing when nothing throws, so per-subsystem isolation is
+  // kept; it is only the CLOSURE that had to go. A subsystem that throws repeatedly is
+  // latched off rather than re-throwing (and re-reporting) sixty times a second.
+  const updFail = new Uint8Array(8);
+  const UPD_NAMES = ['turf.update', 'stadium.update', 'lighting.update', 'fx.update',
+    'ball.update', 'cinema.update', 'cinema.applyShot', 'actor.update'];
+
+  function updErr(i, e) {
+    if (updFail[i] >= 3) return;
+    updFail[i]++;
+    const msg = `[world] ${UPD_NAMES[i]} threw: ${e && e.message}`
+      + (updFail[i] >= 3 ? ' (latched off after 3 failures)' : '');
+    console.error(msg, e);
+    (window.__BLITZ_ERRORS__ = window.__BLITZ_ERRORS__ || []).push(msg);
+  }
+
   world.update = function update(t, c) {
     const cc = c || ctx;
-    safe('turf.update', () => turfImpl.update && turfImpl.update(t, cc));
-    safe('stadium.update', () => REG.world.stadium.update && REG.world.stadium.update(t, cc));
-    safe('lighting.update', () => REG.world.lighting.update && REG.world.lighting.update(t, cc));
-    safe('fx.update', () => fxImpl.update && fxImpl.update(t, cc));
-    if (world.ball && world.ball.update) safe('ball.update', () => world.ball.update(t, cc));
-    safe('cinema.update', () => REG.cinema.update && REG.cinema.update(t, cc));
-    safe('cinema.applyShot', () => REG.cinema.applyShot(cc.camera, shot, t, cc));
-    for (const actor of world.actors) {
-      if (actor.update) safe('actor.update', () => actor.update(t, cc));
+    if (updFail[0] < 3) { try { if (turfImpl.update) turfImpl.update(t, cc); } catch (e) { updErr(0, e); } }
+    if (updFail[1] < 3) { try { if (REG.world.stadium.update) REG.world.stadium.update(t, cc); } catch (e) { updErr(1, e); } }
+    if (updFail[2] < 3) { try { if (REG.world.lighting.update) REG.world.lighting.update(t, cc); } catch (e) { updErr(2, e); } }
+    if (updFail[3] < 3) { try { if (fxImpl.update) fxImpl.update(t, cc); } catch (e) { updErr(3, e); } }
+    if (updFail[4] < 3 && world.ball && world.ball.update) { try { world.ball.update(t, cc); } catch (e) { updErr(4, e); } }
+    if (updFail[5] < 3) { try { if (REG.cinema.update) REG.cinema.update(t, cc); } catch (e) { updErr(5, e); } }
+    if (updFail[6] < 3) { try { REG.cinema.applyShot(cc.camera, shot, t, cc); } catch (e) { updErr(6, e); } }
+    const acts = world.actors;
+    for (let i = 0; i < acts.length; i++) {
+      const a = acts[i];
+      if (!a.update) continue;
+      if (updFail[7] >= 3) break;
+      try { a.update(t, cc); } catch (e) { updErr(7, e); }
     }
   };
 

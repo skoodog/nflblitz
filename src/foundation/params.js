@@ -1,5 +1,14 @@
-// FOUNDATION — FROZEN after t=0. Do not edit.
-// URL parameter parsing. Every capture is fully described by the URL.
+// FOUNDATION — PERFCORE owns this file.
+// URL parameter parsing. Every capture is fully described by the URL, and so is every
+// runtime measurement — `perf.mjs`, `touch.mjs` and `budget.mjs` all drive the game by
+// URL alone so a critic can paste the same URL into a browser and see what the harness
+// saw.
+//
+// THE MODE PARAMETER IS THE PATH SELECTOR:
+//   ?mode=capture   1920x1080 accumulation still. No frame budget. The fidelity bar.
+//   ?mode=play      the runtime loop. The performance contract. THE GAME.
+// `?quality=capture` is kept as the legacy spelling of `?mode=capture` so every
+// existing shoot.mjs invocation and every already-captured URL still works.
 
 const DEFAULTS = {
   scene: 'truck',
@@ -16,6 +25,15 @@ const DEFAULTS = {
   variant: '',
   debug: 0,
   list: 0,
+  // --- runtime path -------------------------------------------------------
+  mode: null,     // capture | play  (null -> derived from quality)
+  tier: null,     // floor | low | mid | high — forces the tier, skipping the probe
+  rung: null,     // 0..15 — forces the rung and LOCKS the scaler's rung axis
+  rate: null,     // 60 | 30 — forces the present rate and LOCKS the rate axis
+  raster: 'auto', // auto | min  (min = 256x144, shadows/post off)
+  probe: 1,       // run the boot micro-probe (0 to skip, for deterministic harness runs)
+  autostart: 1,   // start the loop immediately
+  dpr: null,      // override devicePixelRatio for the overlay
 };
 
 function num(v, d) {
@@ -55,6 +73,49 @@ export function parseParams(search) {
     debug: bool01(q.get('debug'), DEFAULTS.debug) === 1,
     list: bool01(q.get('list'), DEFAULTS.list) === 1,
   };
+
+  // --- the path selector ---------------------------------------------------
+  const modeRaw = q.get('mode');
+  p.mode = modeRaw === 'capture' ? 'capture'
+    : modeRaw === 'play' ? 'play'
+      : (p.quality === 'capture' ? 'capture' : 'play');
+
+  const tierRaw = q.get('tier');
+  p.tier = ['floor', 'low', 'mid', 'high'].includes(tierRaw) ? tierRaw : null;
+
+  const rungRaw = q.get('rung');
+  p.rung = rungRaw === null || rungRaw === '' ? null
+    : Math.max(0, Math.min(15, Math.round(num(rungRaw, 8))));
+
+  const rateRaw = q.get('rate');
+  p.rate = rateRaw === '30' ? 30 : rateRaw === '60' ? 60 : null;
+
+  // auto = the rung's real render scale.  min = 256x144.  none = skip GL submission.
+  //
+  // `none` exists because of a measurement, not a preference. The contract assumed a
+  // 256x144 internal render would take software raster out of the equation. Measured on
+  // this box it does not: with 118 draw calls and 70k triangles the frame interval is
+  // 66-150 ms at ANY internal resolution, because SwiftShader's per-triangle and
+  // per-draw-call cost is resolution-independent. Shrinking the framebuffer removes
+  // fill cost and leaves geometry cost untouched. So `min` cannot isolate the loop's
+  // pacing here, and `none` — which runs input, sim, anim, fx, camera, overlay and the
+  // scaler but issues no GL draw — is what actually does.
+  const rr = q.get('raster');
+  p.raster = rr === 'min' ? 'min' : rr === 'none' ? 'none' : 'auto';
+  // `?canary=1` plants a deliberately over-budget 400-draw-call group so that
+  // `budget.mjs` can be SHOWN exiting 1 and naming it. See PROOF 6.
+  p.canary = bool01(q.get('canary'), 0) === 1;
+  p.probe = bool01(q.get('probe'), DEFAULTS.probe) === 1;
+  p.autostart = bool01(q.get('autostart'), DEFAULTS.autostart) === 1;
+  const dprRaw = q.get('dpr');
+  p.dpr = dprRaw === null || dprRaw === '' ? null : num(dprRaw, null);
+
+  // In play mode the surface is the viewport, not a fixed capture size, unless the
+  // caller explicitly asked for a size.
+  if (p.mode === 'play' && typeof window !== 'undefined') {
+    if (q.get('w') === null) p.w = window.innerWidth || DEFAULTS.w;
+    if (q.get('h') === null) p.h = window.innerHeight || DEFAULTS.h;
+  }
 
   // In live mode we never accumulate — the game must stay interactive.
   if (p.quality === 'live') {

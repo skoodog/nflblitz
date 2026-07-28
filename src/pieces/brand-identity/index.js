@@ -2,11 +2,12 @@
 // SLOT:  brand   -> registerBrand(impl)
 // OWNS:  src/pieces/brand-identity/**  and  shots/brand-identity/**
 //
-// Delivers the league's whole visual identity: eight fictional teams with full
-// colour systems, the procedural crest generator, wordmark lockups, stat values,
-// a fictional league badge, the BLITZ RELOADED logotype, and layered city
-// skylines. Everything downstream (menu-team-select, menu-title, uniform-kit,
-// hud-overlay) consumes this through REG.brand.
+// Delivers the league's whole visual identity: all 32 REAL NFL clubs with their
+// official colour systems and Madden-26-derived club values, the procedural
+// crest generator (every club drawn as its own illustrated mascot), wordmark
+// lockups, the NFL shield, the BLITZ logotype, and layered city skylines.
+// Everything downstream (menu-title, uniform-kit, hud-overlay) consumes this
+// through REG.brand.
 //
 // NOTE ON ISO SCENES. The frozen foundation gives the `brand` slot no rendering
 // surface of its own — brand is a library the UI screens call, and every UI slot
@@ -95,19 +96,25 @@ const BASE = {
 registerIsoShot('iso_crests', Object.assign({}, BASE, {
   panel: 'team_select',
   ui: { screen: 'title', state: {} },
-  note: 'the four hero crests large on dark team cards — Liberty head, snarling bulldog, longhorn skull, crested Spartan',
+  note: 'four hero clubs large on dark cards — snarling Bears bear, crested Cardinals head, screaming Eagles raptor, horned Vikings warrior',
 }));
 
 registerIsoShot('iso_crest_detail', Object.assign({}, BASE, {
   panel: 'team_select',
   ui: { screen: 'title', state: {} },
-  note: 'one crest at hero scale plus bevel / inner-glow / scratch crops and the palette strip',
+  note: 'one crest at hero scale plus bevel / inner-glow / scratch crops and the official colour strip',
+}));
+
+registerIsoShot('iso_league', Object.assign({}, BASE, {
+  panel: 'team_select',
+  ui: { screen: 'title', state: {} },
+  note: 'all 32 real clubs, each drawn as its own mascot in its own official colours, by conference and division',
 }));
 
 registerIsoShot('iso_palettes', Object.assign({}, BASE, {
   panel: 'team_select',
   ui: { screen: 'title', state: {} },
-  note: 'all eight teams: crest, wordmark lockup, five-colour system, stat values',
+  note: 'every club colour system, official hex values read straight from src/data/teams.json',
 }));
 
 registerIsoShot('iso_skyline', Object.assign({}, BASE, {
