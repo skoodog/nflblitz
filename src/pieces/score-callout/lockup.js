@@ -49,7 +49,7 @@ export const GEO = {
   dyNum: 0.950,       // points baseline, x cap2eff  (bar: +32/33 truck, +25/27 midair)
   ptsGap: 0.150,      // x capNum, between the last digit and P
   ptsLift: 0.030,     // x capNum, PTS baseline sits marginally above the numerals
-  liftSolo: 0.560,    // x cap2. A one-line lockup has less mass, so it is lifted to
+  liftSolo: 0.750,    // x cap2. A one-line lockup has less mass, so it is lifted to
                       //   sit in the same band of the frame as a two-line one.
   nudge1: -0.065,     // x line-2 width  (bar: MID-AIR centre is 10.5px left of MURDER!'s)
   nudgeNum: 0.004,
