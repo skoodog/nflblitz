@@ -1,60 +1,60 @@
 {
- "NYC": {
+ "DAL": {
   "d_field": [
-   "Dante Loudermilk",
-   "Devonte Devereaux",
-   "Oren Cobb",
-   "Deshawn Ocampo",
-   "Lorenzo Rask",
-   "Reef Tackett",
-   "Lorenzo Halloran",
-   "Silas Yarborough",
-   "Lorenzo Colter",
-   "Ronan Nkemdi"
+   "Jarrell Fairbanks",
+   "Kobe Vega",
+   "Marcus Dembele",
+   "Miles Threadgill",
+   "Miles Draper",
+   "Aden Pryor",
+   "Darius Bexar",
+   "Nico Palacios",
+   "Jamal Voss",
+   "Kaden Whitlock"
   ],
   "d_lb": [
-   "Kyrie Traore",
-   "Kellan Trask",
-   "Ronan Sandoval",
-   "Kwame Sirianni",
-   "Trey Deloach",
-   "Malik Fairbanks",
-   "Dante Ozuna",
-   "Reef Trask"
+   "Dante Tackett",
+   "Kwame Marchetti",
+   "Bishop Rockwell",
+   "Isaiah Ashby",
+   "Ronan Loudermilk",
+   "Jaxon Stroud",
+   "Kwame Ashby",
+   "Rashad Stroud"
   ],
   "d_line": [
-   "Brock Trask",
-   "Vance Crowder",
-   "Cole Ryder",
-   "Roman Devereaux",
-   "Jarrell Yarborough",
-   "Isaiah Bexar",
-   "Jaxon Sandoval",
-   "Darius Vega",
-   "Dante Steed"
+   "Jarrell Steed",
+   "Amari Ibarra",
+   "Elijah Vaughters",
+   "Tyrese Halloran",
+   "Vance Sable",
+   "Kyrie Rask",
+   "Bishop Pryor",
+   "Jaxon Tackett",
+   "Zane Rockwell"
   ],
   "o_line": [
-   "Nico Sirianni",
-   "Trey Redfern",
-   "Reef Traore",
-   "Quinton Mackey",
-   "Tyrese Traore",
-   "Brock Ozuna",
-   "Roman Stroud",
-   "Elijah Sable",
-   "Elijah Mackey",
-   "Kobe Rowe"
+   "Reef Deloach",
+   "Jericho Ashworth",
+   "Roman Hargrove",
+   "Kobe Okafor",
+   "Jamal Palacios",
+   "Bo Aguon",
+   "Miles Okafor",
+   "Bishop Crowder",
+   "Cyrus Solano",
+   "Brock Pryor"
   ],
   "o_pass": [
    "Solomon Ansah",
-   "Isaiah Solano",
-   "Terrell Mackey",
-   "Elijah Ibarra",
-   "Oren Ashby",
-   "Cyrus Lund",
-   "Oren Pryor",
-   "Solomon Merrick",
-   "Deshawn Sirianni"
+   "Tyrese Deloach",
+   "Cyrus Crowder",
+   "Malik Solano",
+   "Kobe Hargrove",
+   "Cass Devereaux",
+   "Ozzie Ferris",
+   "Solomon Halloran",
+   "Ozzie Ocampo"
   ],
   "o_rush": [
    "Deshawn Steed",
@@ -64,2531 +64,2531 @@
    "Quinton Hennig"
   ],
   "o_te": [
-   "Solomon Trask",
-   "Xavier Threadgill",
-   "Jarrell Ashworth",
-   "Ronan Kilgore"
+   "Bo Ferris",
+   "Brock Sable",
+   "Rhett Yarborough",
+   "Bishop Okafor"
   ],
   "quarterback": [
    "Cass Ashworth",
-   "Solomon Ocampo",
-   "Kyrie Rowe"
+   "Dominic Voss",
+   "Terrell Aguon"
   ],
   "special_teams": [
-   "Ozzie Sirianni",
-   "Oren Kade",
-   "Lorenzo Yarborough"
+   "Roman Deloach",
+   "Brock Aguon",
+   "Zane Solano"
+  ]
+ },
+ "NYG": {
+  "d_field": [
+   "Tyrese Redfern",
+   "Malik Ashworth",
+   "Devonte Tackett",
+   "Deshawn Whitlock",
+   "Aden Sandoval",
+   "Cole Draper",
+   "Deshawn Redfern",
+   "Vance Salter",
+   "Dante Rask",
+   "Marcus Ashworth"
+  ],
+  "d_lb": [
+   "Jarrell Tackett",
+   "Tyrese Okafor",
+   "Marcus Palacios",
+   "Thane Voss",
+   "Tyrese Devereaux",
+   "Devonte Cassidy",
+   "Jaxon Ferris",
+   "Xavier Lund"
+  ],
+  "d_line": [
+   "Elijah Sirianni",
+   "Terrell Ibarra",
+   "Cole Kade",
+   "Nico Ashby",
+   "Ozzie Pryor",
+   "Malik Dembele",
+   "Thane Ryder",
+   "Isaiah Vega",
+   "Jarrell Kade"
+  ],
+  "o_line": [
+   "Oren Ryder",
+   "Jamal Hargrove",
+   "Quinton Sandoval",
+   "Devonte Solano",
+   "Luca Dembele",
+   "Rhett Aguon",
+   "Silas Ocampo",
+   "Solomon Ferris",
+   "Dante Rockwell",
+   "Roman Okafor"
+  ],
+  "o_pass": [
+   "Camden Ferris",
+   "Roman Sirianni",
+   "Trey Sable",
+   "Emeka Hennig",
+   "Ozzie Sandoval",
+   "Jarrell Threadgill",
+   "Nico Halloran",
+   "Kwame Fairbanks",
+   "Cyrus Rask"
+  ],
+  "o_rush": [
+   "Terrell Voss",
+   "Reef Cassidy",
+   "Luca Ansah",
+   "Kellan Rennick",
+   "Devonte Mackey"
+  ],
+  "o_te": [
+   "Amari Devereaux",
+   "Kyrie Deloach",
+   "Darius Bexley",
+   "Kellan Sable"
+  ],
+  "quarterback": [
+   "Lorenzo Mackey",
+   "Marcus Ocampo",
+   "Cass Yarborough"
+  ],
+  "special_teams": [
+   "Brock Redfern",
+   "Cyrus Ryder",
+   "Aden Cassidy"
   ]
  },
  "PHI": {
   "d_field": [
-   "Kwame Quillen",
+   "Malik Sable",
    "Darius Stroud",
-   "Silas Ozuna",
-   "Marlon Halloran",
-   "Jamal Redfern",
-   "Marlon Fairbanks",
-   "Deshawn Redfern",
-   "Kobe Hennig",
-   "Tyrese Marchetti",
-   "Kellan Ferris"
-  ],
-  "d_lb": [
-   "Aden Ferris",
-   "Jarrell Lund",
-   "Vance Solano",
-   "Kaden Vega",
-   "Elijah Fairbanks",
-   "Elijah Cassidy",
-   "Brock Deloach",
-   "Rashad Brannigan"
-  ],
-  "d_line": [
-   "Malik Crowder",
-   "Reef Tackett",
-   "Isaiah Rask",
-   "Elijah Rennick",
-   "Kobe Okafor",
-   "Quinton Threadgill",
-   "Vance Threadgill",
-   "Silas Sirianni",
-   "Amari Salter"
-  ],
-  "o_line": [
-   "Emeka Hargrove",
-   "Isaiah Ansah",
-   "Kellan Threadgill",
-   "Ronan Loudermilk",
-   "Ozzie Quillen",
-   "Miles Ferris",
-   "Jamal Ashworth",
-   "Ozzie Rockwell",
-   "Rhett Loudermilk",
-   "Ozzie Threadgill"
-  ],
-  "o_pass": [
-   "Jarrell Crowder",
-   "Jaxon Steed",
-   "Roman Yarborough",
-   "Kellan Ozuna",
-   "Solomon Rowe",
-   "Thane Bexley",
-   "Vance Stroud",
-   "Zane Cobb",
-   "Kyrie Pryor"
-  ],
-  "o_rush": [
-   "Dante Sable",
-   "Silas Steed",
-   "Dante Dembele",
-   "Kobe Steed",
-   "Brock Devereaux"
-  ],
-  "o_te": [
-   "Thane Nkemdi",
-   "Tyrese Cobb",
-   "Kyrie Vance",
-   "Bishop Deloach"
-  ],
-  "quarterback": [
-   "Isaiah Redfern",
-   "Tyrese Trask",
-   "Terrell Deloach"
-  ],
-  "special_teams": [
-   "Zane Draper",
-   "Isaiah Ocampo",
-   "Marcus Devereaux"
-  ]
- },
- "BOS": {
-  "d_field": [
-   "Kaden Voss",
-   "Kaden Ozuna",
-   "Marcus Ashby",
-   "Cass Rockwell",
-   "Oren Devereaux",
-   "Tyrese Ferris",
-   "Elijah Marchetti",
-   "Vance Crowder",
-   "Emeka Kade",
-   "Kyrie Mensah"
-  ],
-  "d_lb": [
-   "Marlon Whitlock",
-   "Dante Threadgill",
-   "Darius Trask",
-   "Nico Fairbanks",
-   "Luca Hennig",
-   "Lorenzo Tackett",
-   "Lorenzo Redfern",
-   "Kobe Rask"
-  ],
-  "d_line": [
-   "Zane Palacios",
-   "Brock Sable",
-   "Terrell Rowe",
-   "Kyrie Ferris",
-   "Elijah Sable",
-   "Jamal Redfern",
-   "Jericho Sable",
-   "Jarrell Steed",
-   "Lorenzo Cassidy"
-  ],
-  "o_line": [
-   "Kobe Solano",
-   "Camden Halloran",
-   "Vance Sirianni",
-   "Isaiah Ferris",
-   "Malik Tackett",
-   "Kellan Draper",
-   "Roman Ferris",
-   "Camden Rockwell",
-   "Lorenzo Devereaux",
-   "Marlon Brannigan"
-  ],
-  "o_pass": [
-   "Rashad Salter",
-   "Vance Yarborough",
-   "Jaxon Loudermilk",
-   "Xavier Salter",
-   "Marcus Yarborough",
-   "Deshawn Pryor",
-   "Roman Ozuna",
-   "Quinton Fairbanks",
-   "Dante Quillen"
-  ],
-  "o_rush": [
-   "Jaxon Ferris",
-   "Luca Rockwell",
-   "Zane Vega",
-   "Roman Ryder",
-   "Xavier Cobb"
-  ],
-  "o_te": [
-   "Cyrus Ashworth",
-   "Quinton Trask",
-   "Kaden Nkemdi",
-   "Kwame Ozuna"
-  ],
-  "quarterback": [
-   "Trey Lund",
-   "Roman Cobb",
-   "Darius Cobb"
-  ],
-  "special_teams": [
-   "Quinton Hargrove",
-   "Kwame Rockwell",
-   "Dominic Vaughters"
-  ]
- },
- "BAL": {
-  "d_field": [
-   "Vance Rowe",
-   "Luca Fairbanks",
-   "Solomon Crowder",
-   "Bishop Quillen",
-   "Cole Marchetti",
-   "Miles Marchetti",
-   "Cyrus Vaughters",
-   "Xavier Ferris",
-   "Lorenzo Lund",
-   "Rhett Redfern"
-  ],
-  "d_lb": [
-   "Kobe Mackey",
-   "Kaden Merrick",
-   "Kwame Rockwell",
-   "Bishop Okafor",
-   "Kyrie Cobb",
-   "Xavier Threadgill",
-   "Rhett Sable",
-   "Elijah Palacios"
-  ],
-  "d_line": [
-   "Devonte Whitlock",
-   "Kaden Pryor",
-   "Emeka Kade",
-   "Isaiah Brannigan",
-   "Cass Rowe",
-   "Darius Mackey",
-   "Kyrie Deloach",
-   "Elijah Loudermilk",
-   "Trey Traore"
-  ],
-  "o_line": [
-   "Dante Deloach",
-   "Camden Cobb",
-   "Luca Salter",
-   "Malik Steed",
-   "Dante Voss",
-   "Ozzie Marchetti",
-   "Dominic Fairbanks",
-   "Kellan Ryder",
-   "Miles Crowder",
-   "Emeka Quillen"
-  ],
-  "o_pass": [
-   "Camden Threadgill",
-   "Zane Deloach",
-   "Quinton Tackett",
-   "Deshawn Cobb",
-   "Darius Rask",
-   "Devonte Hargrove",
-   "Elijah Mackey",
-   "Cyrus Okafor",
-   "Kellan Devereaux"
-  ],
-  "o_rush": [
-   "Amari Hennig",
-   "Marlon Tackett",
-   "Brock Ashby",
-   "Ozzie Steed",
-   "Nico Rowe"
-  ],
-  "o_te": [
-   "Devonte Mensah",
-   "Lorenzo Tackett",
-   "Vance Whitlock",
-   "Nico Nkemdi"
-  ],
-  "quarterback": [
-   "Rashad Traore",
-   "Kyrie Brannigan",
-   "Elijah Rowe"
-  ],
-  "special_teams": [
-   "Solomon Whitlock",
-   "Miles Hennig",
-   "Thane Ansah"
-  ]
- },
- "CHI": {
-  "d_field": [
-   "Camden Trask",
-   "Xavier Rask",
-   "Jaxon Sandoval",
-   "Dominic Sable",
-   "Jarrell Kilgore",
-   "Bo Ocampo",
-   "Jaxon Kade",
-   "Oren Threadgill",
-   "Rashad Lund",
-   "Cass Voss"
-  ],
-  "d_lb": [
-   "Kwame Bexley",
-   "Cole Ansah",
-   "Quinton Merrick",
-   "Solomon Nkemdi",
-   "Vance Crowder",
-   "Rhett Threadgill",
-   "Jarrell Yarborough",
-   "Cole Devereaux"
-  ],
-  "d_line": [
-   "Camden Vance",
-   "Ozzie Halloran",
-   "Jamal Pryor",
-   "Dante Voss",
-   "Nico Draper",
-   "Cyrus Voss",
-   "Xavier Voss",
-   "Nico Ryder",
-   "Camden Salter"
-  ],
-  "o_line": [
-   "Isaiah Ocampo",
-   "Emeka Marchetti",
-   "Marcus Rowe",
-   "Miles Ashworth",
-   "Ronan Kilgore",
-   "Lorenzo Cassidy",
-   "Jaxon Nkemdi",
-   "Rashad Rockwell",
-   "Rhett Hennig",
-   "Nico Whitlock"
-  ],
-  "o_pass": [
-   "Jamal Draper",
-   "Bo Stroud",
-   "Malik Devereaux",
-   "Ozzie Mensah",
-   "Rhett Devereaux",
-   "Cyrus Solano",
-   "Emeka Rask",
-   "Kaden Vega",
-   "Cyrus Salter"
-  ],
-  "o_rush": [
-   "Isaiah Crowder",
-   "Rhett Brannigan",
-   "Deshawn Boone",
-   "Ronan Voss",
-   "Camden Merrick"
-  ],
-  "o_te": [
-   "Deshawn Solano",
-   "Ronan Vance",
-   "Kellan Hargrove",
-   "Cass Traore"
-  ],
-  "quarterback": [
-   "Kellan Ashworth",
-   "Emeka Ferris",
-   "Jamal Vaughters"
-  ],
-  "special_teams": [
-   "Ozzie Brannigan",
-   "Devonte Stroud",
-   "Terrell Pryor"
-  ]
- },
- "DET": {
-  "d_field": [
-   "Roman Vega",
-   "Tyrese Colter",
-   "Thane Boone",
-   "Trey Crowder",
-   "Bishop Ocampo",
-   "Kaden Crowder",
-   "Kellan Rowe",
-   "Kwame Colter",
-   "Malik Ibarra",
-   "Bishop Mackey"
-  ],
-  "d_lb": [
-   "Marcus Mackey",
-   "Lorenzo Voss",
-   "Silas Rowe",
-   "Zane Solano",
-   "Xavier Sable",
-   "Dominic Whitlock",
-   "Miles Pryor",
-   "Terrell Aguon"
-  ],
-  "d_line": [
-   "Amari Pryor",
-   "Xavier Rockwell",
-   "Cyrus Ashworth",
-   "Solomon Quillen",
-   "Rhett Brannigan",
-   "Trey Sable",
-   "Rhett Lund",
-   "Rhett Trask",
-   "Cyrus Ashby"
-  ],
-  "o_line": [
-   "Kyrie Solano",
-   "Kwame Cobb",
-   "Bishop Threadgill",
-   "Thane Bexar",
-   "Cyrus Crowder",
-   "Dante Solano",
-   "Terrell Sirianni",
-   "Jarrell Steed",
-   "Amari Hargrove",
-   "Tyrese Steed"
-  ],
-  "o_pass": [
-   "Malik Mensah",
-   "Silas Okafor",
-   "Jamal Lund",
-   "Ronan Okafor",
-   "Xavier Marchetti",
-   "Zane Ferris",
-   "Vance Pryor",
-   "Camden Solano",
-   "Terrell Ryder"
-  ],
-  "o_rush": [
-   "Marcus Palacios",
-   "Cyrus Kade",
-   "Cass Rask",
-   "Kaden Kilgore",
-   "Silas Brannigan"
-  ],
-  "o_te": [
-   "Bo Cassidy",
-   "Marcus Nkemdi",
-   "Ozzie Salter",
-   "Kwame Voss"
-  ],
-  "quarterback": [
-   "Deshawn Yarborough",
-   "Jamal Draper",
-   "Kellan Aguon"
-  ],
-  "special_teams": [
-   "Kaden Dembele",
-   "Kaden Yarborough",
-   "Rhett Loudermilk"
-  ]
- },
- "CLE": {
-  "d_field": [
-   "Marlon Quillen",
-   "Rhett Vega",
-   "Aden Loudermilk",
-   "Miles Rowe",
-   "Marcus Cobb",
-   "Amari Rask",
-   "Amari Palacios",
-   "Solomon Palacios",
-   "Kyrie Solano",
-   "Darius Quillen"
-  ],
-  "d_lb": [
-   "Luca Draper",
-   "Quinton Bexar",
-   "Rashad Dembele",
-   "Dominic Ferris",
-   "Isaiah Rask",
-   "Thane Boone",
-   "Deshawn Draper",
-   "Dominic Draper"
-  ],
-  "d_line": [
-   "Kyrie Rennick",
-   "Vance Rockwell",
-   "Lorenzo Whitlock",
-   "Darius Traore",
-   "Cass Okafor",
-   "Ronan Bexley",
-   "Trey Rowe",
-   "Terrell Bexar",
-   "Marlon Stroud"
-  ],
-  "o_line": [
-   "Kyrie Rockwell",
-   "Silas Ferris",
-   "Quinton Salter",
-   "Oren Nkemdi",
-   "Kellan Mensah",
-   "Luca Solano",
-   "Jamal Ozuna",
-   "Isaiah Vance",
-   "Dante Pryor",
-   "Tyrese Solano"
-  ],
-  "o_pass": [
-   "Darius Ocampo",
-   "Jericho Steed",
-   "Deshawn Ferris",
-   "Dominic Whitlock",
-   "Amari Traore",
-   "Kellan Mackey",
-   "Oren Vance",
-   "Marlon Ashby",
-   "Silas Okafor"
-  ],
-  "o_rush": [
-   "Jaxon Yarborough",
-   "Ronan Ashworth",
-   "Jamal Ryder",
-   "Aden Mackey",
-   "Camden Nkemdi"
-  ],
-  "o_te": [
-   "Quinton Ocampo",
-   "Terrell Nkemdi",
-   "Nico Cobb",
-   "Jaxon Sirianni"
-  ],
-  "quarterback": [
-   "Elijah Ryder",
-   "Cass Voss",
-   "Jarrell Hennig"
-  ],
-  "special_teams": [
-   "Deshawn Bexley",
-   "Devonte Brannigan",
-   "Luca Vaughters"
-  ]
- },
- "MIN": {
-  "d_field": [
-   "Cole Rowe",
-   "Camden Crowder",
-   "Trey Cassidy",
-   "Solomon Ryder",
-   "Amari Hennig",
-   "Malik Nkemdi",
-   "Ozzie Bexley",
-   "Jarrell Aguon",
-   "Thane Kilgore",
-   "Terrell Marchetti"
-  ],
-  "d_lb": [
-   "Brock Redfern",
-   "Terrell Ashworth",
-   "Luca Ashworth",
-   "Marlon Stroud",
-   "Ozzie Colter",
-   "Reef Steed",
-   "Jamal Yarborough",
-   "Ronan Sable"
-  ],
-  "d_line": [
-   "Amari Trask",
-   "Ronan Merrick",
-   "Ronan Cobb",
-   "Isaiah Ansah",
-   "Silas Quillen",
-   "Marlon Cobb",
-   "Rhett Kade",
-   "Trey Hennig",
-   "Kobe Ozuna"
-  ],
-  "o_line": [
-   "Cass Devereaux",
-   "Bishop Vaughters",
-   "Isaiah Kade",
-   "Cass Colter",
-   "Tyrese Merrick",
-   "Oren Cassidy",
-   "Kwame Redfern",
-   "Jarrell Palacios",
-   "Miles Cassidy",
-   "Bo Kilgore"
-  ],
-  "o_pass": [
-   "Reef Hargrove",
-   "Quinton Lund",
-   "Tyrese Sandoval",
-   "Malik Whitlock",
-   "Kaden Aguon",
-   "Jericho Kilgore",
-   "Aden Trask",
-   "Roman Sandoval",
-   "Jamal Threadgill"
-  ],
-  "o_rush": [
-   "Oren Quillen",
-   "Jericho Ashby",
-   "Jericho Steed",
-   "Bo Ryder",
-   "Kobe Okafor"
-  ],
-  "o_te": [
-   "Jamal Bexley",
-   "Rhett Boone",
-   "Terrell Fairbanks",
-   "Luca Sable"
-  ],
-  "quarterback": [
-   "Camden Ibarra",
-   "Jarrell Deloach",
-   "Marcus Palacios"
-  ],
-  "special_teams": [
-   "Marcus Ocampo",
-   "Xavier Fairbanks",
-   "Lorenzo Steed"
-  ]
- },
- "MIA": {
-  "d_field": [
-   "Cole Whitlock",
-   "Roman Fairbanks",
-   "Thane Ferris",
-   "Jaxon Tackett",
-   "Roman Boone",
-   "Ozzie Ashworth",
-   "Miles Steed",
-   "Deshawn Bexar",
-   "Isaiah Cobb",
-   "Vance Tackett"
-  ],
-  "d_lb": [
-   "Kaden Kade",
-   "Zane Yarborough",
-   "Quinton Redfern",
-   "Vance Draper",
-   "Kwame Fairbanks",
-   "Malik Quillen",
-   "Jaxon Cobb",
-   "Ozzie Deloach"
-  ],
-  "d_line": [
-   "Oren Threadgill",
-   "Zane Rowe",
-   "Tyrese Merrick",
-   "Kwame Kade",
-   "Xavier Palacios",
-   "Bo Threadgill",
-   "Trey Steed",
-   "Ronan Devereaux",
-   "Tyrese Redfern"
-  ],
-  "o_line": [
-   "Lorenzo Loudermilk",
-   "Oren Tackett",
-   "Isaiah Salter",
-   "Aden Ashby",
-   "Isaiah Ocampo",
-   "Bo Ferris",
-   "Zane Solano",
-   "Brock Ferris",
-   "Isaiah Rask",
-   "Cass Mackey"
-  ],
-  "o_pass": [
-   "Darius Okafor",
-   "Rhett Halloran",
-   "Thane Crowder",
-   "Deshawn Quillen",
-   "Roman Dembele",
-   "Xavier Mackey",
-   "Cyrus Boone",
-   "Solomon Ashworth",
-   "Jarrell Redfern"
-  ],
-  "o_rush": [
-   "Darius Palacios",
-   "Reef Bexar",
-   "Ozzie Halloran",
-   "Ozzie Vance",
-   "Vance Hargrove"
-  ],
-  "o_te": [
-   "Zane Whitlock",
-   "Isaiah Bexley",
-   "Cyrus Ocampo",
-   "Oren Mensah"
-  ],
-  "quarterback": [
-   "Jaxon Brannigan",
-   "Miles Threadgill",
-   "Nico Cassidy"
-  ],
-  "special_teams": [
-   "Deshawn Ocampo",
-   "Kaden Stroud",
-   "Cole Rask"
-  ]
- },
- "ATL": {
-  "d_field": [
-   "Marcus Pryor",
-   "Malik Ashworth",
-   "Xavier Stroud",
-   "Isaiah Pryor",
-   "Marcus Sandoval",
-   "Cole Palacios",
-   "Malik Threadgill",
-   "Kellan Quillen",
-   "Marlon Yarborough",
-   "Amari Yarborough"
-  ],
-  "d_lb": [
-   "Ronan Ryder",
-   "Devonte Palacios",
-   "Nico Fairbanks",
-   "Ronan Tackett",
-   "Kyrie Bexley",
-   "Marcus Tackett",
-   "Kobe Aguon",
-   "Devonte Rask"
-  ],
-  "d_line": [
-   "Amari Ashworth",
-   "Devonte Trask",
-   "Cass Ibarra",
-   "Marcus Draper",
-   "Kyrie Devereaux",
-   "Quinton Cassidy",
-   "Kwame Dembele",
-   "Cole Hargrove",
-   "Aden Cassidy"
-  ],
-  "o_line": [
-   "Cyrus Hennig",
-   "Camden Trask",
-   "Camden Sable",
-   "Nico Ansah",
-   "Reef Rask",
-   "Dominic Yarborough",
-   "Marlon Vega",
-   "Aden Rennick",
-   "Amari Trask",
-   "Malik Vega"
-  ],
-  "o_pass": [
-   "Elijah Aguon",
-   "Marlon Sirianni",
-   "Amari Sirianni",
-   "Terrell Bexar",
-   "Kellan Rask",
-   "Tyrese Steed",
-   "Cyrus Dembele",
-   "Silas Marchetti",
-   "Cyrus Voss"
-  ],
-  "o_rush": [
-   "Cyrus Sandoval",
-   "Oren Trask",
-   "Kyrie Mackey",
-   "Malik Rennick",
-   "Lorenzo Hargrove"
-  ],
-  "o_te": [
-   "Amari Tackett",
-   "Darius Redfern",
-   "Kaden Ocampo",
-   "Jericho Aguon"
-  ],
-  "quarterback": [
-   "Jericho Ashworth",
-   "Elijah Hennig",
-   "Kyrie Sirianni"
-  ],
-  "special_teams": [
-   "Roman Traore",
-   "Vance Colter",
-   "Marcus Kilgore"
-  ]
- },
- "NSH": {
-  "d_field": [
-   "Marlon Cobb",
-   "Kobe Threadgill",
-   "Jarrell Palacios",
-   "Silas Solano",
-   "Quinton Stroud",
-   "Bo Hennig",
-   "Bishop Trask",
-   "Xavier Hennig",
-   "Oren Draper",
-   "Camden Hargrove"
-  ],
-  "d_lb": [
-   "Miles Yarborough",
-   "Kaden Cassidy",
-   "Cass Loudermilk",
-   "Dante Rowe",
-   "Camden Ashworth",
-   "Amari Sandoval",
+   "Miles Solano",
+   "Dominic Crowder",
+   "Kwame Ashworth",
+   "Deshawn Cassidy",
+   "Brock Kilgore",
+   "Camden Rask",
    "Xavier Whitlock",
-   "Kobe Kilgore"
-  ],
-  "d_line": [
-   "Malik Pryor",
-   "Devonte Palacios",
-   "Kobe Stroud",
-   "Rhett Crowder",
-   "Camden Ferris",
-   "Kaden Traore",
-   "Kaden Ibarra",
-   "Quinton Kilgore",
-   "Aden Aguon"
-  ],
-  "o_line": [
-   "Jarrell Traore",
-   "Roman Bexar",
-   "Jericho Ferris",
-   "Lorenzo Devereaux",
-   "Reef Traore",
-   "Cole Ocampo",
-   "Silas Vance",
-   "Jarrell Steed",
-   "Marcus Hargrove",
-   "Elijah Quillen"
-  ],
-  "o_pass": [
-   "Emeka Trask",
-   "Isaiah Okafor",
-   "Xavier Threadgill",
-   "Cole Palacios",
-   "Aden Hargrove",
-   "Rashad Fairbanks",
-   "Kellan Ferris",
-   "Jarrell Kilgore",
-   "Elijah Marchetti"
-  ],
-  "o_rush": [
-   "Trey Deloach",
-   "Cass Ibarra",
-   "Terrell Sable",
-   "Dominic Bexar",
-   "Roman Stroud"
-  ],
-  "o_te": [
-   "Bishop Loudermilk",
-   "Rhett Mackey",
-   "Trey Draper",
-   "Vance Palacios"
-  ],
-  "quarterback": [
-   "Vance Kilgore",
-   "Amari Mensah",
-   "Roman Okafor"
-  ],
-  "special_teams": [
-   "Solomon Steed",
-   "Quinton Ibarra",
-   "Marlon Palacios"
-  ]
- },
- "HOU": {
-  "d_field": [
-   "Solomon Crowder",
-   "Ronan Hennig",
-   "Jericho Redfern",
-   "Marcus Bexar",
-   "Bishop Mackey",
-   "Reef Halloran",
-   "Tyrese Aguon",
-   "Bishop Kilgore",
-   "Roman Ferris",
-   "Emeka Tackett"
+   "Aden Deloach"
   ],
   "d_lb": [
-   "Tyrese Ibarra",
-   "Zane Colter",
-   "Oren Fairbanks",
-   "Kwame Lund",
-   "Vance Quillen",
-   "Devonte Trask",
-   "Camden Ibarra",
-   "Ronan Dembele"
+   "Thane Stroud",
+   "Bo Kade",
+   "Reef Halloran",
+   "Cyrus Merrick",
+   "Deshawn Lund",
+   "Luca Sirianni",
+   "Dante Ryder",
+   "Brock Rask"
   ],
   "d_line": [
-   "Emeka Crowder",
-   "Oren Cassidy",
-   "Rhett Mensah",
-   "Jamal Bexley",
-   "Jarrell Loudermilk",
-   "Aden Solano",
-   "Jericho Sirianni",
-   "Silas Vance",
-   "Malik Marchetti"
+   "Devonte Vega",
+   "Oren Sandoval",
+   "Isaiah Palacios",
+   "Kwame Brannigan",
+   "Cyrus Hennig",
+   "Jericho Stroud",
+   "Deshawn Colter",
+   "Bo Vance",
+   "Cass Bexar"
   ],
   "o_line": [
-   "Amari Halloran",
-   "Isaiah Yarborough",
-   "Bishop Ansah",
-   "Deshawn Traore",
-   "Rashad Whitlock",
-   "Terrell Ibarra",
-   "Tyrese Sable",
-   "Aden Mensah",
-   "Rashad Deloach",
-   "Nico Traore"
+   "Rashad Mackey",
+   "Marcus Tackett",
+   "Jericho Bexar",
+   "Bishop Ferris",
+   "Rhett Trask",
+   "Oren Ferris",
+   "Solomon Steed",
+   "Bo Whitlock",
+   "Kwame Whitlock",
+   "Cass Tackett"
   ],
   "o_pass": [
-   "Zane Stroud",
-   "Jaxon Sandoval",
-   "Ozzie Pryor",
-   "Solomon Palacios",
-   "Emeka Ibarra",
-   "Quinton Nkemdi",
-   "Kobe Ashby",
-   "Emeka Bexley",
-   "Reef Boone"
+   "Bishop Rask",
+   "Oren Aguon",
+   "Terrell Nkemdi",
+   "Thane Aguon",
+   "Kwame Mackey",
+   "Marcus Yarborough",
+   "Brock Ozuna",
+   "Silas Bexar",
+   "Kaden Draper"
   ],
   "o_rush": [
-   "Reef Redfern",
-   "Jaxon Merrick",
-   "Elijah Sable",
-   "Thane Merrick",
-   "Solomon Okafor"
+   "Luca Rockwell",
+   "Amari Voss",
+   "Nico Stroud",
+   "Marcus Stroud",
+   "Marcus Hennig"
   ],
   "o_te": [
    "Jamal Vance",
-   "Oren Stroud",
-   "Lorenzo Brannigan",
-   "Cass Steed"
+   "Luca Brannigan",
+   "Kobe Mackey",
+   "Dominic Traore"
   ],
   "quarterback": [
-   "Cyrus Cassidy",
-   "Cole Okafor",
-   "Oren Rowe"
+   "Isaiah Ferris",
+   "Quinton Boone",
+   "Kwame Redfern"
   ],
   "special_teams": [
-   "Luca Devereaux",
-   "Rashad Draper",
-   "Rhett Loudermilk"
-  ]
- },
- "LA": {
-  "d_field": [
-   "Elijah Tackett",
-   "Silas Vaughters",
-   "Marlon Quillen",
-   "Roman Traore",
-   "Malik Ocampo",
-   "Reef Rowe",
-   "Cass Palacios",
-   "Miles Trask",
-   "Terrell Okafor",
-   "Bo Vance"
-  ],
-  "d_lb": [
-   "Kyrie Fairbanks",
-   "Isaiah Crowder",
-   "Xavier Okafor",
-   "Jaxon Traore",
-   "Malik Kade",
-   "Quinton Trask",
-   "Aden Mackey",
-   "Malik Solano"
-  ],
-  "d_line": [
-   "Elijah Rask",
-   "Camden Kilgore",
-   "Ozzie Bexar",
-   "Cole Lund",
-   "Kwame Rowe",
-   "Devonte Brannigan",
-   "Terrell Colter",
-   "Isaiah Ibarra",
-   "Quinton Lund"
-  ],
-  "o_line": [
-   "Nico Bexley",
-   "Quinton Vance",
-   "Jaxon Loudermilk",
-   "Emeka Crowder",
-   "Reef Palacios",
-   "Dante Merrick",
-   "Tyrese Mackey",
-   "Elijah Kade",
-   "Ozzie Deloach",
-   "Dante Vaughters"
-  ],
-  "o_pass": [
-   "Xavier Halloran",
-   "Jamal Trask",
-   "Luca Steed",
-   "Aden Steed",
-   "Trey Ozuna",
-   "Marcus Vaughters",
-   "Deshawn Rask",
-   "Zane Bexley",
-   "Cyrus Solano"
-  ],
-  "o_rush": [
-   "Xavier Vance",
-   "Kwame Ashworth",
-   "Marcus Sable",
-   "Bo Steed",
-   "Darius Okafor"
-  ],
-  "o_te": [
-   "Oren Vaughters",
-   "Ozzie Loudermilk",
-   "Ronan Cobb",
-   "Jaxon Rowe"
-  ],
-  "quarterback": [
-   "Quinton Cobb",
-   "Marcus Trask",
-   "Silas Ryder"
-  ],
-  "special_teams": [
-   "Ronan Sirianni",
-   "Lorenzo Trask",
-   "Deshawn Ryder"
-  ]
- },
- "SEA": {
-  "d_field": [
-   "Dante Loudermilk",
-   "Quinton Loudermilk",
-   "Camden Stroud",
-   "Terrell Palacios",
-   "Darius Quillen",
-   "Cole Draper",
-   "Oren Hennig",
-   "Kyrie Fairbanks",
-   "Aden Sable",
-   "Jamal Dembele"
-  ],
-  "d_lb": [
-   "Rashad Deloach",
-   "Jericho Okafor",
-   "Kwame Redfern",
-   "Kellan Voss",
-   "Emeka Okafor",
-   "Devonte Ocampo",
-   "Cyrus Vega",
-   "Xavier Vega"
-  ],
-  "d_line": [
-   "Miles Cobb",
-   "Trey Voss",
-   "Elijah Vaughters",
-   "Rashad Salter",
-   "Ronan Brannigan",
-   "Kobe Voss",
-   "Brock Ibarra",
-   "Cyrus Threadgill",
-   "Rashad Bexley"
-  ],
-  "o_line": [
-   "Marcus Loudermilk",
-   "Nico Draper",
-   "Tyrese Aguon",
-   "Jamal Mensah",
-   "Solomon Devereaux",
-   "Brock Salter",
-   "Marlon Lund",
-   "Aden Mackey",
-   "Jarrell Ashworth",
-   "Zane Ryder"
-  ],
-  "o_pass": [
-   "Devonte Pryor",
-   "Rhett Crowder",
-   "Darius Sable",
-   "Camden Steed",
-   "Dominic Kilgore",
-   "Bishop Steed",
-   "Rashad Ocampo",
-   "Kyrie Quillen",
-   "Lorenzo Mackey"
-  ],
-  "o_rush": [
-   "Terrell Bexley",
-   "Reef Boone",
-   "Ozzie Ozuna",
-   "Malik Quillen",
-   "Ozzie Nkemdi"
-  ],
-  "o_te": [
-   "Miles Kade",
-   "Tyrese Lund",
-   "Trey Kade",
-   "Roman Brannigan"
-  ],
-  "quarterback": [
-   "Kellan Solano",
-   "Cyrus Steed",
-   "Rashad Draper"
-  ],
-  "special_teams": [
-   "Malik Crowder",
-   "Aden Marchetti",
-   "Cass Hennig"
-  ]
- },
- "PHX": {
-  "d_field": [
-   "Emeka Whitlock",
-   "Quinton Bexar",
-   "Jamal Devereaux",
-   "Camden Cobb",
-   "Nico Kade",
-   "Devonte Loudermilk",
-   "Rhett Dembele",
-   "Lorenzo Tackett",
-   "Camden Lund",
-   "Ozzie Brannigan"
-  ],
-  "d_lb": [
-   "Jamal Ozuna",
-   "Luca Rockwell",
-   "Jamal Ashworth",
-   "Solomon Rennick",
-   "Deshawn Quillen",
-   "Terrell Solano",
-   "Tyrese Ibarra",
-   "Cass Devereaux"
-  ],
-  "d_line": [
-   "Jarrell Okafor",
-   "Jaxon Bexar",
-   "Dominic Threadgill",
-   "Devonte Redfern",
-   "Vance Rennick",
-   "Cole Dembele",
-   "Jaxon Stroud",
-   "Amari Fairbanks",
-   "Brock Kade"
-  ],
-  "o_line": [
-   "Zane Kilgore",
-   "Tyrese Quillen",
-   "Bo Threadgill",
-   "Reef Hargrove",
-   "Rashad Yarborough",
-   "Brock Whitlock",
-   "Marcus Ryder",
-   "Kaden Lund",
-   "Dominic Merrick",
-   "Miles Palacios"
-  ],
-  "o_pass": [
-   "Dominic Ocampo",
-   "Dante Stroud",
-   "Ronan Whitlock",
-   "Amari Halloran",
-   "Darius Ansah",
-   "Dominic Ferris",
-   "Zane Sable",
-   "Aden Ansah",
-   "Miles Halloran"
-  ],
-  "o_rush": [
-   "Cass Okafor",
-   "Devonte Mensah",
-   "Kwame Bexar",
-   "Ronan Deloach",
-   "Bishop Lund"
-  ],
-  "o_te": [
-   "Vance Ansah",
-   "Aden Fairbanks",
-   "Amari Hennig",
-   "Amari Hargrove"
-  ],
-  "quarterback": [
-   "Kobe Vega",
-   "Deshawn Ashworth",
-   "Trey Rowe"
-  ],
-  "special_teams": [
-   "Xavier Rockwell",
-   "Deshawn Cobb",
-   "Terrell Lund"
-  ]
- },
- "LV": {
-  "d_field": [
-   "Miles Bexar",
-   "Terrell Halloran",
-   "Kyrie Trask",
-   "Jamal Sable",
-   "Bo Boone",
-   "Amari Loudermilk",
-   "Kwame Quillen",
-   "Cass Aguon",
-   "Marcus Colter",
-   "Oren Rask"
-  ],
-  "d_lb": [
-   "Devonte Quillen",
-   "Cole Bexar",
-   "Jericho Ashby",
-   "Bishop Dembele",
-   "Jamal Crowder",
-   "Jamal Sandoval",
-   "Thane Sandoval",
-   "Deshawn Voss"
-  ],
-  "d_line": [
-   "Dante Ashby",
-   "Brock Vega",
-   "Kwame Stroud",
-   "Lorenzo Sandoval",
-   "Silas Sable",
-   "Bishop Mackey",
-   "Isaiah Ibarra",
-   "Nico Ryder",
-   "Kyrie Crowder"
-  ],
-  "o_line": [
-   "Camden Vega",
-   "Marlon Cassidy",
-   "Rashad Bexley",
-   "Zane Okafor",
-   "Luca Palacios",
-   "Malik Ryder",
-   "Cyrus Ibarra",
-   "Kellan Sable",
-   "Isaiah Kade",
-   "Zane Sandoval"
-  ],
-  "o_pass": [
-   "Dominic Draper",
-   "Ronan Quillen",
-   "Oren Voss",
-   "Luca Draper",
-   "Aden Traore",
-   "Aden Crowder",
-   "Jamal Marchetti",
-   "Emeka Salter",
-   "Quinton Quillen"
-  ],
-  "o_rush": [
-   "Vance Pryor",
-   "Thane Voss",
-   "Kyrie Hennig",
-   "Rhett Mensah",
-   "Roman Kilgore"
-  ],
-  "o_te": [
-   "Rhett Halloran",
-   "Isaiah Sandoval",
-   "Cyrus Loudermilk",
-   "Amari Steed"
-  ],
-  "quarterback": [
-   "Emeka Bexley",
-   "Jarrell Threadgill",
-   "Roman Fairbanks"
-  ],
-  "special_teams": [
-   "Luca Kade",
-   "Deshawn Quillen",
-   "Isaiah Rennick"
+   "Rhett Hennig",
+   "Nico Cobb",
+   "Vance Redfern"
   ]
  },
  "WAS": {
   "d_field": [
-   "Kyrie Aguon",
-   "Luca Salter",
-   "Jericho Mackey",
-   "Aden Sable",
-   "Lorenzo Draper",
-   "Roman Ashby",
-   "Deshawn Kilgore",
-   "Elijah Vaughters",
-   "Roman Vega",
-   "Roman Loudermilk"
-  ],
-  "d_lb": [
-   "Ronan Steed",
-   "Luca Palacios",
-   "Aden Rowe",
-   "Darius Hargrove",
-   "Camden Deloach",
-   "Devonte Ryder",
-   "Silas Threadgill",
-   "Ronan Ashby"
-  ],
-  "d_line": [
-   "Marcus Rockwell",
-   "Xavier Bexar",
-   "Quinton Stroud",
-   "Rashad Palacios",
-   "Cole Whitlock",
-   "Kaden Boone",
-   "Xavier Solano",
-   "Darius Stroud",
-   "Deshawn Tackett"
-  ],
-  "o_line": [
-   "Bo Kade",
-   "Silas Cassidy",
-   "Trey Ocampo",
-   "Jamal Rennick",
-   "Ozzie Steed",
-   "Zane Tackett",
-   "Roman Voss",
-   "Kaden Cobb",
-   "Luca Aguon",
-   "Kwame Ashby"
-  ],
-  "o_pass": [
-   "Darius Aguon",
-   "Oren Mackey",
-   "Kellan Rask",
-   "Dominic Vaughters",
-   "Marcus Colter",
-   "Deshawn Hargrove",
-   "Camden Tackett",
-   "Jericho Yarborough",
-   "Kaden Deloach"
-  ],
-  "o_rush": [
-   "Deshawn Boone",
-   "Emeka Ansah",
-   "Zane Fairbanks",
-   "Cole Quillen",
-   "Dante Cassidy"
-  ],
-  "o_te": [
-   "Kellan Ibarra",
-   "Tyrese Hennig",
-   "Tyrese Sirianni",
-   "Devonte Steed"
-  ],
-  "quarterback": [
-   "Elijah Ryder",
-   "Kwame Kade",
-   "Kyrie Salter"
-  ],
-  "special_teams": [
-   "Oren Stroud",
-   "Jarrell Draper",
-   "Malik Mensah"
-  ]
- },
- "PIT": {
-  "d_field": [
-   "Zane Aguon",
-   "Nico Colter",
-   "Roman Sandoval",
-   "Luca Kilgore",
-   "Kaden Dembele",
-   "Cole Kade",
-   "Amari Pryor",
-   "Kaden Ocampo",
-   "Dante Cassidy",
-   "Rhett Bexley"
-  ],
-  "d_lb": [
-   "Elijah Nkemdi",
-   "Amari Bexley",
-   "Brock Vega",
-   "Malik Trask",
-   "Zane Ocampo",
-   "Miles Colter",
-   "Oren Ashworth",
-   "Nico Deloach"
-  ],
-  "d_line": [
-   "Isaiah Mackey",
-   "Nico Draper",
-   "Amari Okafor",
-   "Malik Ashworth",
-   "Malik Ibarra",
-   "Tyrese Colter",
-   "Luca Tackett",
-   "Marlon Crowder",
-   "Devonte Loudermilk"
-  ],
-  "o_line": [
-   "Ozzie Sable",
-   "Deshawn Sandoval",
-   "Terrell Stroud",
-   "Kellan Cobb",
-   "Quinton Yarborough",
-   "Thane Steed",
-   "Amari Vega",
-   "Ronan Whitlock",
-   "Devonte Quillen",
-   "Darius Rennick"
-  ],
-  "o_pass": [
-   "Trey Tackett",
-   "Cyrus Boone",
-   "Camden Boone",
-   "Aden Ryder",
-   "Bo Bexar",
-   "Brock Halloran",
-   "Kobe Ansah",
-   "Ozzie Lund",
-   "Terrell Rennick"
-  ],
-  "o_rush": [
-   "Ronan Bexar",
-   "Bishop Redfern",
-   "Vance Vance",
-   "Kobe Ashworth",
-   "Rashad Boone"
-  ],
-  "o_te": [
-   "Kobe Lund",
-   "Silas Bexley",
-   "Miles Bexley",
-   "Nico Brannigan"
-  ],
-  "quarterback": [
-   "Bo Merrick",
-   "Ozzie Loudermilk",
-   "Ronan Ashworth"
-  ],
-  "special_teams": [
-   "Rhett Nkemdi",
-   "Brock Dembele",
-   "Aden Salter"
-  ]
- },
- "BUF": {
-  "d_field": [
-   "Vance Pryor",
-   "Cass Sandoval",
-   "Miles Trask",
-   "Reef Mackey",
-   "Malik Dembele",
-   "Luca Deloach",
-   "Lorenzo Bexar",
-   "Terrell Vance",
-   "Ozzie Merrick",
-   "Jarrell Bexley"
-  ],
-  "d_lb": [
-   "Rhett Ashworth",
-   "Cass Boone",
-   "Deshawn Sandoval",
-   "Solomon Mackey",
-   "Cass Cobb",
-   "Isaiah Cassidy",
-   "Quinton Devereaux",
-   "Terrell Aguon"
-  ],
-  "d_line": [
-   "Tyrese Vega",
-   "Aden Yarborough",
-   "Ozzie Vance",
-   "Ronan Threadgill",
-   "Brock Steed",
-   "Elijah Marchetti",
-   "Tyrese Brannigan",
-   "Rhett Ashby",
-   "Jericho Ferris"
-  ],
-  "o_line": [
-   "Bo Draper",
-   "Jarrell Rask",
-   "Roman Loudermilk",
-   "Marcus Ashworth",
-   "Quinton Loudermilk",
-   "Jaxon Kade",
-   "Kwame Hargrove",
-   "Camden Marchetti",
-   "Trey Aguon",
-   "Darius Lund"
-  ],
-  "o_pass": [
-   "Aden Rockwell",
-   "Miles Rowe",
-   "Solomon Pryor",
-   "Silas Pryor",
-   "Kobe Halloran",
-   "Rashad Lund",
-   "Bishop Ocampo",
-   "Marlon Colter",
-   "Rashad Ansah"
-  ],
-  "o_rush": [
-   "Darius Loudermilk",
-   "Oren Colter",
-   "Terrell Redfern",
-   "Kyrie Ashby",
-   "Brock Bexar"
-  ],
-  "o_te": [
-   "Solomon Merrick",
-   "Jaxon Brannigan",
-   "Zane Cobb",
-   "Aden Palacios"
-  ],
-  "quarterback": [
-   "Amari Halloran",
-   "Oren Pryor",
-   "Jarrell Rowe"
-  ],
-  "special_teams": [
-   "Solomon Rask",
-   "Camden Merrick",
-   "Thane Whitlock"
-  ]
- },
- "NWK": {
-  "d_field": [
-   "Trey Tackett",
-   "Luca Traore",
-   "Deshawn Bexar",
-   "Miles Quillen",
-   "Oren Colter",
-   "Dante Quillen",
-   "Kyrie Voss",
-   "Cyrus Dembele",
-   "Devonte Rowe",
-   "Vance Salter"
-  ],
-  "d_lb": [
-   "Elijah Salter",
-   "Marcus Quillen",
-   "Nico Crowder",
-   "Roman Sandoval",
-   "Camden Mackey",
-   "Rhett Ryder",
-   "Tyrese Pryor",
-   "Isaiah Whitlock"
-  ],
-  "d_line": [
-   "Jericho Crowder",
-   "Lorenzo Steed",
-   "Nico Traore",
-   "Jamal Whitlock",
-   "Aden Kilgore",
-   "Jericho Brannigan",
-   "Dominic Steed",
-   "Cole Palacios",
-   "Amari Brannigan"
-  ],
-  "o_line": [
-   "Ozzie Vaughters",
-   "Jaxon Ashby",
-   "Quinton Stroud",
-   "Dominic Rowe",
-   "Jamal Vance",
-   "Tyrese Boone",
-   "Isaiah Redfern",
-   "Solomon Rask",
-   "Darius Voss",
-   "Jamal Sirianni"
-  ],
-  "o_pass": [
-   "Ronan Merrick",
-   "Solomon Merrick",
-   "Vance Brannigan",
-   "Bishop Rockwell",
-   "Lorenzo Ibarra",
-   "Thane Steed",
-   "Cass Vaughters",
-   "Cyrus Ocampo",
-   "Kwame Crowder"
-  ],
-  "o_rush": [
-   "Thane Mensah",
-   "Trey Kilgore",
-   "Kellan Marchetti",
-   "Marcus Hargrove",
-   "Marcus Ryder"
-  ],
-  "o_te": [
-   "Kyrie Yarborough",
-   "Elijah Rockwell",
-   "Deshawn Yarborough",
-   "Aden Trask"
-  ],
-  "quarterback": [
-   "Solomon Cobb",
-   "Marcus Ferris",
-   "Isaiah Brannigan"
-  ],
-  "special_teams": [
-   "Silas Yarborough",
+   "Jamal Pryor",
+   "Dante Sable",
+   "Bo Sandoval",
+   "Elijah Loudermilk",
+   "Jarrell Marchetti",
+   "Elijah Sirianni",
+   "Terrell Pryor",
+   "Cyrus Tackett",
    "Oren Vaughters",
-   "Camden Marchetti"
+   "Silas Rockwell"
+  ],
+  "d_lb": [
+   "Zane Loudermilk",
+   "Kobe Vaughters",
+   "Kwame Rennick",
+   "Kyrie Lund",
+   "Bo Ryder",
+   "Malik Salter",
+   "Ronan Devereaux",
+   "Isaiah Hargrove"
+  ],
+  "d_line": [
+   "Trey Tackett",
+   "Jericho Hargrove",
+   "Cass Palacios",
+   "Oren Cobb",
+   "Lorenzo Ocampo",
+   "Marcus Bexar",
+   "Tyrese Mensah",
+   "Silas Sirianni",
+   "Oren Ashworth"
+  ],
+  "o_line": [
+   "Jamal Ansah",
+   "Devonte Ryder",
+   "Tyrese Ozuna",
+   "Silas Devereaux",
+   "Quinton Rockwell",
+   "Cyrus Colter",
+   "Brock Okafor",
+   "Kaden Deloach",
+   "Dominic Sirianni",
+   "Aden Pryor"
+  ],
+  "o_pass": [
+   "Silas Rowe",
+   "Jamal Ferris",
+   "Bishop Bexar",
+   "Cass Rennick",
+   "Kobe Bexar",
+   "Emeka Cassidy",
+   "Jarrell Palacios",
+   "Terrell Brannigan",
+   "Jamal Ozuna"
+  ],
+  "o_rush": [
+   "Cass Sandoval",
+   "Kellan Whitlock",
+   "Quinton Rennick",
+   "Ronan Threadgill",
+   "Solomon Loudermilk"
+  ],
+  "o_te": [
+   "Jamal Ibarra",
+   "Oren Rowe",
+   "Rhett Mensah",
+   "Cole Rowe"
+  ],
+  "quarterback": [
+   "Jarrell Draper",
+   "Xavier Crowder",
+   "Cyrus Stroud"
+  ],
+  "special_teams": [
+   "Kwame Trask",
+   "Marlon Rowe",
+   "Kyrie Kade"
+  ]
+ },
+ "CHI": {
+  "d_field": [
+   "Jericho Salter",
+   "Trey Salter",
+   "Ronan Tackett",
+   "Elijah Hargrove",
+   "Vance Deloach",
+   "Luca Sandoval",
+   "Thane Brannigan",
+   "Brock Ocampo",
+   "Amari Rockwell",
+   "Silas Yarborough"
+  ],
+  "d_lb": [
+   "Luca Lund",
+   "Isaiah Voss",
+   "Cyrus Ibarra",
+   "Dominic Boone",
+   "Luca Ansah",
+   "Isaiah Cassidy",
+   "Vance Brannigan",
+   "Isaiah Ocampo"
+  ],
+  "d_line": [
+   "Cyrus Merrick",
+   "Solomon Lund",
+   "Nico Aguon",
+   "Camden Sirianni",
+   "Jaxon Bexley",
+   "Kobe Ibarra",
+   "Cass Rennick",
+   "Roman Ansah",
+   "Dante Marchetti"
+  ],
+  "o_line": [
+   "Devonte Lund",
+   "Jericho Cassidy",
+   "Tyrese Voss",
+   "Tyrese Yarborough",
+   "Luca Redfern",
+   "Amari Devereaux",
+   "Cyrus Tackett",
+   "Jaxon Ansah",
+   "Jaxon Trask",
+   "Luca Rowe"
+  ],
+  "o_pass": [
+   "Dominic Cobb",
+   "Rhett Ryder",
+   "Emeka Aguon",
+   "Elijah Stroud",
+   "Luca Halloran",
+   "Isaiah Traore",
+   "Devonte Deloach",
+   "Trey Crowder",
+   "Aden Nkemdi"
+  ],
+  "o_rush": [
+   "Cyrus Kilgore",
+   "Bishop Vega",
+   "Terrell Quillen",
+   "Cole Redfern",
+   "Cass Halloran"
+  ],
+  "o_te": [
+   "Marlon Voss",
+   "Reef Threadgill",
+   "Miles Mackey",
+   "Deshawn Traore"
+  ],
+  "quarterback": [
+   "Tyrese Bexar",
+   "Camden Rockwell",
+   "Malik Rockwell"
+  ],
+  "special_teams": [
+   "Cole Sable",
+   "Malik Pryor",
+   "Cole Crowder"
+  ]
+ },
+ "DET": {
+  "d_field": [
+   "Jericho Deloach",
+   "Bishop Merrick",
+   "Amari Palacios",
+   "Ronan Ryder",
+   "Aden Hargrove",
+   "Vance Okafor",
+   "Bishop Draper",
+   "Bishop Bexley",
+   "Brock Ryder",
+   "Jamal Devereaux"
+  ],
+  "d_lb": [
+   "Jericho Pryor",
+   "Quinton Yarborough",
+   "Kaden Palacios",
+   "Kobe Fairbanks",
+   "Jarrell Redfern",
+   "Ronan Crowder",
+   "Nico Steed",
+   "Marlon Whitlock"
+  ],
+  "d_line": [
+   "Devonte Mensah",
+   "Amari Traore",
+   "Kwame Sandoval",
+   "Kellan Rockwell",
+   "Cole Crowder",
+   "Luca Stroud",
+   "Dominic Mackey",
+   "Cass Sandoval",
+   "Zane Mackey"
+  ],
+  "o_line": [
+   "Kyrie Loudermilk",
+   "Reef Ozuna",
+   "Bo Loudermilk",
+   "Elijah Aguon",
+   "Nico Dembele",
+   "Kobe Mackey",
+   "Terrell Steed",
+   "Malik Whitlock",
+   "Solomon Mackey",
+   "Rhett Tackett"
+  ],
+  "o_pass": [
+   "Rhett Threadgill",
+   "Emeka Voss",
+   "Bishop Kade",
+   "Rashad Quillen",
+   "Tyrese Rennick",
+   "Devonte Vega",
+   "Cyrus Sandoval",
+   "Bo Hargrove",
+   "Jarrell Kilgore"
+  ],
+  "o_rush": [
+   "Cass Kilgore",
+   "Dominic Brannigan",
+   "Miles Voss",
+   "Dante Salter",
+   "Oren Marchetti"
+  ],
+  "o_te": [
+   "Solomon Yarborough",
+   "Dante Deloach",
+   "Quinton Dembele",
+   "Kellan Ozuna"
+  ],
+  "quarterback": [
+   "Jarrell Vaughters",
+   "Miles Rockwell",
+   "Kobe Ryder"
+  ],
+  "special_teams": [
+   "Ronan Ocampo",
+   "Isaiah Vance",
+   "Marlon Devereaux"
   ]
  },
  "GB": {
   "d_field": [
-   "Reef Fairbanks",
-   "Reef Bexar",
-   "Marcus Rockwell",
-   "Malik Ozuna",
+   "Kyrie Okafor",
    "Miles Devereaux",
-   "Malik Deloach",
-   "Dante Mackey",
-   "Tyrese Sirianni",
-   "Tyrese Ocampo",
-   "Cass Crowder"
-  ],
-  "d_lb": [
-   "Emeka Steed",
-   "Deshawn Vaughters",
-   "Elijah Rockwell",
-   "Lorenzo Vaughters",
-   "Cass Quillen",
-   "Zane Solano",
-   "Luca Voss",
-   "Oren Vaughters"
-  ],
-  "d_line": [
-   "Luca Merrick",
-   "Ozzie Devereaux",
-   "Elijah Halloran",
-   "Dominic Brannigan",
-   "Kyrie Rask",
-   "Brock Cassidy",
-   "Bishop Steed",
-   "Vance Colter",
-   "Malik Rennick"
-  ],
-  "o_line": [
-   "Ronan Rockwell",
-   "Jaxon Marchetti",
-   "Kellan Ozuna",
-   "Deshawn Nkemdi",
-   "Dominic Trask",
-   "Darius Salter",
-   "Rhett Loudermilk",
-   "Marlon Loudermilk",
-   "Solomon Deloach",
-   "Kwame Quillen"
-  ],
-  "o_pass": [
-   "Dante Lund",
-   "Nico Hargrove",
-   "Bishop Pryor",
-   "Kaden Ashby",
-   "Terrell Merrick",
-   "Quinton Boone",
-   "Reef Stroud",
-   "Cass Trask",
-   "Kyrie Sable"
-  ],
-  "o_rush": [
-   "Elijah Aguon",
-   "Luca Traore",
-   "Deshawn Traore",
-   "Oren Ryder",
-   "Brock Vaughters"
-  ],
-  "o_te": [
-   "Kobe Kilgore",
-   "Dominic Hargrove",
-   "Kellan Cassidy",
-   "Lorenzo Rennick"
-  ],
-  "quarterback": [
-   "Roman Vance",
-   "Quinton Kilgore",
-   "Cass Marchetti"
-  ],
-  "special_teams": [
-   "Cass Rockwell",
-   "Rashad Nkemdi",
-   "Reef Ibarra"
-  ]
- },
- "MIL": {
-  "d_field": [
-   "Isaiah Devereaux",
-   "Zane Ansah",
-   "Marcus Sirianni",
-   "Dominic Bexley",
-   "Quinton Mensah",
-   "Kellan Palacios",
-   "Cass Vaughters",
-   "Cole Kilgore",
-   "Quinton Colter",
-   "Jamal Voss"
-  ],
-  "d_lb": [
-   "Kellan Vance",
-   "Luca Mensah",
-   "Cyrus Whitlock",
-   "Lorenzo Rowe",
-   "Jarrell Stroud",
-   "Kaden Tackett",
-   "Darius Threadgill",
-   "Marcus Ryder"
-  ],
-  "d_line": [
-   "Camden Rowe",
-   "Quinton Dembele",
-   "Thane Merrick",
-   "Cass Trask",
-   "Kwame Vance",
-   "Rashad Salter",
-   "Thane Whitlock",
-   "Cyrus Rowe",
-   "Isaiah Quillen"
-  ],
-  "o_line": [
-   "Jaxon Yarborough",
-   "Trey Rennick",
-   "Dante Threadgill",
-   "Ronan Tackett",
-   "Deshawn Bexar",
-   "Bishop Steed",
-   "Cyrus Cassidy",
-   "Jamal Lund",
-   "Silas Mensah",
-   "Kellan Vega"
-  ],
-  "o_pass": [
-   "Camden Okafor",
-   "Cyrus Sable",
-   "Rashad Vance",
-   "Marcus Sandoval",
-   "Marcus Draper",
-   "Oren Traore",
-   "Reef Fairbanks",
-   "Kobe Brannigan",
-   "Jamal Colter"
-  ],
-  "o_rush": [
-   "Terrell Lund",
-   "Roman Rockwell",
-   "Amari Okafor",
-   "Oren Cobb",
-   "Amari Deloach"
-  ],
-  "o_te": [
-   "Kwame Hennig",
-   "Brock Ryder",
-   "Nico Steed",
-   "Ronan Ozuna"
-  ],
-  "quarterback": [
-   "Solomon Brannigan",
-   "Darius Brannigan",
-   "Bo Deloach"
-  ],
-  "special_teams": [
-   "Lorenzo Vaughters",
-   "Dominic Solano",
-   "Ronan Rennick"
-  ]
- },
- "IND": {
-  "d_field": [
-   "Bo Cassidy",
-   "Thane Bexley",
-   "Luca Lund",
-   "Jaxon Rowe",
-   "Silas Threadgill",
-   "Cole Bexley",
-   "Miles Kade",
-   "Emeka Whitlock",
-   "Brock Nkemdi",
-   "Isaiah Mackey"
-  ],
-  "d_lb": [
-   "Kyrie Halloran",
-   "Kwame Solano",
-   "Xavier Vance",
-   "Reef Ansah",
-   "Lorenzo Ozuna",
-   "Rhett Vance",
-   "Deshawn Redfern",
-   "Jarrell Ocampo"
-  ],
-  "d_line": [
-   "Cole Crowder",
-   "Bo Devereaux",
-   "Kellan Trask",
-   "Jamal Rockwell",
-   "Ozzie Vaughters",
-   "Cole Marchetti",
-   "Xavier Ashworth",
-   "Elijah Colter",
-   "Bishop Ashworth"
-  ],
-  "o_line": [
-   "Quinton Salter",
-   "Dante Solano",
-   "Quinton Rowe",
-   "Amari Tackett",
-   "Rhett Hennig",
-   "Dominic Rennick",
-   "Aden Mensah",
-   "Jericho Dembele",
-   "Xavier Rask",
-   "Emeka Okafor"
-  ],
-  "o_pass": [
-   "Solomon Whitlock",
-   "Jarrell Quillen",
-   "Oren Halloran",
-   "Dante Lund",
-   "Vance Ferris",
-   "Quinton Fairbanks",
-   "Kwame Hennig",
-   "Bishop Colter",
-   "Trey Ibarra"
-  ],
-  "o_rush": [
-   "Trey Rennick",
-   "Luca Ibarra",
-   "Dante Threadgill",
-   "Tyrese Redfern",
-   "Zane Ansah"
-  ],
-  "o_te": [
-   "Bo Mensah",
+   "Rhett Voss",
+   "Cyrus Ocampo",
+   "Kobe Lund",
+   "Thane Rowe",
+   "Kobe Sandoval",
+   "Dante Vance",
    "Isaiah Redfern",
-   "Kaden Kilgore",
-   "Jamal Marchetti"
-  ],
-  "quarterback": [
-   "Jericho Boone",
-   "Cyrus Halloran",
-   "Devonte Quillen"
-  ],
-  "special_teams": [
-   "Roman Marchetti",
-   "Malik Merrick",
-   "Rhett Bexar"
-  ]
- },
- "CIN": {
-  "d_field": [
-   "Jaxon Marchetti",
-   "Marcus Devereaux",
-   "Jarrell Trask",
-   "Darius Sable",
-   "Roman Yarborough",
-   "Camden Salter",
-   "Silas Colter",
-   "Oren Vega",
-   "Marcus Redfern",
-   "Amari Ozuna"
+   "Tyrese Solano"
   ],
   "d_lb": [
-   "Aden Boone",
-   "Silas Tackett",
-   "Amari Ansah",
-   "Quinton Bexar",
-   "Silas Okafor",
-   "Ronan Ryder",
-   "Cole Colter",
-   "Oren Kilgore"
+   "Reef Solano",
+   "Cole Hennig",
+   "Devonte Traore",
+   "Dominic Palacios",
+   "Miles Solano",
+   "Tyrese Whitlock",
+   "Oren Salter",
+   "Jarrell Merrick"
   ],
   "d_line": [
-   "Rhett Sandoval",
-   "Solomon Pryor",
-   "Quinton Ansah",
-   "Deshawn Halloran",
-   "Zane Cassidy",
-   "Jamal Bexar",
-   "Brock Redfern",
-   "Tyrese Redfern",
-   "Silas Cobb"
+   "Jarrell Ashworth",
+   "Jaxon Steed",
+   "Quinton Threadgill",
+   "Emeka Cobb",
+   "Bo Lund",
+   "Nico Rowe",
+   "Malik Rask",
+   "Tyrese Merrick",
+   "Silas Ocampo"
   ],
   "o_line": [
-   "Camden Bexley",
-   "Kellan Rask",
-   "Ronan Bexar",
-   "Bo Sirianni",
-   "Terrell Salter",
-   "Elijah Vega",
-   "Cole Sable",
-   "Bo Traore",
-   "Thane Steed",
-   "Cass Hennig"
+   "Silas Threadgill",
+   "Camden Draper",
+   "Kellan Vaughters",
+   "Reef Voss",
+   "Tyrese Boone",
+   "Jaxon Cassidy",
+   "Devonte Bexley",
+   "Emeka Lund",
+   "Silas Brannigan",
+   "Vance Brannigan"
   ],
   "o_pass": [
-   "Jarrell Ibarra",
-   "Silas Hennig",
-   "Kyrie Colter",
-   "Devonte Crowder",
-   "Kellan Yarborough",
-   "Isaiah Voss",
-   "Ronan Crowder",
-   "Ronan Quillen",
-   "Rhett Vance"
+   "Solomon Devereaux",
+   "Kellan Deloach",
+   "Brock Ozuna",
+   "Vance Cassidy",
+   "Zane Rowe",
+   "Kwame Rennick",
+   "Roman Sandoval",
+   "Jericho Ashby",
+   "Terrell Mackey"
   ],
   "o_rush": [
-   "Jamal Lund",
-   "Thane Bexley",
-   "Thane Loudermilk",
-   "Dante Vega",
-   "Marlon Threadgill"
+   "Solomon Colter",
+   "Kellan Marchetti",
+   "Camden Cassidy",
+   "Roman Kilgore",
+   "Rashad Vega"
   ],
   "o_te": [
-   "Luca Voss",
-   "Isaiah Bexar",
-   "Rashad Rowe",
-   "Emeka Ozuna"
+   "Kaden Voss",
+   "Reef Nkemdi",
+   "Jericho Whitlock",
+   "Oren Ashby"
   ],
   "quarterback": [
-   "Kyrie Palacios",
-   "Cole Rowe",
-   "Darius Lund"
+   "Marcus Steed",
+   "Luca Sandoval",
+   "Marcus Lund"
   ],
   "special_teams": [
-   "Devonte Hennig",
-   "Roman Halloran",
-   "Malik Ansah"
+   "Trey Hennig",
+   "Camden Okafor",
+   "Cass Okafor"
+  ]
+ },
+ "MIN": {
+  "d_field": [
+   "Lorenzo Kade",
+   "Camden Deloach",
+   "Thane Hargrove",
+   "Devonte Deloach",
+   "Cass Rowe",
+   "Elijah Mensah",
+   "Xavier Brannigan",
+   "Kwame Ferris",
+   "Isaiah Kilgore",
+   "Ronan Kilgore"
+  ],
+  "d_lb": [
+   "Vance Ashworth",
+   "Bo Vega",
+   "Elijah Vaughters",
+   "Roman Nkemdi",
+   "Marlon Sandoval",
+   "Devonte Vance",
+   "Dante Hargrove",
+   "Cass Mensah"
+  ],
+  "d_line": [
+   "Kyrie Threadgill",
+   "Bishop Tackett",
+   "Kaden Aguon",
+   "Dominic Ferris",
+   "Cole Sable",
+   "Tyrese Draper",
+   "Darius Bexley",
+   "Deshawn Marchetti",
+   "Ronan Nkemdi"
+  ],
+  "o_line": [
+   "Camden Ibarra",
+   "Oren Quillen",
+   "Marcus Palacios",
+   "Jericho Ashby",
+   "Miles Sable",
+   "Dominic Kade",
+   "Devonte Ashworth",
+   "Rhett Deloach",
+   "Bo Brannigan",
+   "Brock Traore"
+  ],
+  "o_pass": [
+   "Oren Mackey",
+   "Kellan Lund",
+   "Dante Devereaux",
+   "Ronan Crowder",
+   "Aden Vega",
+   "Luca Ryder",
+   "Brock Sirianni",
+   "Luca Ocampo",
+   "Marcus Threadgill"
+  ],
+  "o_rush": [
+   "Oren Hargrove",
+   "Jamal Vaughters",
+   "Kwame Merrick",
+   "Marcus Draper",
+   "Nico Ansah"
+  ],
+  "o_te": [
+   "Zane Hennig",
+   "Reef Palacios",
+   "Luca Vaughters",
+   "Camden Okafor"
+  ],
+  "quarterback": [
+   "Ronan Bexley",
+   "Cass Okafor",
+   "Jericho Halloran"
+  ],
+  "special_teams": [
+   "Miles Deloach",
+   "Xavier Trask",
+   "Emeka Traore"
+  ]
+ },
+ "ATL": {
+  "d_field": [
+   "Dante Cobb",
+   "Kobe Kilgore",
+   "Aden Ashby",
+   "Miles Rennick",
+   "Ronan Vega",
+   "Amari Ryder",
+   "Cole Vance",
+   "Elijah Mensah",
+   "Dominic Ansah",
+   "Ronan Merrick"
+  ],
+  "d_lb": [
+   "Jaxon Stroud",
+   "Tyrese Ocampo",
+   "Bishop Rask",
+   "Devonte Rowe",
+   "Kyrie Halloran",
+   "Brock Redfern",
+   "Silas Hargrove",
+   "Miles Ashby"
+  ],
+  "d_line": [
+   "Jarrell Kade",
+   "Jericho Solano",
+   "Rashad Hennig",
+   "Malik Mensah",
+   "Lorenzo Rennick",
+   "Solomon Ansah",
+   "Isaiah Deloach",
+   "Marcus Ocampo",
+   "Malik Kilgore"
+  ],
+  "o_line": [
+   "Terrell Ryder",
+   "Dante Ryder",
+   "Amari Vega",
+   "Dante Quillen",
+   "Marlon Ibarra",
+   "Jamal Cassidy",
+   "Bo Trask",
+   "Emeka Solano",
+   "Marlon Marchetti",
+   "Kwame Voss"
+  ],
+  "o_pass": [
+   "Deshawn Yarborough",
+   "Kyrie Bexar",
+   "Ronan Bexar",
+   "Rashad Halloran",
+   "Cole Salter",
+   "Deshawn Cobb",
+   "Devonte Halloran",
+   "Devonte Redfern",
+   "Terrell Rask"
+  ],
+  "o_rush": [
+   "Ozzie Vega",
+   "Deshawn Halloran",
+   "Cass Lund",
+   "Vance Aguon",
+   "Jericho Vaughters"
+  ],
+  "o_te": [
+   "Oren Dembele",
+   "Kyrie Nkemdi",
+   "Rashad Cassidy",
+   "Rhett Pryor"
+  ],
+  "quarterback": [
+   "Bishop Cassidy",
+   "Xavier Quillen",
+   "Kwame Colter"
+  ],
+  "special_teams": [
+   "Dominic Yarborough",
+   "Emeka Vaughters",
+   "Xavier Steed"
+  ]
+ },
+ "CAR": {
+  "d_field": [
+   "Kaden Ryder",
+   "Reef Brannigan",
+   "Darius Tackett",
+   "Cole Whitlock",
+   "Camden Ashby",
+   "Solomon Lund",
+   "Malik Traore",
+   "Roman Yarborough",
+   "Quinton Marchetti",
+   "Aden Rask"
+  ],
+  "d_lb": [
+   "Brock Ibarra",
+   "Oren Rask",
+   "Jericho Mackey",
+   "Xavier Rowe",
+   "Darius Redfern",
+   "Deshawn Ozuna",
+   "Aden Vega",
+   "Isaiah Solano"
+  ],
+  "d_line": [
+   "Kaden Dembele",
+   "Reef Voss",
+   "Kobe Boone",
+   "Silas Pryor",
+   "Dante Sandoval",
+   "Cyrus Kade",
+   "Zane Halloran",
+   "Ronan Solano",
+   "Marlon Crowder"
+  ],
+  "o_line": [
+   "Isaiah Hennig",
+   "Miles Ashworth",
+   "Tyrese Mensah",
+   "Jericho Deloach",
+   "Quinton Rockwell",
+   "Ozzie Colter",
+   "Emeka Ibarra",
+   "Aden Boone",
+   "Rhett Ozuna",
+   "Miles Cassidy"
+  ],
+  "o_pass": [
+   "Amari Sable",
+   "Darius Ryder",
+   "Deshawn Aguon",
+   "Tyrese Vaughters",
+   "Jamal Salter",
+   "Marlon Salter",
+   "Nico Cobb",
+   "Marcus Halloran",
+   "Marcus Sandoval"
+  ],
+  "o_rush": [
+   "Kaden Brannigan",
+   "Silas Whitlock",
+   "Thane Bexley",
+   "Cass Yarborough",
+   "Kobe Rask"
+  ],
+  "o_te": [
+   "Tyrese Nkemdi",
+   "Oren Ocampo",
+   "Aden Bexar",
+   "Ronan Lund"
+  ],
+  "quarterback": [
+   "Kwame Fairbanks",
+   "Deshawn Brannigan",
+   "Kobe Whitlock"
+  ],
+  "special_teams": [
+   "Kobe Marchetti",
+   "Amari Ashworth",
+   "Luca Devereaux"
   ]
  },
  "NO": {
   "d_field": [
-   "Darius Rockwell",
-   "Camden Ryder",
-   "Trey Halloran",
-   "Kwame Voss",
-   "Aden Devereaux",
-   "Kyrie Ashby",
-   "Terrell Whitlock",
-   "Camden Ibarra",
-   "Bishop Rennick",
-   "Deshawn Draper"
+   "Emeka Boone",
+   "Quinton Ryder",
+   "Kyrie Rask",
+   "Tyrese Pryor",
+   "Kyrie Cassidy",
+   "Emeka Solano",
+   "Isaiah Ashby",
+   "Lorenzo Rennick",
+   "Solomon Trask",
+   "Isaiah Mensah"
   ],
   "d_lb": [
-   "Silas Lund",
-   "Jamal Ashby",
-   "Malik Halloran",
-   "Cyrus Tackett",
-   "Elijah Aguon",
+   "Miles Pryor",
    "Rashad Devereaux",
-   "Dante Vaughters",
-   "Marlon Kilgore"
+   "Aden Vance",
+   "Emeka Yarborough",
+   "Roman Threadgill",
+   "Reef Mensah",
+   "Silas Whitlock",
+   "Silas Okafor"
   ],
   "d_line": [
-   "Kwame Mackey",
-   "Deshawn Bexley",
-   "Kaden Ashby",
-   "Amari Draper",
-   "Elijah Ashworth",
-   "Solomon Vaughters",
-   "Aden Threadgill",
-   "Jaxon Dembele",
-   "Malik Stroud"
+   "Roman Trask",
+   "Bishop Yarborough",
+   "Ronan Bexar",
+   "Marcus Vance",
+   "Camden Cassidy",
+   "Kaden Mackey",
+   "Kwame Ansah",
+   "Bishop Deloach",
+   "Amari Okafor"
   ],
   "o_line": [
-   "Jamal Halloran",
-   "Jaxon Ryder",
-   "Nico Rockwell",
-   "Silas Mackey",
-   "Bishop Crowder",
-   "Jaxon Draper",
-   "Rashad Salter",
-   "Lorenzo Hennig",
-   "Elijah Ocampo",
-   "Bishop Steed"
+   "Elijah Draper",
+   "Luca Redfern",
+   "Amari Sable",
+   "Kwame Rockwell",
+   "Dominic Rowe",
+   "Kwame Ryder",
+   "Bishop Halloran",
+   "Silas Hennig",
+   "Dante Rockwell",
+   "Jaxon Draper"
   ],
   "o_pass": [
-   "Rhett Trask",
-   "Cole Ashby",
-   "Devonte Okafor",
-   "Isaiah Nkemdi",
-   "Cyrus Bexley",
-   "Reef Brannigan",
-   "Malik Deloach",
-   "Zane Quillen",
-   "Kellan Steed"
+   "Solomon Ferris",
+   "Jericho Devereaux",
+   "Amari Halloran",
+   "Roman Cassidy",
+   "Kellan Quillen",
+   "Silas Ibarra",
+   "Zane Stroud",
+   "Camden Devereaux",
+   "Tyrese Okafor"
   ],
   "o_rush": [
-   "Zane Bexar",
-   "Quinton Whitlock",
-   "Trey Vega",
-   "Devonte Brannigan",
-   "Solomon Salter"
+   "Jericho Traore",
+   "Cole Palacios",
+   "Kobe Pryor",
+   "Jaxon Ansah",
+   "Bo Ryder"
   ],
   "o_te": [
-   "Silas Draper",
-   "Zane Deloach",
-   "Lorenzo Trask",
-   "Darius Vaughters"
+   "Kobe Palacios",
+   "Lorenzo Bexar",
+   "Jericho Vega",
+   "Jericho Brannigan"
   ],
   "quarterback": [
-   "Quinton Sandoval",
-   "Isaiah Stroud",
-   "Trey Sirianni"
+   "Cyrus Sirianni",
+   "Quinton Cassidy",
+   "Aden Crowder"
   ],
   "special_teams": [
-   "Ronan Nkemdi",
-   "Camden Cassidy",
-   "Xavier Rowe"
+   "Dominic Trask",
+   "Lorenzo Lund",
+   "Rhett Threadgill"
   ]
  },
  "TB": {
   "d_field": [
-   "Solomon Trask",
-   "Zane Traore",
-   "Ronan Ansah",
-   "Roman Crowder",
-   "Thane Sandoval",
-   "Terrell Sirianni",
-   "Quinton Devereaux",
-   "Kaden Nkemdi",
-   "Jarrell Steed",
-   "Bishop Whitlock"
-  ],
-  "d_lb": [
-   "Quinton Rockwell",
-   "Darius Vaughters",
-   "Reef Loudermilk",
-   "Jaxon Steed",
-   "Dominic Redfern",
-   "Deshawn Boone",
-   "Tyrese Ashby",
-   "Nico Kade"
-  ],
-  "d_line": [
-   "Kwame Dembele",
-   "Cass Salter",
-   "Isaiah Tackett",
-   "Marlon Sable",
-   "Rashad Colter",
-   "Terrell Vance",
-   "Jaxon Dembele",
-   "Xavier Vaughters",
-   "Rhett Halloran"
-  ],
-  "o_line": [
-   "Kellan Rowe",
-   "Cass Bexar",
-   "Isaiah Threadgill",
-   "Amari Rockwell",
-   "Bishop Pryor",
-   "Thane Kade",
-   "Terrell Marchetti",
-   "Lorenzo Halloran",
-   "Ozzie Ozuna",
-   "Bo Fairbanks"
-  ],
-  "o_pass": [
-   "Ozzie Threadgill",
-   "Deshawn Solano",
-   "Cyrus Traore",
-   "Jericho Sandoval",
-   "Devonte Draper",
-   "Ronan Kilgore",
-   "Jamal Ashworth",
-   "Camden Crowder",
-   "Jarrell Crowder"
-  ],
-  "o_rush": [
-   "Jaxon Sandoval",
-   "Bishop Boone",
-   "Isaiah Ashby",
-   "Ronan Mensah",
-   "Lorenzo Draper"
-  ],
-  "o_te": [
-   "Solomon Ansah",
-   "Reef Hargrove",
-   "Kwame Redfern",
-   "Bo Halloran"
-  ],
-  "quarterback": [
-   "Oren Loudermilk",
-   "Reef Deloach",
-   "Zane Okafor"
-  ],
-  "special_teams": [
-   "Dante Ryder",
-   "Cass Dembele",
-   "Cass Mackey"
-  ]
- },
- "CLT": {
-  "d_field": [
-   "Elijah Rennick",
-   "Roman Salter",
-   "Malik Mensah",
-   "Jarrell Mackey",
-   "Kobe Crowder",
-   "Kaden Hargrove",
-   "Ozzie Bexley",
-   "Amari Vega",
-   "Ozzie Crowder",
-   "Marcus Bexar"
-  ],
-  "d_lb": [
-   "Dante Nkemdi",
-   "Thane Halloran",
-   "Vance Draper",
-   "Solomon Hennig",
-   "Aden Mackey",
-   "Brock Halloran",
-   "Aden Rask",
-   "Cole Ozuna"
-  ],
-  "d_line": [
-   "Malik Traore",
-   "Thane Loudermilk",
-   "Vance Whitlock",
-   "Ronan Vaughters",
-   "Brock Ozuna",
-   "Lorenzo Okafor",
-   "Rashad Cassidy",
-   "Trey Lund",
-   "Vance Trask"
-  ],
-  "o_line": [
-   "Kaden Deloach",
-   "Rashad Rockwell",
-   "Camden Ashworth",
-   "Kwame Cassidy",
-   "Bo Kilgore",
-   "Rhett Yarborough",
+   "Brock Cobb",
    "Zane Threadgill",
-   "Malik Boone",
-   "Kaden Fairbanks",
-   "Jamal Pryor"
-  ],
-  "o_pass": [
-   "Trey Kilgore",
-   "Silas Nkemdi",
-   "Marlon Tackett",
-   "Darius Devereaux",
-   "Zane Mensah",
-   "Silas Ocampo",
-   "Devonte Threadgill",
-   "Dante Rockwell",
-   "Malik Draper"
-  ],
-  "o_rush": [
-   "Marcus Vaughters",
-   "Ozzie Ansah",
-   "Roman Loudermilk",
-   "Kyrie Deloach",
-   "Rhett Vaughters"
-  ],
-  "o_te": [
+   "Thane Mackey",
+   "Aden Ozuna",
+   "Xavier Dembele",
+   "Brock Sable",
+   "Cole Vaughters",
    "Devonte Sable",
-   "Amari Aguon",
-   "Cole Hargrove",
-   "Roman Brannigan"
+   "Malik Sable",
+   "Nico Rennick"
   ],
-  "quarterback": [
-   "Kaden Kade",
-   "Jamal Rockwell",
-   "Lorenzo Devereaux"
+  "d_lb": [
+   "Cass Sable",
+   "Kaden Devereaux",
+   "Rashad Sandoval",
+   "Roman Vance",
+   "Jericho Yarborough",
+   "Trey Redfern",
+   "Kaden Trask",
+   "Kobe Bexar"
   ],
-  "special_teams": [
-   "Aden Yarborough",
-   "Quinton Ozuna",
-   "Amari Bexar"
-  ]
- },
- "DAL": {
-  "d_field": [
-   "Bo Ibarra",
-   "Marcus Loudermilk",
-   "Dante Ferris",
-   "Rashad Bexar",
+  "d_line": [
+   "Malik Vaughters",
+   "Marcus Marchetti",
+   "Cyrus Mackey",
+   "Devonte Ferris",
+   "Xavier Traore",
+   "Nico Pryor",
+   "Cole Cassidy",
+   "Elijah Aguon",
+   "Kwame Pryor"
+  ],
+  "o_line": [
+   "Jarrell Merrick",
+   "Oren Ashworth",
+   "Terrell Mensah",
+   "Quinton Ibarra",
+   "Ronan Kilgore",
+   "Solomon Merrick",
+   "Dante Ashby",
+   "Solomon Vaughters",
+   "Malik Loudermilk",
+   "Reef Ryder"
+  ],
+  "o_pass": [
+   "Dante Salter",
+   "Kwame Ansah",
+   "Aden Rask",
+   "Kellan Lund",
+   "Kellan Threadgill",
+   "Kwame Rockwell",
+   "Nico Cobb",
+   "Solomon Cobb",
+   "Ronan Pryor"
+  ],
+  "o_rush": [
+   "Darius Ashworth",
+   "Miles Solano",
+   "Kaden Cobb",
+   "Quinton Vega",
+   "Dominic Colter"
+  ],
+  "o_te": [
    "Quinton Stroud",
-   "Marlon Trask",
-   "Rhett Trask",
-   "Kellan Halloran",
-   "Vance Brannigan",
-   "Trey Sandoval"
-  ],
-  "d_lb": [
-   "Ozzie Crowder",
-   "Amari Palacios",
-   "Trey Crowder",
-   "Rhett Crowder",
-   "Rhett Marchetti",
-   "Kobe Ansah",
-   "Rhett Fairbanks",
-   "Nico Voss"
-  ],
-  "d_line": [
-   "Rhett Pryor",
-   "Emeka Ozuna",
-   "Ronan Solano",
-   "Reef Mensah",
-   "Roman Aguon",
-   "Deshawn Vance",
-   "Amari Rennick",
-   "Luca Hargrove",
-   "Zane Lund"
-  ],
-  "o_line": [
-   "Isaiah Ferris",
-   "Kobe Salter",
-   "Kellan Aguon",
-   "Thane Crowder",
-   "Camden Yarborough",
-   "Silas Redfern",
-   "Terrell Ansah",
-   "Aden Colter",
-   "Zane Tackett",
-   "Zane Fairbanks"
-  ],
-  "o_pass": [
-   "Rhett Vega",
-   "Cole Voss",
-   "Ozzie Dembele",
-   "Jamal Mensah",
-   "Jamal Hennig",
-   "Trey Merrick",
-   "Quinton Cassidy",
-   "Reef Cobb",
-   "Quinton Sandoval"
-  ],
-  "o_rush": [
-   "Reef Cassidy",
-   "Marlon Rennick",
-   "Kaden Merrick",
-   "Rashad Lund",
-   "Kobe Devereaux"
-  ],
-  "o_te": [
-   "Lorenzo Ibarra",
-   "Reef Bexley",
-   "Luca Merrick",
-   "Roman Deloach"
+   "Luca Palacios",
+   "Amari Cassidy",
+   "Zane Traore"
   ],
   "quarterback": [
-   "Marlon Solano",
-   "Jarrell Vega",
-   "Luca Rask"
+   "Rhett Tackett",
+   "Isaiah Ashby",
+   "Cass Steed"
   ],
   "special_teams": [
-   "Elijah Ashworth",
-   "Kellan Tackett",
-   "Bishop Okafor"
+   "Solomon Boone",
+   "Reef Nkemdi",
+   "Amari Palacios"
   ]
  },
- "DEN": {
+ "ARI": {
   "d_field": [
-   "Deshawn Aguon",
-   "Zane Vaughters",
-   "Darius Deloach",
-   "Solomon Steed",
-   "Luca Traore",
-   "Malik Sirianni",
-   "Deshawn Crowder",
-   "Luca Mensah",
-   "Kellan Cobb",
-   "Isaiah Ashworth"
+   "Thane Voss",
+   "Roman Vance",
+   "Malik Lund",
+   "Cass Halloran",
+   "Miles Redfern",
+   "Bishop Kilgore",
+   "Isaiah Mackey",
+   "Jericho Steed",
+   "Nico Marchetti",
+   "Bishop Nkemdi"
   ],
   "d_lb": [
-   "Kellan Pryor",
-   "Malik Rockwell",
-   "Dominic Vaughters",
-   "Marlon Deloach",
-   "Cyrus Tackett",
-   "Jarrell Draper",
-   "Aden Ashby",
-   "Xavier Okafor"
+   "Cole Yarborough",
+   "Solomon Stroud",
+   "Ronan Colter",
+   "Amari Bexley",
+   "Thane Boone",
+   "Malik Pryor",
+   "Oren Pryor",
+   "Terrell Rockwell"
   ],
   "d_line": [
-   "Terrell Vaughters",
-   "Luca Draper",
+   "Jericho Okafor",
+   "Quinton Ferris",
+   "Malik Nkemdi",
+   "Luca Vega",
+   "Tyrese Ashworth",
    "Jamal Ashby",
-   "Lorenzo Voss",
-   "Solomon Brannigan",
-   "Jaxon Rockwell",
-   "Oren Crowder",
-   "Kwame Bexar",
-   "Cyrus Sable"
+   "Miles Aguon",
+   "Rashad Colter",
+   "Emeka Rennick"
   ],
   "o_line": [
-   "Amari Cassidy",
-   "Reef Vaughters",
-   "Rashad Crowder",
-   "Thane Brannigan",
-   "Luca Merrick",
-   "Dante Dembele",
-   "Solomon Ozuna",
-   "Kwame Cobb",
-   "Aden Sandoval",
-   "Solomon Whitlock"
+   "Quinton Ibarra",
+   "Amari Kade",
+   "Kaden Threadgill",
+   "Cole Tackett",
+   "Quinton Ashby",
+   "Devonte Salter",
+   "Tyrese Loudermilk",
+   "Amari Ryder",
+   "Isaiah Devereaux",
+   "Trey Brannigan"
   ],
   "o_pass": [
-   "Terrell Sirianni",
-   "Lorenzo Quillen",
-   "Lorenzo Kade",
-   "Xavier Fairbanks",
-   "Luca Ashworth",
-   "Roman Lund",
-   "Dante Devereaux",
-   "Ronan Sable",
-   "Reef Threadgill"
+   "Cass Ocampo",
+   "Isaiah Ozuna",
+   "Isaiah Merrick",
+   "Marlon Cobb",
+   "Ronan Palacios",
+   "Isaiah Redfern",
+   "Zane Hargrove",
+   "Tyrese Marchetti",
+   "Aden Ashworth"
   ],
   "o_rush": [
-   "Marcus Cobb",
-   "Xavier Devereaux",
-   "Jaxon Dembele",
-   "Bishop Ozuna",
-   "Jaxon Ibarra"
+   "Cyrus Merrick",
+   "Cyrus Ryder",
+   "Ozzie Lund",
+   "Tyrese Whitlock",
+   "Oren Ferris"
   ],
   "o_te": [
-   "Camden Vega",
-   "Jarrell Hargrove",
-   "Ronan Hargrove",
-   "Kobe Cassidy"
+   "Jarrell Mackey",
+   "Devonte Okafor",
+   "Jarrell Okafor",
+   "Lorenzo Fairbanks"
   ],
   "quarterback": [
-   "Quinton Solano",
-   "Cyrus Yarborough",
-   "Emeka Cobb"
+   "Cyrus Bexar",
+   "Jaxon Voss",
+   "Trey Mackey"
   ],
   "special_teams": [
-   "Elijah Mensah",
-   "Ozzie Redfern",
-   "Rashad Vaughters"
+   "Zane Lund",
+   "Cyrus Vance",
+   "Kyrie Ocampo"
+  ]
+ },
+ "LAR": {
+  "d_field": [
+   "Devonte Quillen",
+   "Amari Kilgore",
+   "Solomon Boone",
+   "Nico Crowder",
+   "Deshawn Bexley",
+   "Quinton Palacios",
+   "Marcus Vega",
+   "Kyrie Ozuna",
+   "Aden Palacios",
+   "Kyrie Dembele"
+  ],
+  "d_lb": [
+   "Ronan Hargrove",
+   "Isaiah Steed",
+   "Lorenzo Deloach",
+   "Jamal Merrick",
+   "Bo Sandoval",
+   "Roman Salter",
+   "Zane Trask",
+   "Lorenzo Dembele"
+  ],
+  "d_line": [
+   "Devonte Ryder",
+   "Oren Redfern",
+   "Xavier Hennig",
+   "Darius Voss",
+   "Kellan Palacios",
+   "Camden Steed",
+   "Trey Solano",
+   "Ozzie Cassidy",
+   "Xavier Voss"
+  ],
+  "o_line": [
+   "Isaiah Yarborough",
+   "Kobe Ozuna",
+   "Isaiah Ryder",
+   "Terrell Rowe",
+   "Dante Halloran",
+   "Marcus Okafor",
+   "Lorenzo Rennick",
+   "Malik Whitlock",
+   "Ronan Dembele",
+   "Miles Crowder"
+  ],
+  "o_pass": [
+   "Tyrese Kade",
+   "Jaxon Rockwell",
+   "Thane Ansah",
+   "Zane Vance",
+   "Isaiah Redfern",
+   "Tyrese Whitlock",
+   "Rashad Ozuna",
+   "Brock Rowe",
+   "Kobe Rowe"
+  ],
+  "o_rush": [
+   "Terrell Ashworth",
+   "Cass Sirianni",
+   "Zane Ashby",
+   "Trey Stroud",
+   "Reef Fairbanks"
+  ],
+  "o_te": [
+   "Devonte Solano",
+   "Quinton Mackey",
+   "Aden Rask",
+   "Quinton Boone"
+  ],
+  "quarterback": [
+   "Kyrie Sandoval",
+   "Kellan Voss",
+   "Oren Hargrove"
+  ],
+  "special_teams": [
+   "Kobe Trask",
+   "Bishop Tackett",
+   "Kwame Rockwell"
   ]
  },
  "SF": {
   "d_field": [
-   "Malik Kilgore",
-   "Bo Pryor",
-   "Miles Mackey",
-   "Elijah Boone",
-   "Marcus Pryor",
-   "Rhett Solano",
-   "Solomon Mackey",
-   "Bishop Trask",
-   "Cyrus Dembele",
-   "Aden Tackett"
+   "Darius Solano",
+   "Nico Colter",
+   "Jaxon Okafor",
+   "Deshawn Ryder",
+   "Quinton Rask",
+   "Rashad Vega",
+   "Jamal Fairbanks",
+   "Solomon Draper",
+   "Jericho Sable",
+   "Miles Kade"
   ],
   "d_lb": [
-   "Roman Nkemdi",
-   "Dante Cobb",
-   "Darius Salter",
-   "Rashad Marchetti",
-   "Jarrell Rockwell",
-   "Marcus Rask",
-   "Zane Yarborough",
-   "Marcus Trask"
+   "Trey Draper",
+   "Nico Ocampo",
+   "Rhett Ashworth",
+   "Brock Yarborough",
+   "Quinton Draper",
+   "Kwame Ozuna",
+   "Aden Rowe",
+   "Kellan Whitlock"
   ],
   "d_line": [
-   "Amari Sandoval",
-   "Camden Dembele",
-   "Isaiah Sirianni",
-   "Emeka Vega",
-   "Marlon Hennig",
-   "Kaden Rask",
-   "Vance Aguon",
-   "Rhett Ferris",
-   "Cole Kade"
+   "Kaden Cobb",
+   "Silas Vega",
+   "Vance Ashby",
+   "Reef Rockwell",
+   "Zane Sandoval",
+   "Isaiah Colter",
+   "Marlon Bexley",
+   "Marlon Kade",
+   "Elijah Ansah"
   ],
   "o_line": [
-   "Amari Salter",
-   "Silas Hennig",
-   "Camden Hennig",
-   "Isaiah Mensah",
-   "Amari Mackey",
-   "Cass Vega",
-   "Brock Redfern",
-   "Vance Sandoval",
-   "Terrell Rockwell",
-   "Darius Crowder"
+   "Xavier Rask",
+   "Nico Ferris",
+   "Rhett Voss",
+   "Brock Rennick",
+   "Devonte Rask",
+   "Solomon Ibarra",
+   "Malik Yarborough",
+   "Rashad Aguon",
+   "Roman Threadgill",
+   "Kobe Ashby"
   ],
   "o_pass": [
-   "Solomon Bexar",
-   "Cole Lund",
-   "Oren Vance",
-   "Silas Colter",
-   "Xavier Voss",
-   "Thane Ozuna",
-   "Brock Cobb",
-   "Isaiah Rockwell",
-   "Dante Mackey"
+   "Darius Vega",
+   "Terrell Ashby",
+   "Quinton Tackett",
+   "Kellan Sirianni",
+   "Deshawn Ashworth",
+   "Aden Colter",
+   "Jarrell Okafor",
+   "Jericho Tackett",
+   "Jarrell Boone"
   ],
   "o_rush": [
-   "Miles Lund",
-   "Devonte Draper",
-   "Brock Ozuna",
-   "Solomon Rowe",
-   "Marcus Ashby"
+   "Jamal Sable",
+   "Silas Dembele",
+   "Vance Pryor",
+   "Kellan Voss",
+   "Solomon Sandoval"
   ],
   "o_te": [
-   "Kyrie Sirianni",
-   "Tyrese Deloach",
-   "Darius Sable",
-   "Devonte Cassidy"
+   "Nico Okafor",
+   "Tyrese Dembele",
+   "Cyrus Vaughters",
+   "Jamal Voss"
   ],
   "quarterback": [
-   "Dante Ocampo",
-   "Miles Ibarra",
-   "Malik Traore"
+   "Devonte Rowe",
+   "Kobe Lund",
+   "Emeka Cobb"
   ],
   "special_teams": [
-   "Kaden Loudermilk",
-   "Rhett Ozuna",
-   "Marlon Lund"
+   "Kobe Yarborough",
+   "Cole Marchetti",
+   "Lorenzo Vega"
   ]
  },
- "POR": {
+ "SEA": {
   "d_field": [
-   "Marcus Salter",
-   "Thane Cassidy",
-   "Kaden Ashby",
-   "Kyrie Trask",
-   "Rashad Vance",
-   "Thane Loudermilk",
-   "Bo Hennig",
-   "Aden Mackey",
-   "Jaxon Cobb",
-   "Ronan Vega"
+   "Silas Deloach",
+   "Isaiah Halloran",
+   "Silas Salter",
+   "Ozzie Merrick",
+   "Jamal Mensah",
+   "Brock Ibarra",
+   "Miles Quillen",
+   "Rhett Ansah",
+   "Silas Whitlock",
+   "Ozzie Dembele"
   ],
   "d_lb": [
-   "Isaiah Ferris",
-   "Dante Ansah",
-   "Dominic Whitlock",
-   "Kyrie Devereaux",
-   "Devonte Threadgill",
-   "Devonte Rockwell",
-   "Vance Aguon",
-   "Nico Salter"
+   "Brock Sandoval",
+   "Rhett Traore",
+   "Kyrie Rowe",
+   "Xavier Vega",
+   "Miles Merrick",
+   "Luca Voss",
+   "Tyrese Bexar",
+   "Dante Brannigan"
   ],
   "d_line": [
-   "Kyrie Vaughters",
-   "Ronan Tackett",
-   "Cyrus Deloach",
-   "Rashad Kade",
-   "Terrell Bexley",
-   "Ronan Mensah",
-   "Kaden Deloach",
-   "Terrell Ocampo",
-   "Bishop Aguon"
+   "Terrell Crowder",
+   "Dante Rennick",
+   "Roman Solano",
+   "Jaxon Hargrove",
+   "Cass Okafor",
+   "Brock Draper",
+   "Devonte Okafor",
+   "Silas Bexley",
+   "Kobe Merrick"
   ],
   "o_line": [
-   "Silas Colter",
-   "Dante Dembele",
-   "Cyrus Quillen",
-   "Lorenzo Ryder",
-   "Jaxon Mackey",
-   "Dominic Hennig",
-   "Devonte Solano",
-   "Amari Bexar",
-   "Cyrus Ferris",
-   "Jamal Rowe"
+   "Dominic Salter",
+   "Devonte Quillen",
+   "Zane Nkemdi",
+   "Deshawn Ibarra",
+   "Rhett Steed",
+   "Marlon Ferris",
+   "Bo Mensah",
+   "Devonte Redfern",
+   "Ronan Threadgill",
+   "Nico Vega"
   ],
   "o_pass": [
-   "Kobe Kade",
-   "Jaxon Palacios",
-   "Aden Ozuna",
-   "Deshawn Stroud",
-   "Brock Palacios",
-   "Kwame Vega",
-   "Trey Okafor",
-   "Zane Redfern",
-   "Kobe Yarborough"
+   "Deshawn Mackey",
+   "Trey Mensah",
+   "Kobe Ibarra",
+   "Cole Voss",
+   "Miles Cassidy",
+   "Darius Tackett",
+   "Nico Crowder",
+   "Deshawn Bexar",
+   "Reef Sable"
   ],
   "o_rush": [
-   "Devonte Halloran",
-   "Lorenzo Solano",
-   "Marcus Vega",
-   "Camden Solano",
-   "Emeka Okafor"
+   "Bo Yarborough",
+   "Roman Salter",
+   "Miles Loudermilk",
+   "Ozzie Yarborough",
+   "Jarrell Halloran"
   ],
   "o_te": [
-   "Ronan Salter",
-   "Dominic Aguon",
-   "Zane Brannigan",
-   "Quinton Merrick"
+   "Silas Yarborough",
+   "Thane Ozuna",
+   "Zane Ashby",
+   "Marlon Ocampo"
   ],
   "quarterback": [
-   "Oren Ansah",
-   "Tyrese Threadgill",
-   "Silas Solano"
+   "Luca Ashby",
+   "Roman Stroud",
+   "Thane Ashworth"
   ],
   "special_teams": [
-   "Oren Vega",
+   "Bishop Vega",
+   "Quinton Voss",
+   "Xavier Ocampo"
+  ]
+ },
+ "BUF": {
+  "d_field": [
+   "Trey Dembele",
+   "Roman Pryor",
+   "Emeka Ashworth",
+   "Dominic Colter",
+   "Luca Fairbanks",
+   "Jericho Deloach",
+   "Jarrell Stroud",
+   "Lorenzo Rennick",
+   "Brock Mackey",
+   "Marlon Loudermilk"
+  ],
+  "d_lb": [
+   "Elijah Kade",
+   "Tyrese Devereaux",
+   "Devonte Ryder",
+   "Brock Rowe",
+   "Malik Tackett",
+   "Zane Trask",
+   "Jarrell Deloach",
+   "Solomon Deloach"
+  ],
+  "d_line": [
+   "Reef Redfern",
+   "Kellan Hennig",
+   "Cyrus Aguon",
+   "Darius Cassidy",
+   "Lorenzo Colter",
+   "Kobe Hennig",
+   "Cole Draper",
+   "Kaden Cobb",
+   "Trey Nkemdi"
+  ],
+  "o_line": [
+   "Terrell Boone",
+   "Miles Mensah",
+   "Nico Deloach",
+   "Quinton Whitlock",
+   "Marcus Steed",
+   "Terrell Brannigan",
+   "Ozzie Draper",
    "Bo Quillen",
-   "Solomon Brannigan"
+   "Terrell Marchetti",
+   "Oren Ashworth"
+  ],
+  "o_pass": [
+   "Deshawn Colter",
+   "Aden Redfern",
+   "Brock Sable",
+   "Tyrese Ryder",
+   "Quinton Steed",
+   "Emeka Tackett",
+   "Jaxon Palacios",
+   "Vance Fairbanks",
+   "Roman Kilgore"
+  ],
+  "o_rush": [
+   "Malik Deloach",
+   "Emeka Brannigan",
+   "Solomon Ashby",
+   "Bishop Whitlock",
+   "Brock Nkemdi"
+  ],
+  "o_te": [
+   "Reef Traore",
+   "Kyrie Rowe",
+   "Jarrell Whitlock",
+   "Oren Steed"
+  ],
+  "quarterback": [
+   "Ronan Deloach",
+   "Marcus Trask",
+   "Kobe Tackett"
+  ],
+  "special_teams": [
+   "Bo Bexley",
+   "Reef Trask",
+   "Malik Hennig"
+  ]
+ },
+ "MIA": {
+  "d_field": [
+   "Kobe Ashby",
+   "Jaxon Trask",
+   "Brock Redfern",
+   "Cole Ashby",
+   "Cole Colter",
+   "Isaiah Cassidy",
+   "Jericho Deloach",
+   "Marcus Trask",
+   "Cass Rennick",
+   "Ronan Traore"
+  ],
+  "d_lb": [
+   "Luca Loudermilk",
+   "Xavier Traore",
+   "Quinton Rask",
+   "Deshawn Bexar",
+   "Jarrell Rockwell",
+   "Camden Vaughters",
+   "Silas Ashby",
+   "Amari Traore"
+  ],
+  "d_line": [
+   "Roman Ashby",
+   "Miles Rowe",
+   "Thane Kade",
+   "Brock Rowe",
+   "Lorenzo Mackey",
+   "Malik Brannigan",
+   "Brock Vega",
+   "Dominic Redfern",
+   "Luca Nkemdi"
+  ],
+  "o_line": [
+   "Cyrus Cobb",
+   "Trey Vaughters",
+   "Luca Traore",
+   "Devonte Yarborough",
+   "Darius Marchetti",
+   "Kobe Bexar",
+   "Jarrell Quillen",
+   "Cass Mensah",
+   "Quinton Ozuna",
+   "Emeka Pryor"
+  ],
+  "o_pass": [
+   "Rashad Palacios",
+   "Miles Redfern",
+   "Emeka Aguon",
+   "Elijah Salter",
+   "Cole Draper",
+   "Brock Devereaux",
+   "Kwame Deloach",
+   "Silas Palacios",
+   "Cyrus Stroud"
+  ],
+  "o_rush": [
+   "Terrell Colter",
+   "Ronan Ashworth",
+   "Marlon Bexar",
+   "Isaiah Kilgore",
+   "Zane Mackey"
+  ],
+  "o_te": [
+   "Jericho Cobb",
+   "Marlon Palacios",
+   "Cole Crowder",
+   "Bo Salter"
+  ],
+  "quarterback": [
+   "Quinton Rennick",
+   "Cass Lund",
+   "Kellan Loudermilk"
+  ],
+  "special_teams": [
+   "Ozzie Brannigan",
+   "Terrell Rennick",
+   "Roman Ferris"
+  ]
+ },
+ "NE": {
+  "d_field": [
+   "Rhett Palacios",
+   "Tyrese Sirianni",
+   "Marlon Vega",
+   "Camden Rask",
+   "Ozzie Quillen",
+   "Roman Merrick",
+   "Emeka Trask",
+   "Thane Stroud",
+   "Trey Stroud",
+   "Jamal Bexar"
+  ],
+  "d_lb": [
+   "Kwame Boone",
+   "Aden Trask",
+   "Terrell Steed",
+   "Miles Vance",
+   "Vance Brannigan",
+   "Ronan Ashby",
+   "Xavier Halloran",
+   "Brock Yarborough"
+  ],
+  "d_line": [
+   "Deshawn Kade",
+   "Vance Hargrove",
+   "Camden Loudermilk",
+   "Jericho Trask",
+   "Marcus Rockwell",
+   "Luca Merrick",
+   "Zane Sable",
+   "Ronan Ocampo",
+   "Rhett Deloach"
+  ],
+  "o_line": [
+   "Marcus Solano",
+   "Quinton Sirianni",
+   "Marcus Ashworth",
+   "Terrell Rowe",
+   "Luca Sandoval",
+   "Darius Pryor",
+   "Bishop Dembele",
+   "Kyrie Merrick",
+   "Reef Ocampo",
+   "Malik Devereaux"
+  ],
+  "o_pass": [
+   "Solomon Vance",
+   "Zane Rask",
+   "Zane Draper",
+   "Terrell Ryder",
+   "Deshawn Solano",
+   "Oren Bexar",
+   "Camden Rowe",
+   "Kobe Kade",
+   "Kaden Merrick"
+  ],
+  "o_rush": [
+   "Brock Deloach",
+   "Luca Colter",
+   "Trey Ibarra",
+   "Rhett Cassidy",
+   "Jericho Quillen"
+  ],
+  "o_te": [
+   "Thane Sirianni",
+   "Tyrese Colter",
+   "Zane Rennick",
+   "Oren Ibarra"
+  ],
+  "quarterback": [
+   "Marlon Aguon",
+   "Elijah Vance",
+   "Kaden Pryor"
+  ],
+  "special_teams": [
+   "Bo Hargrove",
+   "Dominic Kilgore",
+   "Kwame Ashworth"
+  ]
+ },
+ "NYJ": {
+  "d_field": [
+   "Camden Bexley",
+   "Dominic Yarborough",
+   "Thane Sirianni",
+   "Darius Kilgore",
+   "Kobe Crowder",
+   "Amari Pryor",
+   "Kaden Stroud",
+   "Oren Loudermilk",
+   "Vance Aguon",
+   "Bo Colter"
+  ],
+  "d_lb": [
+   "Reef Mackey",
+   "Isaiah Salter",
+   "Cole Sandoval",
+   "Jericho Ibarra",
+   "Jaxon Devereaux",
+   "Kaden Rockwell",
+   "Rhett Colter",
+   "Isaiah Vance"
+  ],
+  "d_line": [
+   "Kwame Lund",
+   "Zane Palacios",
+   "Quinton Palacios",
+   "Oren Sandoval",
+   "Lorenzo Okafor",
+   "Ronan Ashworth",
+   "Dante Vega",
+   "Jarrell Loudermilk",
+   "Camden Tackett"
+  ],
+  "o_line": [
+   "Kwame Palacios",
+   "Solomon Hennig",
+   "Bishop Kilgore",
+   "Malik Merrick",
+   "Amari Colter",
+   "Xavier Ozuna",
+   "Solomon Tackett",
+   "Zane Whitlock",
+   "Oren Aguon",
+   "Miles Cobb"
+  ],
+  "o_pass": [
+   "Rashad Threadgill",
+   "Kaden Aguon",
+   "Zane Marchetti",
+   "Rhett Loudermilk",
+   "Bo Ferris",
+   "Dominic Sable",
+   "Ronan Vance",
+   "Thane Ashby",
+   "Dante Sirianni"
+  ],
+  "o_rush": [
+   "Solomon Ryder",
+   "Roman Hargrove",
+   "Miles Dembele",
+   "Bo Rask",
+   "Vance Pryor"
+  ],
+  "o_te": [
+   "Reef Crowder",
+   "Marcus Lund",
+   "Cole Voss",
+   "Cyrus Hennig"
+  ],
+  "quarterback": [
+   "Dante Okafor",
+   "Marlon Mensah",
+   "Cyrus Sandoval"
+  ],
+  "special_teams": [
+   "Jamal Ferris",
+   "Kobe Ibarra",
+   "Oren Tackett"
+  ]
+ },
+ "BAL": {
+  "d_field": [
+   "Cass Marchetti",
+   "Jamal Salter",
+   "Vance Whitlock",
+   "Devonte Rowe",
+   "Elijah Whitlock",
+   "Marcus Redfern",
+   "Cole Kilgore",
+   "Quinton Brannigan",
+   "Solomon Bexley",
+   "Darius Loudermilk"
+  ],
+  "d_lb": [
+   "Trey Deloach",
+   "Devonte Bexley",
+   "Quinton Mensah",
+   "Kellan Vega",
+   "Quinton Kilgore",
+   "Silas Sandoval",
+   "Kellan Nkemdi",
+   "Zane Pryor"
+  ],
+  "d_line": [
+   "Silas Cobb",
+   "Solomon Palacios",
+   "Darius Bexar",
+   "Tyrese Nkemdi",
+   "Nico Fairbanks",
+   "Jaxon Ocampo",
+   "Terrell Ansah",
+   "Bishop Ozuna",
+   "Zane Quillen"
+  ],
+  "o_line": [
+   "Emeka Draper",
+   "Miles Rockwell",
+   "Lorenzo Cobb",
+   "Jarrell Traore",
+   "Kwame Mackey",
+   "Rhett Rennick",
+   "Kwame Hargrove",
+   "Oren Bexar",
+   "Solomon Voss",
+   "Luca Ashworth"
+  ],
+  "o_pass": [
+   "Ronan Rowe",
+   "Camden Vega",
+   "Bishop Crowder",
+   "Cyrus Steed",
+   "Jamal Crowder",
+   "Malik Rask",
+   "Kaden Steed",
+   "Emeka Quillen",
+   "Vance Marchetti"
+  ],
+  "o_rush": [
+   "Rashad Vaughters",
+   "Bishop Ibarra",
+   "Cass Sandoval",
+   "Camden Ibarra",
+   "Jamal Yarborough"
+  ],
+  "o_te": [
+   "Kaden Sable",
+   "Zane Ashby",
+   "Cyrus Vega",
+   "Emeka Loudermilk"
+  ],
+  "quarterback": [
+   "Deshawn Lund",
+   "Oren Merrick",
+   "Jamal Rask"
+  ],
+  "special_teams": [
+   "Rhett Kade",
+   "Cole Quillen",
+   "Kwame Ashworth"
+  ]
+ },
+ "CIN": {
+  "d_field": [
+   "Rashad Traore",
+   "Jamal Stroud",
+   "Dante Devereaux",
+   "Brock Ocampo",
+   "Deshawn Steed",
+   "Thane Rennick",
+   "Isaiah Rowe",
+   "Malik Sirianni",
+   "Marlon Boone",
+   "Kwame Redfern"
+  ],
+  "d_lb": [
+   "Aden Kilgore",
+   "Rashad Nkemdi",
+   "Dominic Cobb",
+   "Cass Rockwell",
+   "Cass Brannigan",
+   "Marlon Kilgore",
+   "Terrell Lund",
+   "Aden Draper"
+  ],
+  "d_line": [
+   "Ozzie Redfern",
+   "Lorenzo Draper",
+   "Roman Ashworth",
+   "Marcus Rockwell",
+   "Silas Mensah",
+   "Elijah Devereaux",
+   "Darius Hennig",
+   "Brock Cassidy",
+   "Kwame Whitlock"
+  ],
+  "o_line": [
+   "Aden Steed",
+   "Emeka Ashby",
+   "Roman Aguon",
+   "Cass Hennig",
+   "Xavier Traore",
+   "Cyrus Ferris",
+   "Xavier Vega",
+   "Bishop Ibarra",
+   "Devonte Colter",
+   "Luca Ashworth"
+  ],
+  "o_pass": [
+   "Camden Tackett",
+   "Marlon Draper",
+   "Kaden Tackett",
+   "Kellan Pryor",
+   "Miles Redfern",
+   "Tyrese Kade",
+   "Jaxon Kade",
+   "Zane Okafor",
+   "Silas Vaughters"
+  ],
+  "o_rush": [
+   "Nico Ocampo",
+   "Terrell Kade",
+   "Zane Merrick",
+   "Rhett Cobb",
+   "Dante Rowe"
+  ],
+  "o_te": [
+   "Emeka Sandoval",
+   "Bo Ozuna",
+   "Vance Salter",
+   "Devonte Vance"
+  ],
+  "quarterback": [
+   "Ronan Crowder",
+   "Oren Ferris",
+   "Miles Rask"
+  ],
+  "special_teams": [
+   "Jaxon Lund",
+   "Kobe Crowder",
+   "Jericho Vega"
+  ]
+ },
+ "CLE": {
+  "d_field": [
+   "Solomon Boone",
+   "Cyrus Marchetti",
+   "Lorenzo Brannigan",
+   "Camden Devereaux",
+   "Lorenzo Ocampo",
+   "Malik Kilgore",
+   "Ozzie Okafor",
+   "Jamal Deloach",
+   "Luca Merrick",
+   "Rashad Sable"
+  ],
+  "d_lb": [
+   "Oren Bexar",
+   "Kwame Ocampo",
+   "Rashad Brannigan",
+   "Thane Ryder",
+   "Ronan Ozuna",
+   "Kaden Aguon",
+   "Trey Rennick",
+   "Marcus Boone"
+  ],
+  "d_line": [
+   "Oren Rennick",
+   "Cyrus Rennick",
+   "Cole Kilgore",
+   "Marcus Sirianni",
+   "Emeka Brannigan",
+   "Kobe Solano",
+   "Kellan Palacios",
+   "Jaxon Fairbanks",
+   "Zane Bexley"
+  ],
+  "o_line": [
+   "Rhett Trask",
+   "Trey Tackett",
+   "Vance Hennig",
+   "Dante Rennick",
+   "Trey Hargrove",
+   "Jarrell Yarborough",
+   "Reef Sable",
+   "Isaiah Mensah",
+   "Aden Threadgill",
+   "Malik Draper"
+  ],
+  "o_pass": [
+   "Silas Marchetti",
+   "Kellan Threadgill",
+   "Rhett Crowder",
+   "Ozzie Cassidy",
+   "Roman Ansah",
+   "Jarrell Marchetti",
+   "Kobe Rask",
+   "Kellan Dembele",
+   "Malik Ibarra"
+  ],
+  "o_rush": [
+   "Aden Vance",
+   "Silas Tackett",
+   "Terrell Ibarra",
+   "Oren Redfern",
+   "Kwame Salter"
+  ],
+  "o_te": [
+   "Kwame Halloran",
+   "Cyrus Quillen",
+   "Roman Hargrove",
+   "Tyrese Mackey"
+  ],
+  "quarterback": [
+   "Devonte Halloran",
+   "Cyrus Steed",
+   "Isaiah Palacios"
+  ],
+  "special_teams": [
+   "Dante Ashby",
+   "Bo Loudermilk",
+   "Reef Cassidy"
+  ]
+ },
+ "PIT": {
+  "d_field": [
+   "Trey Aguon",
+   "Nico Traore",
+   "Reef Loudermilk",
+   "Emeka Rask",
+   "Miles Palacios",
+   "Malik Kade",
+   "Marlon Palacios",
+   "Devonte Brannigan",
+   "Kobe Hargrove",
+   "Tyrese Okafor"
+  ],
+  "d_lb": [
+   "Darius Cobb",
+   "Camden Crowder",
+   "Nico Redfern",
+   "Kwame Brannigan",
+   "Silas Quillen",
+   "Jaxon Salter",
+   "Kellan Bexley",
+   "Elijah Sirianni"
+  ],
+  "d_line": [
+   "Kaden Kade",
+   "Jamal Palacios",
+   "Bishop Vance",
+   "Rhett Colter",
+   "Jaxon Ashby",
+   "Rashad Brannigan",
+   "Lorenzo Trask",
+   "Aden Rockwell",
+   "Jamal Ferris"
+  ],
+  "o_line": [
+   "Zane Trask",
+   "Quinton Whitlock",
+   "Marcus Ocampo",
+   "Rashad Sandoval",
+   "Lorenzo Ashby",
+   "Kyrie Ocampo",
+   "Vance Fairbanks",
+   "Devonte Fairbanks",
+   "Luca Draper",
+   "Kellan Kade"
+  ],
+  "o_pass": [
+   "Rashad Cobb",
+   "Luca Ferris",
+   "Lorenzo Kilgore",
+   "Nico Pryor",
+   "Vance Mackey",
+   "Solomon Ryder",
+   "Solomon Steed",
+   "Ronan Vaughters",
+   "Aden Mensah"
+  ],
+  "o_rush": [
+   "Devonte Bexley",
+   "Zane Hennig",
+   "Tyrese Vance",
+   "Vance Trask",
+   "Amari Yarborough"
+  ],
+  "o_te": [
+   "Bo Sable",
+   "Malik Okafor",
+   "Xavier Mensah",
+   "Jericho Kilgore"
+  ],
+  "quarterback": [
+   "Camden Trask",
+   "Elijah Ashworth",
+   "Brock Stroud"
+  ],
+  "special_teams": [
+   "Roman Vaughters",
+   "Ronan Merrick",
+   "Camden Sandoval"
+  ]
+ },
+ "HOU": {
+  "d_field": [
+   "Marlon Dembele",
+   "Cyrus Tackett",
+   "Marcus Fairbanks",
+   "Kyrie Ozuna",
+   "Kaden Boone",
+   "Vance Sable",
+   "Bo Traore",
+   "Aden Vega",
+   "Solomon Cassidy",
+   "Marcus Sandoval"
+  ],
+  "d_lb": [
+   "Jarrell Bexley",
+   "Luca Ryder",
+   "Kaden Ryder",
+   "Kellan Fairbanks",
+   "Malik Trask",
+   "Jaxon Aguon",
+   "Kaden Salter",
+   "Zane Hargrove"
+  ],
+  "d_line": [
+   "Reef Rask",
+   "Rhett Rennick",
+   "Isaiah Mensah",
+   "Silas Palacios",
+   "Rashad Rockwell",
+   "Ronan Ryder",
+   "Marcus Devereaux",
+   "Jaxon Marchetti",
+   "Darius Sable"
+  ],
+  "o_line": [
+   "Kaden Merrick",
+   "Kwame Ryder",
+   "Camden Ocampo",
+   "Trey Rockwell",
+   "Oren Loudermilk",
+   "Marcus Ocampo",
+   "Reef Nkemdi",
+   "Emeka Rennick",
+   "Solomon Steed",
+   "Isaiah Crowder"
+  ],
+  "o_pass": [
+   "Miles Vance",
+   "Tyrese Vance",
+   "Trey Ozuna",
+   "Elijah Cassidy",
+   "Jericho Brannigan",
+   "Thane Rask",
+   "Kyrie Nkemdi",
+   "Bishop Kilgore",
+   "Brock Draper"
+  ],
+  "o_rush": [
+   "Oren Rennick",
+   "Rashad Vaughters",
+   "Bo Pryor",
+   "Rashad Whitlock",
+   "Camden Tackett"
+  ],
+  "o_te": [
+   "Lorenzo Marchetti",
+   "Solomon Lund",
+   "Jamal Merrick",
+   "Dominic Yarborough"
+  ],
+  "quarterback": [
+   "Amari Sandoval",
+   "Vance Steed",
+   "Trey Halloran"
+  ],
+  "special_teams": [
+   "Rhett Trask",
+   "Cole Ashby",
+   "Isaiah Nkemdi"
+  ]
+ },
+ "IND": {
+  "d_field": [
+   "Oren Traore",
+   "Quinton Sable",
+   "Brock Boone",
+   "Xavier Kade",
+   "Jaxon Sandoval",
+   "Cole Threadgill",
+   "Quinton Mackey",
+   "Jamal Stroud",
+   "Kaden Vance",
+   "Ozzie Kade"
+  ],
+  "d_lb": [
+   "Tyrese Vega",
+   "Jarrell Ibarra",
+   "Lorenzo Brannigan",
+   "Ronan Cassidy",
+   "Trey Crowder",
+   "Darius Ansah",
+   "Miles Salter",
+   "Tyrese Kade"
+  ],
+  "d_line": [
+   "Luca Marchetti",
+   "Roman Ryder",
+   "Solomon Sable",
+   "Jericho Cassidy",
+   "Darius Rennick",
+   "Kobe Sable",
+   "Marcus Lund",
+   "Nico Rask",
+   "Vance Boone"
+  ],
+  "o_line": [
+   "Elijah Pryor",
+   "Jericho Ocampo",
+   "Isaiah Vega",
+   "Oren Hennig",
+   "Solomon Kilgore",
+   "Jericho Kilgore",
+   "Vance Halloran",
+   "Dante Mackey",
+   "Darius Solano",
+   "Tyrese Okafor"
+  ],
+  "o_pass": [
+   "Rhett Vaughters",
+   "Devonte Rowe",
+   "Ozzie Vance",
+   "Elijah Bexley",
+   "Ronan Brannigan",
+   "Jericho Solano",
+   "Dominic Ashby",
+   "Rhett Cobb",
+   "Dante Rowe"
+  ],
+  "o_rush": [
+   "Marlon Salter",
+   "Elijah Nkemdi",
+   "Kyrie Bexley",
+   "Vance Trask",
+   "Dante Bexar"
+  ],
+  "o_te": [
+   "Malik Palacios",
+   "Bo Vega",
+   "Oren Sable",
+   "Zane Fairbanks"
+  ],
+  "quarterback": [
+   "Vance Sirianni",
+   "Dominic Kilgore",
+   "Devonte Rennick"
+  ],
+  "special_teams": [
+   "Luca Aguon",
+   "Terrell Traore",
+   "Isaiah Kilgore"
+  ]
+ },
+ "JAX": {
+  "d_field": [
+   "Camden Salter",
+   "Miles Cobb",
+   "Isaiah Mackey",
+   "Isaiah Palacios",
+   "Elijah Rowe",
+   "Miles Rennick",
+   "Marlon Quillen",
+   "Kobe Mensah",
+   "Cole Bexar",
+   "Rashad Vega"
+  ],
+  "d_lb": [
+   "Ronan Hennig",
+   "Terrell Vega",
+   "Malik Fairbanks",
+   "Kobe Voss",
+   "Dominic Sandoval",
+   "Thane Yarborough",
+   "Aden Ansah",
+   "Bishop Hargrove"
+  ],
+  "d_line": [
+   "Kobe Colter",
+   "Tyrese Devereaux",
+   "Miles Tackett",
+   "Isaiah Loudermilk",
+   "Deshawn Pryor",
+   "Trey Brannigan",
+   "Dante Cassidy",
+   "Kobe Sandoval",
+   "Jaxon Dembele"
+  ],
+  "o_line": [
+   "Dominic Ferris",
+   "Emeka Palacios",
+   "Miles Hennig",
+   "Tyrese Yarborough",
+   "Emeka Ferris",
+   "Rashad Redfern",
+   "Tyrese Ansah",
+   "Marcus Stroud",
+   "Cole Threadgill",
+   "Thane Salter"
+  ],
+  "o_pass": [
+   "Silas Rowe",
+   "Dante Kade",
+   "Trey Ozuna",
+   "Kellan Quillen",
+   "Vance Draper",
+   "Cole Loudermilk",
+   "Kyrie Vega",
+   "Marcus Rowe",
+   "Kellan Kade"
+  ],
+  "o_rush": [
+   "Rhett Quillen",
+   "Deshawn Ashby",
+   "Luca Sandoval",
+   "Cass Rennick",
+   "Terrell Fairbanks"
+  ],
+  "o_te": [
+   "Nico Trask",
+   "Rashad Pryor",
+   "Bishop Tackett",
+   "Jamal Yarborough"
+  ],
+  "quarterback": [
+   "Kaden Halloran",
+   "Darius Kade",
+   "Dante Tackett"
+  ],
+  "special_teams": [
+   "Lorenzo Voss",
+   "Kwame Ashworth",
+   "Silas Bexley"
+  ]
+ },
+ "TEN": {
+  "d_field": [
+   "Kyrie Rockwell",
+   "Bishop Vance",
+   "Elijah Ashby",
+   "Cyrus Crowder",
+   "Tyrese Ocampo",
+   "Kwame Ibarra",
+   "Kaden Yarborough",
+   "Vance Yarborough",
+   "Dante Sable",
+   "Ozzie Cobb"
+  ],
+  "d_lb": [
+   "Ozzie Sable",
+   "Marcus Dembele",
+   "Kellan Vega",
+   "Dominic Ansah",
+   "Elijah Mensah",
+   "Quinton Ocampo",
+   "Bo Vaughters",
+   "Cass Pryor"
+  ],
+  "d_line": [
+   "Dominic Palacios",
+   "Devonte Nkemdi",
+   "Ronan Solano",
+   "Brock Ocampo",
+   "Vance Rowe",
+   "Brock Redfern",
+   "Zane Mackey",
+   "Aden Hennig",
+   "Marlon Sable"
+  ],
+  "o_line": [
+   "Camden Ferris",
+   "Deshawn Tackett",
+   "Kellan Aguon",
+   "Rhett Devereaux",
+   "Marcus Rockwell",
+   "Quinton Pryor",
+   "Marlon Threadgill",
+   "Bo Kade",
+   "Rhett Ozuna",
+   "Luca Ashby"
+  ],
+  "o_pass": [
+   "Marcus Ocampo",
+   "Brock Dembele",
+   "Deshawn Rask",
+   "Jericho Ashby",
+   "Bo Vega",
+   "Amari Aguon",
+   "Nico Hennig",
+   "Kwame Redfern",
+   "Cyrus Halloran"
+  ],
+  "o_rush": [
+   "Jaxon Ozuna",
+   "Kobe Hargrove",
+   "Isaiah Ibarra",
+   "Darius Sable",
+   "Trey Solano"
+  ],
+  "o_te": [
+   "Zane Vance",
+   "Darius Stroud",
+   "Terrell Colter",
+   "Camden Bexley"
+  ],
+  "quarterback": [
+   "Terrell Merrick",
+   "Cole Ryder",
+   "Jaxon Palacios"
+  ],
+  "special_teams": [
+   "Deshawn Trask",
+   "Reef Lund",
+   "Malik Trask"
+  ]
+ },
+ "DEN": {
+  "d_field": [
+   "Ozzie Okafor",
+   "Bo Salter",
+   "Ozzie Ashby",
+   "Zane Redfern",
+   "Marcus Kilgore",
+   "Terrell Redfern",
+   "Terrell Dembele",
+   "Darius Bexar",
+   "Marlon Palacios",
+   "Bishop Nkemdi"
+  ],
+  "d_lb": [
+   "Oren Quillen",
+   "Malik Ashby",
+   "Luca Boone",
+   "Rhett Rask",
+   "Kaden Aguon",
+   "Marcus Steed",
+   "Vance Okafor",
+   "Kellan Threadgill"
+  ],
+  "d_line": [
+   "Jaxon Solano",
+   "Tyrese Halloran",
+   "Xavier Pryor",
+   "Amari Boone",
+   "Devonte Ryder",
+   "Solomon Salter",
+   "Tyrese Nkemdi",
+   "Kobe Colter",
+   "Zane Crowder"
+  ],
+  "o_line": [
+   "Trey Ashworth",
+   "Bo Cobb",
+   "Aden Ozuna",
+   "Rashad Rowe",
+   "Thane Ocampo",
+   "Zane Rowe",
+   "Cass Redfern",
+   "Ronan Bexley",
+   "Amari Kade",
+   "Dominic Pryor"
+  ],
+  "o_pass": [
+   "Kobe Trask",
+   "Nico Boone",
+   "Nico Salter",
+   "Tyrese Yarborough",
+   "Marlon Mensah",
+   "Oren Voss",
+   "Amari Draper",
+   "Kyrie Tackett",
+   "Trey Stroud"
+  ],
+  "o_rush": [
+   "Jarrell Rockwell",
+   "Marcus Salter",
+   "Oren Bexley",
+   "Jericho Boone",
+   "Kaden Rowe"
+  ],
+  "o_te": [
+   "Jericho Threadgill",
+   "Brock Vance",
+   "Marcus Fairbanks",
+   "Rhett Kilgore"
+  ],
+  "quarterback": [
+   "Thane Ryder",
+   "Jarrell Loudermilk",
+   "Xavier Fairbanks"
+  ],
+  "special_teams": [
+   "Dante Hennig",
+   "Roman Devereaux",
+   "Amari Traore"
   ]
  },
  "KC": {
   "d_field": [
-   "Jaxon Ashby",
-   "Vance Ashworth",
-   "Deshawn Redfern",
-   "Kwame Vance",
-   "Ronan Tackett",
-   "Elijah Palacios",
-   "Deshawn Threadgill",
-   "Cyrus Mackey",
-   "Deshawn Rowe",
-   "Bo Quillen"
+   "Thane Cobb",
+   "Brock Solano",
+   "Ronan Vega",
+   "Elijah Vega",
+   "Brock Vance",
+   "Bo Sandoval",
+   "Solomon Sandoval",
+   "Camden Palacios",
+   "Solomon Steed",
+   "Kwame Merrick"
   ],
   "d_lb": [
-   "Solomon Rockwell",
-   "Camden Sirianni",
-   "Ozzie Quillen",
-   "Cyrus Redfern",
-   "Cyrus Cassidy",
-   "Deshawn Marchetti",
-   "Deshawn Kilgore",
-   "Rashad Lund"
+   "Miles Pryor",
+   "Lorenzo Ozuna",
+   "Malik Halloran",
+   "Quinton Ashby",
+   "Kyrie Rennick",
+   "Oren Ryder",
+   "Silas Boone",
+   "Thane Trask"
   ],
   "d_line": [
-   "Miles Hargrove",
-   "Brock Rockwell",
-   "Marlon Sandoval",
-   "Reef Loudermilk",
-   "Miles Vega",
-   "Rhett Hennig",
-   "Luca Threadgill",
-   "Ozzie Tackett",
-   "Malik Halloran"
+   "Silas Quillen",
+   "Vance Cobb",
+   "Rhett Vaughters",
+   "Amari Deloach",
+   "Terrell Palacios",
+   "Brock Hargrove",
+   "Xavier Halloran",
+   "Ozzie Traore",
+   "Luca Brannigan"
   ],
   "o_line": [
-   "Jarrell Lund",
-   "Miles Kade",
-   "Vance Loudermilk",
-   "Aden Ansah",
-   "Xavier Rockwell",
-   "Oren Marchetti",
-   "Dante Redfern",
-   "Ronan Solano",
-   "Emeka Rowe",
-   "Jaxon Palacios"
+   "Jaxon Redfern",
+   "Amari Ibarra",
+   "Brock Marchetti",
+   "Emeka Whitlock",
+   "Tyrese Palacios",
+   "Dante Brannigan",
+   "Bishop Threadgill",
+   "Aden Redfern",
+   "Thane Ocampo",
+   "Rhett Marchetti"
   ],
   "o_pass": [
-   "Jamal Marchetti",
-   "Rashad Tackett",
-   "Roman Rowe",
-   "Miles Threadgill",
-   "Kwame Mensah",
-   "Dante Hargrove",
-   "Ronan Voss",
-   "Emeka Cobb",
-   "Marlon Marchetti"
+   "Dominic Voss",
+   "Darius Bexley",
+   "Miles Ferris",
+   "Deshawn Rockwell",
+   "Oren Marchetti",
+   "Marlon Palacios",
+   "Camden Ocampo",
+   "Ozzie Devereaux",
+   "Isaiah Dembele"
   ],
   "o_rush": [
-   "Devonte Steed",
-   "Rhett Aguon",
-   "Kwame Salter",
-   "Solomon Kade",
-   "Devonte Redfern"
+   "Lorenzo Ashby",
+   "Nico Colter",
+   "Marcus Rask",
+   "Kaden Hargrove",
+   "Emeka Bexar"
   ],
   "o_te": [
-   "Ozzie Ibarra",
-   "Ronan Rowe",
-   "Marlon Solano",
-   "Cole Ferris"
+   "Solomon Ferris",
+   "Silas Nkemdi",
+   "Xavier Traore",
+   "Dominic Vega"
   ],
   "quarterback": [
-   "Luca Vaughters",
-   "Jaxon Traore",
-   "Malik Bexar"
+   "Darius Yarborough",
+   "Marlon Colter",
+   "Kyrie Whitlock"
   ],
   "special_teams": [
-   "Jaxon Trask",
-   "Marlon Crowder",
-   "Trey Merrick"
+   "Brock Pryor",
+   "Deshawn Traore",
+   "Rashad Ocampo"
+  ]
+ },
+ "LV": {
+  "d_field": [
+   "Trey Rask",
+   "Trey Rennick",
+   "Rashad Draper",
+   "Amari Draper",
+   "Emeka Deloach",
+   "Devonte Kade",
+   "Nico Ocampo",
+   "Kobe Ferris",
+   "Jaxon Kilgore",
+   "Kaden Palacios"
+  ],
+  "d_lb": [
+   "Kobe Cobb",
+   "Camden Boone",
+   "Vance Brannigan",
+   "Solomon Brannigan",
+   "Elijah Ryder",
+   "Kyrie Devereaux",
+   "Rashad Deloach",
+   "Marcus Sirianni"
+  ],
+  "d_line": [
+   "Elijah Bexar",
+   "Deshawn Rowe",
+   "Reef Draper",
+   "Cole Ryder",
+   "Ozzie Ferris",
+   "Dominic Ferris",
+   "Lorenzo Tackett",
+   "Bishop Hargrove",
+   "Oren Dembele"
+  ],
+  "o_line": [
+   "Kellan Ozuna",
+   "Oren Solano",
+   "Silas Redfern",
+   "Isaiah Colter",
+   "Kwame Ashby",
+   "Quinton Solano",
+   "Miles Nkemdi",
+   "Jaxon Threadgill",
+   "Devonte Pryor",
+   "Cass Rowe"
+  ],
+  "o_pass": [
+   "Roman Trask",
+   "Dante Ferris",
+   "Bo Halloran",
+   "Kellan Mensah",
+   "Cass Devereaux",
+   "Lorenzo Vance",
+   "Jericho Hennig",
+   "Miles Sirianni",
+   "Reef Halloran"
+  ],
+  "o_rush": [
+   "Miles Fairbanks",
+   "Marlon Rockwell",
+   "Ronan Bexar",
+   "Jarrell Ashby",
+   "Elijah Marchetti"
+  ],
+  "o_te": [
+   "Brock Vance",
+   "Quinton Deloach",
+   "Trey Merrick",
+   "Rhett Vance"
+  ],
+  "quarterback": [
+   "Cyrus Cobb",
+   "Kobe Bexley",
+   "Kobe Halloran"
+  ],
+  "special_teams": [
+   "Camden Vance",
+   "Quinton Mensah",
+   "Trey Threadgill"
+  ]
+ },
+ "LAC": {
+  "d_field": [
+   "Deshawn Ozuna",
+   "Kobe Vega",
+   "Aden Tackett",
+   "Jarrell Threadgill",
+   "Dante Ibarra",
+   "Kaden Traore",
+   "Kellan Solano",
+   "Bishop Ryder",
+   "Isaiah Lund",
+   "Lorenzo Mackey"
+  ],
+  "d_lb": [
+   "Silas Brannigan",
+   "Xavier Bexley",
+   "Oren Traore",
+   "Jamal Halloran",
+   "Rhett Ashby",
+   "Rhett Quillen",
+   "Bishop Ansah",
+   "Zane Nkemdi"
+  ],
+  "d_line": [
+   "Ozzie Cobb",
+   "Kyrie Halloran",
+   "Jaxon Quillen",
+   "Devonte Threadgill",
+   "Vance Hennig",
+   "Vance Ashworth",
+   "Zane Boone",
+   "Ronan Steed",
+   "Devonte Ferris"
+  ],
+  "o_line": [
+   "Rashad Halloran",
+   "Cyrus Lund",
+   "Bishop Ozuna",
+   "Thane Lund",
+   "Reef Traore",
+   "Cass Vance",
+   "Solomon Crowder",
+   "Kaden Kilgore",
+   "Cyrus Ryder",
+   "Jarrell Yarborough"
+  ],
+  "o_pass": [
+   "Jericho Vega",
+   "Kaden Stroud",
+   "Marcus Okafor",
+   "Dante Voss",
+   "Jaxon Rennick",
+   "Ronan Cassidy",
+   "Terrell Threadgill",
+   "Marlon Merrick",
+   "Lorenzo Sandoval"
+  ],
+  "o_rush": [
+   "Kwame Lund",
+   "Xavier Salter",
+   "Trey Fairbanks",
+   "Malik Brannigan",
+   "Cass Kilgore"
+  ],
+  "o_te": [
+   "Jarrell Stroud",
+   "Isaiah Deloach",
+   "Kobe Mackey",
+   "Ozzie Ashworth"
+  ],
+  "quarterback": [
+   "Thane Hargrove",
+   "Xavier Merrick",
+   "Kyrie Bexley"
+  ],
+  "special_teams": [
+   "Xavier Halloran",
+   "Kobe Merrick",
+   "Aden Cassidy"
   ]
  }
 }

@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
-"""Generate the BLITZ RELOADED league: 32 original clubs and their rosters.
+"""Build the league data layer: the 32 NFL clubs, with generated rosters.
 
-This replaces an earlier data layer that had been built from real NFL club
-identities and a scraped third-party Madden ratings dump. Everything here is
-invented: club nicknames, colors, player names and every attribute rating are
-generated from a fixed seed. Real city names are used the same way the concept
-art uses them -- New York Strykers, Chicago Maulers -- because a city name is
-not a club identity.
+Club identity here is REAL -- names, abbreviations, conferences, divisions and
+official colours -- because the marks the game renders are the real club marks
+the user supplied. Player data is NOT real: names and every attribute rating are
+generated from the fixed seed below. (An earlier version of this file pulled 2003
+real players with Madden ratings scraped from a third-party site; that is not
+restored, and nobody has asked for it.)
 
-Schema is byte-compatible with what the pieces already consume:
-  src/data/teams.json    {meta, teams:   {ABBR: {abbr, city, nick, name, conf, div, colors[]}}}
-  src/data/players.json  {meta, byTeam:  {ABBR: [{name, pos, grp, num, ovr, ...attrs}]}}
+Crest artwork is resolved separately, at bar/logos/<ABBR>.png -- see
+src/pieces/brand-identity/crestsource.js. Clubs with no logo file fall back to
+the procedural crest generator, so the game runs with or without the artwork.
+
+Schema is unchanged, so every consumer keeps working:
+  src/data/teams.json    {meta, teams:  {ABBR: {abbr, city, nick, name, conf, div, colors[]}}}
+  src/data/players.json  {meta, byTeam: {ABBR: [{name, pos, grp, num, ovr, ...attrs}]}}
   src/data/depth.json    {ABBR: {group: [name, ...]}}
 
     python3 tools/build-league-data.py
@@ -23,48 +27,43 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "src" / "data"
 SEED = 20260728
 
-# ---------------------------------------------------------------- clubs ----
-# conf/div, city, nick, abbr, colors [primary, secondary, accent, neutral].
-# The first four are the clubs that appear in the concept art and their palettes
-# are read straight off those panels.
+# conf, div, city, nick, abbr, official colours [primary, secondary, accent, neutral].
+# Order matches the supplied logo sheet, read left-to-right, top-to-bottom.
 CLUBS = [
-    # IRON CONFERENCE
-    ("IRON", "East",  "New York",     "Strykers",  "NYC", ["#2FA8A0", "#0B1418", "#D8E4E2", "#7C8B8E"]),
-    ("IRON", "East",  "Philadelphia", "Ironsides", "PHI", ["#1F4B3F", "#C8B273", "#0D1512", "#8A9691"]),
-    ("IRON", "East",  "Boston",       "Wardens",   "BOS", ["#1B2A4A", "#C0392B", "#E6E9EF", "#79839A"]),
-    ("IRON", "East",  "Baltimore",    "Ravagers",  "BAL", ["#3B1E5A", "#E0B531", "#120A1C", "#8177A0"]),
-    ("IRON", "North", "Chicago",      "Maulers",   "CHI", ["#B3121F", "#141414", "#D9D2C4", "#7E7A72"]),
-    ("IRON", "North", "Detroit",      "Foundry",   "DET", ["#D95A1E", "#2B2B30", "#EDE6DA", "#84807E"]),
-    ("IRON", "North", "Cleveland",    "Riveters",  "CLE", ["#7A4A20", "#F2A03D", "#1A1410", "#94867A"]),
-    ("IRON", "North", "Minneapolis",  "Frostbite", "MIN", ["#3E7FC1", "#DDEBF7", "#101A24", "#7B8C9E"]),
-    ("IRON", "South", "Miami",        "Barracuda", "MIA", ["#12B5C4", "#F25C54", "#06282C", "#7FA6AA"]),
-    ("IRON", "South", "Atlanta",      "Nightjars", "ATL", ["#1A1A1F", "#C81E44", "#D6D2CC", "#7A767E"]),
-    ("IRON", "South", "Nashville",    "Ramblers",  "NSH", ["#245C7A", "#E8C547", "#0C1A22", "#7D8B92"]),
-    ("IRON", "South", "Houston",      "Derrick",   "HOU", ["#0F2A38", "#F07818", "#DCE2E6", "#76858C"]),
-    ("IRON", "West",  "Los Angeles",  "Titans",    "LA",  ["#12141A", "#E8B923", "#5A4B18", "#8A8574"]),
-    ("IRON", "West",  "Seattle",      "Tidewatch", "SEA", ["#1D6B5E", "#8ED6C0", "#08181A", "#77938D"]),
-    ("IRON", "West",  "Phoenix",      "Scorch",    "PHX", ["#C0341E", "#F2B33D", "#1B0F0A", "#96827A"]),
-    ("IRON", "West",  "Las Vegas",    "Aces",      "LV",  ["#0C0C0F", "#C9CED6", "#8E1B2E", "#6F737A"]),
-    # STORM CONFERENCE
-    ("STORM", "East", "Washington",   "Sentinels", "WAS", ["#5A1B2E", "#D4A24C", "#160A10", "#8C7C74"]),
-    ("STORM", "East", "Pittsburgh",   "Blastmen",  "PIT", ["#1A1A1A", "#F2C744", "#D9D9D9", "#7A776C"]),
-    ("STORM", "East", "Buffalo",      "Whiteout",  "BUF", ["#204A8C", "#E9EEF5", "#0B1424", "#78859C"]),
-    ("STORM", "East", "Newark",       "Dockhands", "NWK", ["#2E4A3A", "#D96A2B", "#0E1712", "#7F8A80"]),
-    ("STORM", "North", "Green Bay",   "Timberjaw", "GB",  ["#2A4A22", "#D8C48A", "#0C140A", "#7F8874"]),
-    ("STORM", "North", "Milwaukee",   "Steamworks","MIL", ["#3A4A5A", "#E07B39", "#101418", "#7C848C"]),
-    ("STORM", "North", "Indianapolis","Velocity",  "IND", ["#1B4A8C", "#7FD1F0", "#08121F", "#76879C"]),
-    ("STORM", "North", "Cincinnati",  "Prowlers",  "CIN", ["#E06A1B", "#141414", "#D8D0C6", "#82796F"]),
-    ("STORM", "South", "New Orleans", "Voodoo",    "NO",  ["#4A2A6B", "#C9A227", "#120C1A", "#847A8C"]),
-    ("STORM", "South", "Tampa",       "Cyclone",   "TB",  ["#8C1B2E", "#C0C6CC", "#0F0A0C", "#7E7276"]),
-    ("STORM", "South", "Charlotte",   "Kingsnakes","CLT", ["#1B6B8C", "#0A1A22", "#C9D8DE", "#748A94"]),
-    ("STORM", "South", "Dallas",      "Outlaws",   "DAL", ["#0E1A12", "#3FBF5A", "#C8D2CA", "#74857A"]),
-    ("STORM", "West",  "Denver",      "Altitude",  "DEN", ["#2A3A6B", "#E8912B", "#0A0F1C", "#78809C"]),
-    ("STORM", "West",  "San Francisco","Quakes",   "SF",  ["#8C2A1B", "#E0C9A0", "#140A08", "#8C8074"]),
-    ("STORM", "West",  "Portland",    "Ironwood",  "POR", ["#2E4A32", "#B5763A", "#0C120D", "#7A8478"]),
-    ("STORM", "West",  "Kansas City", "Stampede",  "KC",  ["#7A1B2A", "#E0B04A", "#120A0C", "#88787A"]),
+    ("NFC", "East",  "Dallas",        "Cowboys",    "DAL", ["#003594", "#869397", "#FFFFFF", "#7F9695"]),
+    ("NFC", "East",  "New York",      "Giants",     "NYG", ["#0B2265", "#A71930", "#A5ACAF", "#7A8288"]),
+    ("NFC", "East",  "Philadelphia",  "Eagles",     "PHI", ["#004C54", "#A5ACAF", "#ACC0C6", "#748A8D"]),
+    ("NFC", "East",  "Washington",    "Commanders", "WAS", ["#5A1414", "#FFB612", "#FFFFFF", "#8C7A5E"]),
+    ("NFC", "North", "Chicago",       "Bears",      "CHI", ["#0B162A", "#C83803", "#FFFFFF", "#6E6A66"]),
+    ("NFC", "North", "Detroit",       "Lions",      "DET", ["#0076B6", "#B0B7BC", "#000000", "#7C878E"]),
+    ("NFC", "North", "Green Bay",     "Packers",    "GB",  ["#203731", "#FFB612", "#FFFFFF", "#7A7F60"]),
+    ("NFC", "North", "Minnesota",     "Vikings",    "MIN", ["#4F2683", "#FFC62F", "#FFFFFF", "#7E6E96"]),
+    ("NFC", "South", "Atlanta",       "Falcons",    "ATL", ["#A71930", "#000000", "#A5ACAF", "#8A7276"]),
+    ("NFC", "South", "Carolina",      "Panthers",   "CAR", ["#0085CA", "#101820", "#BFC0BF", "#6E7E88"]),
+    ("NFC", "South", "New Orleans",   "Saints",     "NO",  ["#D3BC8D", "#101820", "#FFFFFF", "#8A8172"]),
+    ("NFC", "South", "Tampa Bay",     "Buccaneers", "TB",  ["#D50A0A", "#34302B", "#FF7900", "#8A6A62"]),
+    ("NFC", "West",  "Arizona",       "Cardinals",  "ARI", ["#97233F", "#000000", "#FFB612", "#8A6A72"]),
+    ("NFC", "West",  "Los Angeles",   "Rams",       "LAR", ["#003594", "#FFA300", "#FFFFFF", "#7A8296"]),
+    ("NFC", "West",  "San Francisco", "49ers",      "SF",  ["#AA0000", "#B3995D", "#FFFFFF", "#8A7A6A"]),
+    ("NFC", "West",  "Seattle",       "Seahawks",   "SEA", ["#002244", "#69BE28", "#A5ACAF", "#6E8A80"]),
+    ("AFC", "East",  "Buffalo",       "Bills",      "BUF", ["#00338D", "#C60C30", "#FFFFFF", "#7A8296"]),
+    ("AFC", "East",  "Miami",         "Dolphins",   "MIA", ["#008E97", "#FC4C02", "#005778", "#6E9296"]),
+    ("AFC", "East",  "New England",   "Patriots",   "NE",  ["#002244", "#C60C30", "#B0B7BC", "#7A8290"]),
+    ("AFC", "East",  "New York",      "Jets",       "NYJ", ["#125740", "#000000", "#FFFFFF", "#6E8278"]),
+    ("AFC", "North", "Baltimore",     "Ravens",     "BAL", ["#241773", "#000000", "#9E7C0C", "#7A7290"]),
+    ("AFC", "North", "Cincinnati",    "Bengals",    "CIN", ["#FB4F14", "#000000", "#FFFFFF", "#8A7A6E"]),
+    ("AFC", "North", "Cleveland",     "Browns",     "CLE", ["#311D00", "#FF3C00", "#FFFFFF", "#7A6A5A"]),
+    ("AFC", "North", "Pittsburgh",    "Steelers",   "PIT", ["#FFB612", "#101820", "#C60C30", "#8A8272"]),
+    ("AFC", "South", "Houston",       "Texans",     "HOU", ["#03202F", "#A71930", "#FFFFFF", "#6E7A82"]),
+    ("AFC", "South", "Indianapolis",  "Colts",      "IND", ["#002C5F", "#A2AAAD", "#FFFFFF", "#7A8690"]),
+    ("AFC", "South", "Jacksonville",  "Jaguars",    "JAX", ["#101820", "#D7A22A", "#006778", "#7A7A6E"]),
+    ("AFC", "South", "Tennessee",     "Titans",     "TEN", ["#0C2340", "#4B92DB", "#C8102E", "#6E7E90"]),
+    ("AFC", "West",  "Denver",        "Broncos",    "DEN", ["#FB4F14", "#002244", "#FFFFFF", "#8A7A72"]),
+    ("AFC", "West",  "Kansas City",   "Chiefs",     "KC",  ["#E31837", "#FFB81C", "#FFFFFF", "#8A7266"]),
+    ("AFC", "West",  "Las Vegas",     "Raiders",    "LV",  ["#000000", "#A5ACAF", "#FFFFFF", "#7A7E80"]),
+    ("AFC", "West",  "Los Angeles",   "Chargers",   "LAC", ["#0080C6", "#FFC20E", "#FFFFFF", "#7A8A90"]),
 ]
 
-# --------------------------------------------------------------- names -----
 FIRST = [
     "Marcus", "Dante", "Elijah", "Kaden", "Jamal", "Tyrese", "Cole", "Roman", "Zane", "Isaiah",
     "Darius", "Malik", "Rhett", "Xavier", "Amari", "Brock", "Kellan", "Deshawn", "Nico", "Silas",
@@ -81,8 +80,6 @@ LAST = [
     "Quillen", "Marchetti", "Dembele", "Rockwell", "Sandoval", "Ashby", "Traore", "Voss", "Hennig", "Palacios",
 ]
 
-# ---------------------------------------------------------- roster shape ----
-# (pos, group, count, jersey range)
 ROSTER = [
     ("QB", "quarterback",   3, (1, 19)),
     ("RB", "o_rush",        5, (20, 49)),
@@ -104,8 +101,6 @@ ATTRS = [
     "rbk", "pbk", "ibk", "mcv", "zcv", "prs", "pur", "tak", "pow", "kpw", "kac", "ret",
 ]
 
-# Per position: the attributes that define it (rated high), and physical ranges.
-# Everything unnamed lands near a low baseline, the way a real rating set behaves.
 PROFILE = {
     "QB": dict(key=["thp", "tas", "tam", "tad", "tor", "pac", "awr", "prc"],
                ht=(74, 79), wt=(205, 245), arch=["gunslinger", "field general", "scrambler"]),
@@ -135,7 +130,6 @@ def clamp(v, lo=20, hi=99):
 
 def make_player(rng, team, pos, grp, depth_idx, used_nums, used_names):
     prof = PROFILE[pos]
-    # Depth position drives the talent curve: starters are good, backups are not.
     tier = max(0.0, 1.0 - depth_idx * 0.16) + rng.gauss(0, 0.12)
     base = 58 + tier * 30
 
@@ -146,23 +140,19 @@ def make_player(rng, team, pos, grp, depth_idx, used_nums, used_names):
             break
 
     lo, hi = prof["ht"]
-    ht = rng.randint(lo, hi)
     wlo, whi = prof["wt"]
-    wt = rng.randint(wlo, whi)
+    ht, wt = rng.randint(lo, hi), rng.randint(wlo, whi)
 
     p = {
-        "name": name, "team": team, "pos": pos, "grp": grp,
-        "num": 0, "ht": ht, "wt": wt,
-        "age": rng.randint(21, 35),
-        "exp": 0, "col": "", "arch": rng.choice(prof["arch"]),
+        "name": name, "team": team, "pos": pos, "grp": grp, "num": 0,
+        "ht": ht, "wt": wt, "age": rng.randint(21, 35), "exp": 0, "col": "",
+        "arch": rng.choice(prof["arch"]),
         "run": rng.choice(["upright", "loose", "compact", "powerful"]),
         "ovr": 0,
     }
+    p["exp"] = max(0, p["age"] - 22 + rng.randint(-1, 1))
 
-    jlo, jhi = None, None
-    for spec in ROSTER:
-        if spec[0] == pos:
-            jlo, jhi = spec[3]
+    jlo, jhi = next((s[3] for s in ROSTER if s[0] == pos), (1, 99))
     for _ in range(400):
         n = rng.randint(jlo, jhi)
         if n not in used_nums:
@@ -171,8 +161,6 @@ def make_player(rng, team, pos, grp, depth_idx, used_nums, used_names):
             break
     else:
         p["num"] = rng.randint(1, 99)
-
-    p["exp"] = max(0, p["age"] - 22 + rng.randint(-1, 1))
 
     key = set(prof["key"])
     for a in ATTRS:
@@ -186,11 +174,8 @@ def make_player(rng, team, pos, grp, depth_idx, used_nums, used_names):
             v = 32 + rng.gauss(8, 11)
         p[a] = clamp(v)
 
-    # Overall is a weighted read of the position's defining attributes, so the
-    # number a card shows agrees with the bars underneath it.
     p["ovr"] = clamp(sum(p[a] for a in prof["key"]) / len(prof["key"]) + rng.gauss(0, 2))
 
-    # Big men are not fast; keep the physics plausible.
     if wt > 290:
         p["spd"] = clamp(min(p["spd"], 72 - (wt - 290) * 0.08))
         p["acc"] = clamp(min(p["acc"], 78 - (wt - 290) * 0.07))
@@ -205,6 +190,7 @@ def main():
         teams[abbr] = {
             "abbr": abbr, "city": city, "nick": nick, "name": f"{city} {nick}",
             "conf": conf, "div": div, "colors": colors,
+            "logo": f"bar/logos/{abbr}.png",
         }
         roster, groups, nums, names = [], {}, set(), set()
         for pos, grp, count, _ in ROSTER:
@@ -220,16 +206,16 @@ def main():
         }
 
     meta = {
-        "league": "BLITZ RELOADED",
+        "league": "NFL",
         "generated": "tools/build-league-data.py",
         "seed": SEED,
         "note": (
-            "Wholly fictional league. Club nicknames, colors, player names and every "
-            "attribute rating are generated from the seed above. City names are used "
-            "the way the concept art uses them and carry no club identity. No real "
-            "league, club, player or third-party ratings data is included."
+            "Club identity (name, abbreviation, conference, division, official colours) is real, "
+            "to match the real club marks the game renders from bar/logos/. Player names and every "
+            "attribute rating are GENERATED from the seed above -- no real player data and no "
+            "third-party ratings data is included."
         ),
-        "conferences": ["IRON", "STORM"],
+        "conferences": ["AFC", "NFC"],
         "divisions": ["East", "North", "South", "West"],
         "attrKeys": ATTRS,
     }

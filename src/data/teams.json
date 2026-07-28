@@ -1,12 +1,12 @@
 {
  "meta": {
-  "league": "BLITZ RELOADED",
+  "league": "NFL",
   "generated": "tools/build-league-data.py",
   "seed": 20260728,
-  "note": "Wholly fictional league. Club nicknames, colors, player names and every attribute rating are generated from the seed above. City names are used the way the concept art uses them and carry no club identity. No real league, club, player or third-party ratings data is included.",
+  "note": "Club identity (name, abbreviation, conference, division, official colours) is real, to match the real club marks the game renders from bar/logos/. Player names and every attribute rating are GENERATED from the seed above -- no real player data and no third-party ratings data is included.",
   "conferences": [
-   "IRON",
-   "STORM"
+   "AFC",
+   "NFC"
   ],
   "divisions": [
    "East",
@@ -60,453 +60,485 @@
   ]
  },
  "teams": {
-  "NYC": {
-   "abbr": "NYC",
-   "city": "New York",
-   "nick": "Strykers",
-   "name": "New York Strykers",
-   "conf": "IRON",
+  "DAL": {
+   "abbr": "DAL",
+   "city": "Dallas",
+   "nick": "Cowboys",
+   "name": "Dallas Cowboys",
+   "conf": "NFC",
    "div": "East",
    "colors": [
-    "#2FA8A0",
-    "#0B1418",
-    "#D8E4E2",
-    "#7C8B8E"
-   ]
+    "#003594",
+    "#869397",
+    "#FFFFFF",
+    "#7F9695"
+   ],
+   "logo": "bar/logos/DAL.png"
+  },
+  "NYG": {
+   "abbr": "NYG",
+   "city": "New York",
+   "nick": "Giants",
+   "name": "New York Giants",
+   "conf": "NFC",
+   "div": "East",
+   "colors": [
+    "#0B2265",
+    "#A71930",
+    "#A5ACAF",
+    "#7A8288"
+   ],
+   "logo": "bar/logos/NYG.png"
   },
   "PHI": {
    "abbr": "PHI",
    "city": "Philadelphia",
-   "nick": "Ironsides",
-   "name": "Philadelphia Ironsides",
-   "conf": "IRON",
+   "nick": "Eagles",
+   "name": "Philadelphia Eagles",
+   "conf": "NFC",
    "div": "East",
    "colors": [
-    "#1F4B3F",
-    "#C8B273",
-    "#0D1512",
-    "#8A9691"
-   ]
-  },
-  "BOS": {
-   "abbr": "BOS",
-   "city": "Boston",
-   "nick": "Wardens",
-   "name": "Boston Wardens",
-   "conf": "IRON",
-   "div": "East",
-   "colors": [
-    "#1B2A4A",
-    "#C0392B",
-    "#E6E9EF",
-    "#79839A"
-   ]
-  },
-  "BAL": {
-   "abbr": "BAL",
-   "city": "Baltimore",
-   "nick": "Ravagers",
-   "name": "Baltimore Ravagers",
-   "conf": "IRON",
-   "div": "East",
-   "colors": [
-    "#3B1E5A",
-    "#E0B531",
-    "#120A1C",
-    "#8177A0"
-   ]
-  },
-  "CHI": {
-   "abbr": "CHI",
-   "city": "Chicago",
-   "nick": "Maulers",
-   "name": "Chicago Maulers",
-   "conf": "IRON",
-   "div": "North",
-   "colors": [
-    "#B3121F",
-    "#141414",
-    "#D9D2C4",
-    "#7E7A72"
-   ]
-  },
-  "DET": {
-   "abbr": "DET",
-   "city": "Detroit",
-   "nick": "Foundry",
-   "name": "Detroit Foundry",
-   "conf": "IRON",
-   "div": "North",
-   "colors": [
-    "#D95A1E",
-    "#2B2B30",
-    "#EDE6DA",
-    "#84807E"
-   ]
-  },
-  "CLE": {
-   "abbr": "CLE",
-   "city": "Cleveland",
-   "nick": "Riveters",
-   "name": "Cleveland Riveters",
-   "conf": "IRON",
-   "div": "North",
-   "colors": [
-    "#7A4A20",
-    "#F2A03D",
-    "#1A1410",
-    "#94867A"
-   ]
-  },
-  "MIN": {
-   "abbr": "MIN",
-   "city": "Minneapolis",
-   "nick": "Frostbite",
-   "name": "Minneapolis Frostbite",
-   "conf": "IRON",
-   "div": "North",
-   "colors": [
-    "#3E7FC1",
-    "#DDEBF7",
-    "#101A24",
-    "#7B8C9E"
-   ]
-  },
-  "MIA": {
-   "abbr": "MIA",
-   "city": "Miami",
-   "nick": "Barracuda",
-   "name": "Miami Barracuda",
-   "conf": "IRON",
-   "div": "South",
-   "colors": [
-    "#12B5C4",
-    "#F25C54",
-    "#06282C",
-    "#7FA6AA"
-   ]
-  },
-  "ATL": {
-   "abbr": "ATL",
-   "city": "Atlanta",
-   "nick": "Nightjars",
-   "name": "Atlanta Nightjars",
-   "conf": "IRON",
-   "div": "South",
-   "colors": [
-    "#1A1A1F",
-    "#C81E44",
-    "#D6D2CC",
-    "#7A767E"
-   ]
-  },
-  "NSH": {
-   "abbr": "NSH",
-   "city": "Nashville",
-   "nick": "Ramblers",
-   "name": "Nashville Ramblers",
-   "conf": "IRON",
-   "div": "South",
-   "colors": [
-    "#245C7A",
-    "#E8C547",
-    "#0C1A22",
-    "#7D8B92"
-   ]
-  },
-  "HOU": {
-   "abbr": "HOU",
-   "city": "Houston",
-   "nick": "Derrick",
-   "name": "Houston Derrick",
-   "conf": "IRON",
-   "div": "South",
-   "colors": [
-    "#0F2A38",
-    "#F07818",
-    "#DCE2E6",
-    "#76858C"
-   ]
-  },
-  "LA": {
-   "abbr": "LA",
-   "city": "Los Angeles",
-   "nick": "Titans",
-   "name": "Los Angeles Titans",
-   "conf": "IRON",
-   "div": "West",
-   "colors": [
-    "#12141A",
-    "#E8B923",
-    "#5A4B18",
-    "#8A8574"
-   ]
-  },
-  "SEA": {
-   "abbr": "SEA",
-   "city": "Seattle",
-   "nick": "Tidewatch",
-   "name": "Seattle Tidewatch",
-   "conf": "IRON",
-   "div": "West",
-   "colors": [
-    "#1D6B5E",
-    "#8ED6C0",
-    "#08181A",
-    "#77938D"
-   ]
-  },
-  "PHX": {
-   "abbr": "PHX",
-   "city": "Phoenix",
-   "nick": "Scorch",
-   "name": "Phoenix Scorch",
-   "conf": "IRON",
-   "div": "West",
-   "colors": [
-    "#C0341E",
-    "#F2B33D",
-    "#1B0F0A",
-    "#96827A"
-   ]
-  },
-  "LV": {
-   "abbr": "LV",
-   "city": "Las Vegas",
-   "nick": "Aces",
-   "name": "Las Vegas Aces",
-   "conf": "IRON",
-   "div": "West",
-   "colors": [
-    "#0C0C0F",
-    "#C9CED6",
-    "#8E1B2E",
-    "#6F737A"
-   ]
+    "#004C54",
+    "#A5ACAF",
+    "#ACC0C6",
+    "#748A8D"
+   ],
+   "logo": "bar/logos/PHI.png"
   },
   "WAS": {
    "abbr": "WAS",
    "city": "Washington",
-   "nick": "Sentinels",
-   "name": "Washington Sentinels",
-   "conf": "STORM",
+   "nick": "Commanders",
+   "name": "Washington Commanders",
+   "conf": "NFC",
    "div": "East",
    "colors": [
-    "#5A1B2E",
-    "#D4A24C",
-    "#160A10",
-    "#8C7C74"
-   ]
+    "#5A1414",
+    "#FFB612",
+    "#FFFFFF",
+    "#8C7A5E"
+   ],
+   "logo": "bar/logos/WAS.png"
   },
-  "PIT": {
-   "abbr": "PIT",
-   "city": "Pittsburgh",
-   "nick": "Blastmen",
-   "name": "Pittsburgh Blastmen",
-   "conf": "STORM",
-   "div": "East",
+  "CHI": {
+   "abbr": "CHI",
+   "city": "Chicago",
+   "nick": "Bears",
+   "name": "Chicago Bears",
+   "conf": "NFC",
+   "div": "North",
    "colors": [
-    "#1A1A1A",
-    "#F2C744",
-    "#D9D9D9",
-    "#7A776C"
-   ]
+    "#0B162A",
+    "#C83803",
+    "#FFFFFF",
+    "#6E6A66"
+   ],
+   "logo": "bar/logos/CHI.png"
   },
-  "BUF": {
-   "abbr": "BUF",
-   "city": "Buffalo",
-   "nick": "Whiteout",
-   "name": "Buffalo Whiteout",
-   "conf": "STORM",
-   "div": "East",
+  "DET": {
+   "abbr": "DET",
+   "city": "Detroit",
+   "nick": "Lions",
+   "name": "Detroit Lions",
+   "conf": "NFC",
+   "div": "North",
    "colors": [
-    "#204A8C",
-    "#E9EEF5",
-    "#0B1424",
-    "#78859C"
-   ]
-  },
-  "NWK": {
-   "abbr": "NWK",
-   "city": "Newark",
-   "nick": "Dockhands",
-   "name": "Newark Dockhands",
-   "conf": "STORM",
-   "div": "East",
-   "colors": [
-    "#2E4A3A",
-    "#D96A2B",
-    "#0E1712",
-    "#7F8A80"
-   ]
+    "#0076B6",
+    "#B0B7BC",
+    "#000000",
+    "#7C878E"
+   ],
+   "logo": "bar/logos/DET.png"
   },
   "GB": {
    "abbr": "GB",
    "city": "Green Bay",
-   "nick": "Timberjaw",
-   "name": "Green Bay Timberjaw",
-   "conf": "STORM",
+   "nick": "Packers",
+   "name": "Green Bay Packers",
+   "conf": "NFC",
    "div": "North",
    "colors": [
-    "#2A4A22",
-    "#D8C48A",
-    "#0C140A",
-    "#7F8874"
-   ]
+    "#203731",
+    "#FFB612",
+    "#FFFFFF",
+    "#7A7F60"
+   ],
+   "logo": "bar/logos/GB.png"
   },
-  "MIL": {
-   "abbr": "MIL",
-   "city": "Milwaukee",
-   "nick": "Steamworks",
-   "name": "Milwaukee Steamworks",
-   "conf": "STORM",
+  "MIN": {
+   "abbr": "MIN",
+   "city": "Minnesota",
+   "nick": "Vikings",
+   "name": "Minnesota Vikings",
+   "conf": "NFC",
    "div": "North",
    "colors": [
-    "#3A4A5A",
-    "#E07B39",
-    "#101418",
-    "#7C848C"
-   ]
+    "#4F2683",
+    "#FFC62F",
+    "#FFFFFF",
+    "#7E6E96"
+   ],
+   "logo": "bar/logos/MIN.png"
   },
-  "IND": {
-   "abbr": "IND",
-   "city": "Indianapolis",
-   "nick": "Velocity",
-   "name": "Indianapolis Velocity",
-   "conf": "STORM",
-   "div": "North",
+  "ATL": {
+   "abbr": "ATL",
+   "city": "Atlanta",
+   "nick": "Falcons",
+   "name": "Atlanta Falcons",
+   "conf": "NFC",
+   "div": "South",
    "colors": [
-    "#1B4A8C",
-    "#7FD1F0",
-    "#08121F",
-    "#76879C"
-   ]
+    "#A71930",
+    "#000000",
+    "#A5ACAF",
+    "#8A7276"
+   ],
+   "logo": "bar/logos/ATL.png"
   },
-  "CIN": {
-   "abbr": "CIN",
-   "city": "Cincinnati",
-   "nick": "Prowlers",
-   "name": "Cincinnati Prowlers",
-   "conf": "STORM",
-   "div": "North",
+  "CAR": {
+   "abbr": "CAR",
+   "city": "Carolina",
+   "nick": "Panthers",
+   "name": "Carolina Panthers",
+   "conf": "NFC",
+   "div": "South",
    "colors": [
-    "#E06A1B",
-    "#141414",
-    "#D8D0C6",
-    "#82796F"
-   ]
+    "#0085CA",
+    "#101820",
+    "#BFC0BF",
+    "#6E7E88"
+   ],
+   "logo": "bar/logos/CAR.png"
   },
   "NO": {
    "abbr": "NO",
    "city": "New Orleans",
-   "nick": "Voodoo",
-   "name": "New Orleans Voodoo",
-   "conf": "STORM",
+   "nick": "Saints",
+   "name": "New Orleans Saints",
+   "conf": "NFC",
    "div": "South",
    "colors": [
-    "#4A2A6B",
-    "#C9A227",
-    "#120C1A",
-    "#847A8C"
-   ]
+    "#D3BC8D",
+    "#101820",
+    "#FFFFFF",
+    "#8A8172"
+   ],
+   "logo": "bar/logos/NO.png"
   },
   "TB": {
    "abbr": "TB",
-   "city": "Tampa",
-   "nick": "Cyclone",
-   "name": "Tampa Cyclone",
-   "conf": "STORM",
+   "city": "Tampa Bay",
+   "nick": "Buccaneers",
+   "name": "Tampa Bay Buccaneers",
+   "conf": "NFC",
    "div": "South",
    "colors": [
-    "#8C1B2E",
-    "#C0C6CC",
-    "#0F0A0C",
-    "#7E7276"
-   ]
+    "#D50A0A",
+    "#34302B",
+    "#FF7900",
+    "#8A6A62"
+   ],
+   "logo": "bar/logos/TB.png"
   },
-  "CLT": {
-   "abbr": "CLT",
-   "city": "Charlotte",
-   "nick": "Kingsnakes",
-   "name": "Charlotte Kingsnakes",
-   "conf": "STORM",
-   "div": "South",
-   "colors": [
-    "#1B6B8C",
-    "#0A1A22",
-    "#C9D8DE",
-    "#748A94"
-   ]
-  },
-  "DAL": {
-   "abbr": "DAL",
-   "city": "Dallas",
-   "nick": "Outlaws",
-   "name": "Dallas Outlaws",
-   "conf": "STORM",
-   "div": "South",
-   "colors": [
-    "#0E1A12",
-    "#3FBF5A",
-    "#C8D2CA",
-    "#74857A"
-   ]
-  },
-  "DEN": {
-   "abbr": "DEN",
-   "city": "Denver",
-   "nick": "Altitude",
-   "name": "Denver Altitude",
-   "conf": "STORM",
+  "ARI": {
+   "abbr": "ARI",
+   "city": "Arizona",
+   "nick": "Cardinals",
+   "name": "Arizona Cardinals",
+   "conf": "NFC",
    "div": "West",
    "colors": [
-    "#2A3A6B",
-    "#E8912B",
-    "#0A0F1C",
-    "#78809C"
-   ]
+    "#97233F",
+    "#000000",
+    "#FFB612",
+    "#8A6A72"
+   ],
+   "logo": "bar/logos/ARI.png"
+  },
+  "LAR": {
+   "abbr": "LAR",
+   "city": "Los Angeles",
+   "nick": "Rams",
+   "name": "Los Angeles Rams",
+   "conf": "NFC",
+   "div": "West",
+   "colors": [
+    "#003594",
+    "#FFA300",
+    "#FFFFFF",
+    "#7A8296"
+   ],
+   "logo": "bar/logos/LAR.png"
   },
   "SF": {
    "abbr": "SF",
    "city": "San Francisco",
-   "nick": "Quakes",
-   "name": "San Francisco Quakes",
-   "conf": "STORM",
+   "nick": "49ers",
+   "name": "San Francisco 49ers",
+   "conf": "NFC",
    "div": "West",
    "colors": [
-    "#8C2A1B",
-    "#E0C9A0",
-    "#140A08",
-    "#8C8074"
-   ]
+    "#AA0000",
+    "#B3995D",
+    "#FFFFFF",
+    "#8A7A6A"
+   ],
+   "logo": "bar/logos/SF.png"
   },
-  "POR": {
-   "abbr": "POR",
-   "city": "Portland",
-   "nick": "Ironwood",
-   "name": "Portland Ironwood",
-   "conf": "STORM",
+  "SEA": {
+   "abbr": "SEA",
+   "city": "Seattle",
+   "nick": "Seahawks",
+   "name": "Seattle Seahawks",
+   "conf": "NFC",
    "div": "West",
    "colors": [
-    "#2E4A32",
-    "#B5763A",
-    "#0C120D",
-    "#7A8478"
-   ]
+    "#002244",
+    "#69BE28",
+    "#A5ACAF",
+    "#6E8A80"
+   ],
+   "logo": "bar/logos/SEA.png"
+  },
+  "BUF": {
+   "abbr": "BUF",
+   "city": "Buffalo",
+   "nick": "Bills",
+   "name": "Buffalo Bills",
+   "conf": "AFC",
+   "div": "East",
+   "colors": [
+    "#00338D",
+    "#C60C30",
+    "#FFFFFF",
+    "#7A8296"
+   ],
+   "logo": "bar/logos/BUF.png"
+  },
+  "MIA": {
+   "abbr": "MIA",
+   "city": "Miami",
+   "nick": "Dolphins",
+   "name": "Miami Dolphins",
+   "conf": "AFC",
+   "div": "East",
+   "colors": [
+    "#008E97",
+    "#FC4C02",
+    "#005778",
+    "#6E9296"
+   ],
+   "logo": "bar/logos/MIA.png"
+  },
+  "NE": {
+   "abbr": "NE",
+   "city": "New England",
+   "nick": "Patriots",
+   "name": "New England Patriots",
+   "conf": "AFC",
+   "div": "East",
+   "colors": [
+    "#002244",
+    "#C60C30",
+    "#B0B7BC",
+    "#7A8290"
+   ],
+   "logo": "bar/logos/NE.png"
+  },
+  "NYJ": {
+   "abbr": "NYJ",
+   "city": "New York",
+   "nick": "Jets",
+   "name": "New York Jets",
+   "conf": "AFC",
+   "div": "East",
+   "colors": [
+    "#125740",
+    "#000000",
+    "#FFFFFF",
+    "#6E8278"
+   ],
+   "logo": "bar/logos/NYJ.png"
+  },
+  "BAL": {
+   "abbr": "BAL",
+   "city": "Baltimore",
+   "nick": "Ravens",
+   "name": "Baltimore Ravens",
+   "conf": "AFC",
+   "div": "North",
+   "colors": [
+    "#241773",
+    "#000000",
+    "#9E7C0C",
+    "#7A7290"
+   ],
+   "logo": "bar/logos/BAL.png"
+  },
+  "CIN": {
+   "abbr": "CIN",
+   "city": "Cincinnati",
+   "nick": "Bengals",
+   "name": "Cincinnati Bengals",
+   "conf": "AFC",
+   "div": "North",
+   "colors": [
+    "#FB4F14",
+    "#000000",
+    "#FFFFFF",
+    "#8A7A6E"
+   ],
+   "logo": "bar/logos/CIN.png"
+  },
+  "CLE": {
+   "abbr": "CLE",
+   "city": "Cleveland",
+   "nick": "Browns",
+   "name": "Cleveland Browns",
+   "conf": "AFC",
+   "div": "North",
+   "colors": [
+    "#311D00",
+    "#FF3C00",
+    "#FFFFFF",
+    "#7A6A5A"
+   ],
+   "logo": "bar/logos/CLE.png"
+  },
+  "PIT": {
+   "abbr": "PIT",
+   "city": "Pittsburgh",
+   "nick": "Steelers",
+   "name": "Pittsburgh Steelers",
+   "conf": "AFC",
+   "div": "North",
+   "colors": [
+    "#FFB612",
+    "#101820",
+    "#C60C30",
+    "#8A8272"
+   ],
+   "logo": "bar/logos/PIT.png"
+  },
+  "HOU": {
+   "abbr": "HOU",
+   "city": "Houston",
+   "nick": "Texans",
+   "name": "Houston Texans",
+   "conf": "AFC",
+   "div": "South",
+   "colors": [
+    "#03202F",
+    "#A71930",
+    "#FFFFFF",
+    "#6E7A82"
+   ],
+   "logo": "bar/logos/HOU.png"
+  },
+  "IND": {
+   "abbr": "IND",
+   "city": "Indianapolis",
+   "nick": "Colts",
+   "name": "Indianapolis Colts",
+   "conf": "AFC",
+   "div": "South",
+   "colors": [
+    "#002C5F",
+    "#A2AAAD",
+    "#FFFFFF",
+    "#7A8690"
+   ],
+   "logo": "bar/logos/IND.png"
+  },
+  "JAX": {
+   "abbr": "JAX",
+   "city": "Jacksonville",
+   "nick": "Jaguars",
+   "name": "Jacksonville Jaguars",
+   "conf": "AFC",
+   "div": "South",
+   "colors": [
+    "#101820",
+    "#D7A22A",
+    "#006778",
+    "#7A7A6E"
+   ],
+   "logo": "bar/logos/JAX.png"
+  },
+  "TEN": {
+   "abbr": "TEN",
+   "city": "Tennessee",
+   "nick": "Titans",
+   "name": "Tennessee Titans",
+   "conf": "AFC",
+   "div": "South",
+   "colors": [
+    "#0C2340",
+    "#4B92DB",
+    "#C8102E",
+    "#6E7E90"
+   ],
+   "logo": "bar/logos/TEN.png"
+  },
+  "DEN": {
+   "abbr": "DEN",
+   "city": "Denver",
+   "nick": "Broncos",
+   "name": "Denver Broncos",
+   "conf": "AFC",
+   "div": "West",
+   "colors": [
+    "#FB4F14",
+    "#002244",
+    "#FFFFFF",
+    "#8A7A72"
+   ],
+   "logo": "bar/logos/DEN.png"
   },
   "KC": {
    "abbr": "KC",
    "city": "Kansas City",
-   "nick": "Stampede",
-   "name": "Kansas City Stampede",
-   "conf": "STORM",
+   "nick": "Chiefs",
+   "name": "Kansas City Chiefs",
+   "conf": "AFC",
    "div": "West",
    "colors": [
-    "#7A1B2A",
-    "#E0B04A",
-    "#120A0C",
-    "#88787A"
-   ]
+    "#E31837",
+    "#FFB81C",
+    "#FFFFFF",
+    "#8A7266"
+   ],
+   "logo": "bar/logos/KC.png"
+  },
+  "LV": {
+   "abbr": "LV",
+   "city": "Las Vegas",
+   "nick": "Raiders",
+   "name": "Las Vegas Raiders",
+   "conf": "AFC",
+   "div": "West",
+   "colors": [
+    "#000000",
+    "#A5ACAF",
+    "#FFFFFF",
+    "#7A7E80"
+   ],
+   "logo": "bar/logos/LV.png"
+  },
+  "LAC": {
+   "abbr": "LAC",
+   "city": "Los Angeles",
+   "nick": "Chargers",
+   "name": "Los Angeles Chargers",
+   "conf": "AFC",
+   "div": "West",
+   "colors": [
+    "#0080C6",
+    "#FFC20E",
+    "#FFFFFF",
+    "#7A8A90"
+   ],
+   "logo": "bar/logos/LAC.png"
   }
  }
 }
