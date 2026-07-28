@@ -1,0 +1,23 @@
+<!doctype html><html><body><script>
+window.analyze = async function(panel, x, y, w, h, thresh){
+  const img = new Image(); img.src = '/bar/panel-'+panel+'.png';
+  await img.decode();
+  const cv = document.createElement('canvas'); cv.width=w; cv.height=h;
+  const c = cv.getContext('2d', {willReadFrequently:true});
+  c.drawImage(img, -x, -y);
+  const d = c.getImageData(0,0,w,h).data;
+  const rows=[]; 
+  for(let j=0;j<h;j++){
+    let sum=0,n=0,minx=1e9,maxx=-1,runs=[];let inRun=false,rs=0;
+    for(let i=0;i<w;i++){
+      const o=(j*w+i)*4; const lum=(d[o]*0.3+d[o+1]*0.59+d[o+2]*0.11);
+      const on = lum>thresh;
+      if(on){sum+=i;n++;if(i<minx)minx=i;if(i>maxx)maxx=i;}
+      if(on&&!inRun){inRun=true;rs=i;} else if(!on&&inRun){inRun=false;runs.push([rs,i-rs]);}
+    }
+    if(inRun)runs.push([rs,w-rs]);
+    rows.push({j, n, cx: n? sum/n : null, minx: n?minx:null, maxx:n?maxx:null, runs});
+  }
+  return rows;
+};
+</script></body></html>
