@@ -43,7 +43,7 @@ const Y_CLOCK = 70;                     // baselines, plate-relative
 const Y_DD = 99;
 const Y_ABBR = 60;
 const Y_SCORE = 67;
-const MOM = { y: 86, h: 11 };
+const MOM = { y: 85, h: 12 };
 
 const SZ_CLOCK = 69;                    // blitz-num ink height ~= 0.84 * size
 const SZ_DD = 36;                       // blitz-block cap == 0.70 * size
@@ -53,11 +53,11 @@ const SZ_SCORE = 73;
 /* --------------------------------------------------------------- palette */
 
 const PLATE_STOPS = [
-  [0.00, 'rgba(44,54,71,0.93)'],
-  [0.06, 'rgba(25,32,45,0.91)'],
-  [0.50, 'rgba(12,17,26,0.89)'],
-  [0.86, 'rgba(8,11,18,0.91)'],
-  [1.00, 'rgba(17,23,33,0.93)'],
+  [0.00, 'rgba(34,40,52,0.92)'],
+  [0.06, 'rgba(17,21,29,0.91)'],
+  [0.50, 'rgba(7,9,14,0.91)'],
+  [0.86, 'rgba(4,6,10,0.93)'],
+  [1.00, 'rgba(12,15,22,0.94)'],
 ];
 const BONE = '#e7e2d4';
 
@@ -102,10 +102,13 @@ function cellPlate(c, x, w, tint, tintA, r) {
 function momentumSeg(c, x, w, v0, v1, fill, accent, primary) {
   const y = MOM.y, h = MOM.h;
   const track = rr(x, y, w, h, 2.5);
+  // The empty track is TINTED with the club colour rather than left near-black:
+  // in the bar the strip under each team reads as a solid coloured bar with a
+  // brighter lit portion, not as a bar sitting in a black slot.
   c.fillStyle = vgrad(c, y, y + h, [
-    [0, 'rgba(1,2,5,0.95)'],
-    [0.5, 'rgba(10,14,22,0.92)'],
-    [1, 'rgba(34,42,58,0.88)'],
+    [0, rgba(darken(accent, 0.86), 0.96)],
+    [0.5, rgba(darken(accent, 0.76), 0.94)],
+    [1, rgba(darken(accent, 0.62), 0.92)],
   ]);
   c.fill(track);
   innerEdge(c, track, 0, 1.0, 'rgba(0,0,0,0.6)', 'rgba(150,180,220,0.18)', 1.2);
@@ -162,10 +165,10 @@ function scoreType(F, c, txt, x, y, size, align) {
     align,
     gradient: [
       [0.00, '#ffffff'],
-      [0.46, '#fbfdff'],
-      [0.74, '#dbe4f0'],
-      [0.92, '#b3c0d2'],
-      [1.00, '#9dabbf'],
+      [0.58, '#fdfeff'],
+      [0.82, '#e6ecf5'],
+      [0.95, '#c6d0de'],
+      [1.00, '#b4c0d0'],
     ],
     outline: 'rgba(3,6,12,0.95)',
     outlineWidth: size * 0.052,
@@ -175,7 +178,7 @@ function scoreType(F, c, txt, x, y, size, align) {
   });
 }
 
-const ABBR_G = [[0.00, '#ffffff'], [0.5, '#eef3fa'], [1.00, '#b8c4d6']];
+const ABBR_G = [[0.00, '#ffffff'], [0.62, '#f3f7fc'], [1.00, '#c8d2e0']];
 
 function labelType(F, c, txt, x, y, size, align, tint, track) {
   return F.draw(c, txt, x, y, {
@@ -227,7 +230,7 @@ function teamBlock(c, ui, id, score, mom, crestCell, abbrCell, scoreCell, posses
   const right = scoreCell.x + scoreCell.w;
 
   // ONE panel per team — the bar reads as four plates, not seven buttons.
-  const block = cellPlate(c, left, right - left, [30, 41, 60], 0.28, 7);
+  const block = cellPlate(c, left, right - left, [34, 44, 62], 0.20, 7);
   // internal hairlines where the crest and the score begin
   c.save();
   c.clip(block);
@@ -256,8 +259,8 @@ function teamBlock(c, ui, id, score, mom, crestCell, abbrCell, scoreCell, posses
         // a brown smudge at 42 px on a near-black plate
         const gx = crestCell.x + crestCell.w / 2, gy = CT + 5 + s / 2;
         const rg = c.createRadialGradient(gx, gy, 1, gx, gy, s * 0.62);
-        rg.addColorStop(0, rgba(accent, 0.30));
-        rg.addColorStop(0.6, rgba(accent, 0.10));
+        rg.addColorStop(0, rgba(accent, 0.20));
+        rg.addColorStop(0.6, rgba(accent, 0.06));
         rg.addColorStop(1, rgba(accent, 0));
         c.fillStyle = rg;
         c.fillRect(crestCell.x, CT, crestCell.w, CB - CT);
@@ -274,15 +277,6 @@ function teamBlock(c, ui, id, score, mom, crestCell, abbrCell, scoreCell, posses
   labelType(F, c, String(id || '').toUpperCase(), abbrCell.x + 4, Y_ABBR, SZ_ABBR, 'left');
   scoreType(F, c, String(score), scoreCell.x + scoreCell.w - 8, Y_SCORE, SZ_SCORE, 'right');
 
-  // possession: a lit accent bead on the block's leading edge
-  if (possess) {
-    c.save();
-    c.shadowColor = rgba(accent, 0.8);
-    c.shadowBlur = 5;
-    c.fillStyle = rgba(lighten(accent, 0.45), 0.9);
-    c.fillRect(left + 2, CT + 9, 2.2, CB - CT - 18);
-    c.restore();
-  }
 
   // momentum: one meter across the block, broken at the cell gaps so it reads
   // segmented exactly the way the panel's strip does
@@ -299,14 +293,20 @@ function teamBlock(c, ui, id, score, mom, crestCell, abbrCell, scoreCell, posses
     acc += s[1];
   }
 
-  // accent hairline riding the block's bottom edge
+  // POSSESSION is carried by the accent hairline under the block: the team with
+  // the ball gets a lit 2.4 px rule, the other a dim 1 px one. A bright pip or
+  // bead at this size reads as a seam artefact rather than as information.
+  const aH = possess ? 2.4 : 1.0;
+  const aA = possess ? 0.92 : 0.26;
+  if (possess) { c.save(); c.shadowColor = rgba(accent, 0.85); c.shadowBlur = 7; }
   c.fillStyle = hgrad(c, left, right, [
     [0, rgba(accent, 0)],
-    [0.12, rgba(accent, 0.42)],
-    [0.88, rgba(accent, 0.42)],
+    [0.10, rgba(accent, aA)],
+    [0.90, rgba(accent, aA)],
     [1, rgba(accent, 0)],
   ]);
-  c.fillRect(left, CB - 1.6, right - left, 1.6);
+  c.fillRect(left, CB - aH, right - left, aH);
+  if (possess) c.restore();
 }
 
 /* ------------------------------------------------------------------ bake */
@@ -359,13 +359,13 @@ export function bake(ui, S, k) {
   }
 
   /* ---- clock cell ------------------------------------------------------ */
-  const clp = cellPlate(c, CLK.x, CLK.w, [52, 86, 138], 0.42);
+  const clp = cellPlate(c, CLK.x, CLK.w, [46, 74, 120], 0.30);
   c.save();
   c.clip(clp);
   c.fillStyle = vgrad(c, CT, CB, [
-    [0, 'rgba(110,164,236,0.22)'],
-    [0.55, 'rgba(44,78,130,0.07)'],
-    [1, 'rgba(8,16,30,0.26)'],
+    [0, 'rgba(102,152,224,0.15)'],
+    [0.55, 'rgba(40,70,120,0.04)'],
+    [1, 'rgba(6,12,24,0.28)'],
   ]);
   c.fillRect(CLK.x, CT, CLK.w, CB - CT);
   c.restore();

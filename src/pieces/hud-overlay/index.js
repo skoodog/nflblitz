@@ -8,7 +8,7 @@
 // 1920x1080. Geometry is measured off the bar rather than guessed: panel-
 // qb_dropback.png is 553x338 for a 1080-tall frame (3.195 logical px per panel
 // px), which puts the scoreboard plate at 48,42 / 640x106 with 59-logical-px
-// score numerals, and panel-truck.png puts the TURBO plate at 306x82 hugging
+// score numerals, and the same panel puts the TURBO plate at 288x78 hugging
 // the bottom-left. Those numbers are what a matched-height A/B measures.
 //
 // COST. Both elements are baked to offscreen canvases and invalidated only when
@@ -163,7 +163,7 @@ registerIsoShot('iso_hud', Object.assign({}, BASE, {
     teamA: 'NYC', teamB: 'CHI', scoreA: 22, scoreB: 14,
     turbo: 0.72, momentumA: 0.62, momentumB: 0.4,
   },
-  note: 'Both persistent elements over the real night bowl at the exact logical coordinates measured off panel-qb_dropback: scoreboard 48,42 640x106 and TURBO 48,954 306x82.',
+  note: 'Both persistent elements over the real night bowl at the exact logical coordinates measured off panel-qb_dropback: scoreboard 48,42 640x106 and TURBO 48,958 288x78.',
 }));
 
 registerIsoShot('iso_hud_states', Object.assign({}, BASE, {

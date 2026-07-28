@@ -31,10 +31,18 @@ export const PIECE = 'score-callout';
 
 /* --------------------------------------------------------------- placement */
 // Line-2 centre x and points-line baseline y, in the overlay's logical 1920x1080.
-// midair_hit puts them at (1348, 1014); truck at (1442, 923). This sits between,
-// clear of the top-left HUD and the bottom-left TURBO meter in both hero frames.
-export const ANCHOR_X = 1400;
-export const ANCHOR_Y = 1000;
+//
+// Measured off the panels rather than guessed. The bar's rightmost ink sits at
+// x = 0.891-0.895 of frame width (MURDER! 499/528 in a 16:9-corrected 601, TRUCK!
+// 484/528 in 551); round 1 landed at 0.844-0.869, so the whole lockup hugged the middle
+// of the frame instead of its right edge. With line 2 now ~500 px of ink wide, a centre
+// of 1462 puts its right edge at ~1712 = 0.892.
+//
+// Y is the POINTS baseline: 0.932 of frame height on midair_hit, 0.845 on truck. The
+// two-line lockup sits at 992 and GEO.liftSolo raises the one-line lockup ~74 px above
+// it, which reproduces both.
+export const ANCHOR_X = 1462;
+export const ANCHOR_Y = 992;
 
 /* -------------------------------------------------------------- the slot */
 
@@ -65,8 +73,11 @@ const impl = {
     // Keep the runtime overlay alive over the callout's rectangle while it animates,
     // and pay for exactly that rectangle rather than for a full-screen redraw. The
     // margins cover the entry offset (+330 x), the 1.62 overshoot scale and the shake.
+    // 1.78, not 1.65: animate() peaks at scale 1.70 near age 0.001 (1.612 from the slam
+    // plus the 0.085 overshoot), and a margin under the true peak leaves a smear on the
+    // runtime overlay for the first two frames.
     if (ui.markDirty && lk) {
-      const m = (age < 0.14 ? 1.65 : 1.10) / lk.raster;
+      const m = (age < 0.14 ? 1.78 : 1.12) / lk.raster;
       const x0 = ax - lk.ox * m - 40;
       const y0 = ay - lk.oy * m - 40;
       ui.markDirty(x0, y0, lk.w * m + (age < 0.14 ? 420 : 80), lk.h * m + 80);

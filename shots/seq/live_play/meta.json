@@ -1,0 +1,252 @@
+{
+ "scene": "live_play",
+ "piece": null,
+ "seed": "7",
+ "w": 640,
+ "h": 360,
+ "requestedFps": 5,
+ "requestedDur": 3,
+ "frames": 15,
+ "sampleSpanSec": 11.097,
+ "realSampleFps": 1.26,
+ "note": "Samples of the LIVE runtime under software raster. Sample cadence is NOT the game's frame rate; see perf for that.",
+ "perf": {
+  "frames": 260,
+  "tick": 647,
+  "rate": 30,
+  "rung": 0,
+  "tier": "floor",
+  "periodMs": 33.333333333333336,
+  "wallMs": 30,
+  "detected": {
+   "tier": "floor",
+   "rung": 1,
+   "rate": 30,
+   "notes": "cpu 0.058 ms/pose | gpu 0.03 Mpix/ms over 0.23 MP | gpu est 3.0 ms at floor | boot rate 30 Hz"
+  },
+  "sig": {
+   "cores": 4,
+   "deviceMemory": 8,
+   "dpr": 1,
+   "screenW": 640,
+   "screenH": 360,
+   "screenMP": 0.2304,
+   "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+   "vendor": "Google Inc. (Google)",
+   "maxTexture": 8192,
+   "maxSamples": 4,
+   "floatRT": true,
+   "timerQuery": true,
+   "compressed": "ASTC+ETC2+BPTC",
+   "tier": "floor",
+   "reason": "renderer matched /SwiftShader|llvmpipe|Software|Microsoft Basic Render/i"
+  },
+  "cpuProbe": {
+   "ms": 11.5,
+   "units": 72800,
+   "msPerUnit": 0.00015796703296703298,
+   "msPerFullPose": 0.0575,
+   "sink": -1101.6518386000891
+  },
+  "gpuProbe": {
+   "ok": true,
+   "pixPerMs": 31206.64271775718,
+   "mp": 0.2304,
+   "points": [
+    {
+     "n": 1,
+     "ms": 12.549999999813735
+    },
+    {
+     "n": 2,
+     "ms": 17.799999999813735
+    },
+    {
+     "n": 4,
+     "ms": 31.34999999962747
+    },
+    {
+     "n": 8,
+     "ms": 63.55000000074506
+    }
+   ],
+   "aborted": false,
+   "note": "",
+   "wallMs": 295.1000000014901
+  },
+  "programsAtWarm": {
+   "before": 0,
+   "after": 31,
+   "programs": 31,
+   "lodPlans": 8,
+   "actorRebuilds": 8
+  },
+  "overlayWarm": {
+   "draws": 6,
+   "ms": 52.29999999888241
+  },
+  "SPANS": [
+   "input",
+   "sim",
+   "anim",
+   "fx",
+   "camera",
+   "renderJS",
+   "overlay",
+   "audio",
+   "scaler"
+  ],
+  "tailProbe": false,
+  "tailProbeLate": 0,
+  "inputLog": [],
+  "renderInfo": {
+   "drawCalls": 26,
+   "tris": 43968,
+   "programs": 31,
+   "geometries": 14,
+   "textures": 27,
+   "points": 0,
+   "lines": 0
+  },
+  "programCount": 31,
+  "bufferSize": {
+   "w": 70,
+   "h": 40
+  },
+  "cssSize": {
+   "w": 640,
+   "h": 360
+  },
+  "controller": {
+   "stickX": 0,
+   "stickY": 0,
+   "stickActive": false,
+   "btnA": false,
+   "btnB": false,
+   "turbo": false,
+   "gesture": 0,
+   "gestureZone": 0,
+   "gestureDir": 0,
+   "gestureTick": -1,
+   "taps": 0,
+   "swipes": 0,
+   "holds": 0,
+   "doubles": 0,
+   "changeTick": -1
+  },
+  "zones": [
+   [
+    1,
+    0.010624999999999996,
+    0.27888888888888885,
+    0.285625,
+    0.99
+   ],
+   [
+    4,
+    0.664375,
+    0.5399999999999999,
+    0.826875,
+    0.7955555555555555
+   ],
+   [
+    3,
+    0.826875,
+    0.3733333333333333,
+    0.9956250000000001,
+    0.6955555555555555
+   ],
+   [
+    2,
+    0.7206250000000001,
+    0.7511111111111111,
+    0.9643750000000001,
+    0.9733333333333333
+   ]
+  ],
+  "zoneHomes": [
+   [
+    1,
+    0.148125,
+    0.6344444444444444
+   ],
+   [
+    4,
+    0.7456250000000001,
+    0.6677777777777777
+   ],
+   [
+    3,
+    0.9112500000000001,
+    0.5344444444444444
+   ],
+   [
+    2,
+    0.8425,
+    0.8622222222222221
+   ]
+  ],
+  "tuning": {
+   "slopPx": 10,
+   "swipeMinPx": 28,
+   "tapMaxTicks": 18,
+   "holdTicks": 30,
+   "doubleGapTicks": 21,
+   "stickRadiusPx": 62,
+   "stickDeadPct": 0.16
+  },
+  "touch": {
+   "activeCount": 0,
+   "stuck": 0,
+   "stale": 0,
+   "totalEvents": 0,
+   "droppedEvents": 0,
+   "rect": {
+    "x": 0,
+    "y": 0,
+    "w": 640,
+    "h": 360
+   },
+   "safe": {
+    "top": 0,
+    "right": 0,
+    "bottom": 0,
+    "left": 0
+   }
+  },
+  "flow": {
+   "state": 4,
+   "playCount": 1,
+   "commits": 1
+  },
+  "clock": {
+   "tick": 647,
+   "simTime": 10.783333333333333,
+   "alpha": 0.9799999999999485,
+   "droppedSteps": 139,
+   "dropEvents": 29,
+   "stalls": 8,
+   "maxCatchup": 4
+  },
+  "pacer": {
+   "rate": 30,
+   "divisor": 2,
+   "refreshHz": 59.88023952095548,
+   "vsyncCount": 505,
+   "presentCount": 260
+  },
+  "scaler": {
+   "rung": 0,
+   "rate": 30,
+   "tier": "floor",
+   "lastP95Interval": 66.70000000000073,
+   "lastP95Cpu": 1.6000000014901161,
+   "downStreak": 1,
+   "upStreak": 0,
+   "rate60Latched": false,
+   "rate60Failures": 0,
+   "locked": false,
+   "rateLocked": false
+  }
+ }
+}

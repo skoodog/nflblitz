@@ -1,59 +1,70 @@
 // PIECE: score-callout — the lockup: composition, colour rule, and the bake cache.
 //
-// GEOMETRY. Every ratio below is measured off the bar panels, expressed against the
-// line-2 cap height C so the whole lockup scales as one object:
+// GEOMETRY, ROUND 2. Round 1's table was read off the panels by eye and got the two
+// numbers that matter backwards. Re-measured properly — threshold the ink out of the
+// panel, take the tight bounding box, divide by the panel's own height:
 //
-//   panel-midair_hit.png (528x338, frame height = panel height, scale 1080/338 = 3.195)
-//     MURDER!  cap 34.5px -> 110    baseline 292 -> 933
-//     MID-AIR  cap 23.0px ->  74    baseline 252 -> 805     (= C*0.67, dy = -1.16*C)
-//     250      cap 20.5px ->  66    baseline 317.5 -> 1014  (= C*0.60, dy = +0.74*C)
-//     PTS      cap 13.0px ->  42                            (= numeral cap * 0.63)
-//   panel-truck.png (528x310, scale 1080/310 = 3.484)
-//     TRUCK!   cap 34px -> 118      150 cap 22px -> 77      (= C*0.65)
+//   panel-truck.png  (528x310)      panel-midair_hit.png (528x338)
+//     TRUCK!  ink 140 x 44            MID-AIR  ink 106 x 26   cap 19
+//             cap 31-33                MURDER!  ink 153 x 44   cap 27
+//             ink W / frame W  0.254   MURDER!  ink W / frame W  0.2546
+//             ink H / frame H  0.142   MURDER!  ink H / frame H  0.127
+//             ink W / ink H    3.18    MID-AIR W / MURDER! W     0.693
 //
-// The GEO table below carries those ratios with two deliberate departures, both made
-// after reading the matched-height A/B rather than the panel: `dy1` is tightened from
-// the measured -1.16 to -1.085 because the bar's two lines read as almost touching at
-// this size, and `capNum` is set between midair's 0.60 and truck's 0.65.
+// Round 1 measured 400 x 185 for TRUCK! at 1920x1080 — 0.208 x 0.171 of the frame, and
+// an aspect of 2.15. So the lockup was NOT too small overall: it was 20% too TALL and
+// 22% too NARROW, i.e. 48% too condensed. Scaling the whole thing up (the obvious
+// reading of "it looks small") would have made the taller axis worse.
 //
-// COLOUR RULE. `shot.callout.accent` is only ever 'red' | 'gold', but the bar shows
-// three different line-2 colours across five panels. One rule reproduces all five:
+// The fix is therefore aspect, not size. `xScale` 1.52 with tracking loosened from
+// -0.022 to +0.030 takes the face's natural 3.19 cap of ink width for TRUCK! to 5.08,
+// and `cap2` comes DOWN from 118 to 98 so the ink box lands at 0.25 x 0.145 of the
+// frame with an aspect of 3.1. ink.js then erodes the same x axis back by 0.048 cap so
+// the widening does not carry the stems with it.
 //
+// LINE 1 gets its own, much looser tracking. At a shared value MID-AIR came out 0.55 as
+// wide as MURDER! and the two lines never locked into the bar's near-rectangular block;
+// the bar's ratio is 0.693 and its MID-AIR is visibly letterspaced where MURDER! is set
+// tight. cap1 = 0.70 is measured (19/27) and was already right.
+//
+// COLOUR RULE (unchanged — verified against all five panels):
 //     line 1 present  ->  line 2 takes the accent   (MID-AIR/MURDER! red, WHAT A/CATCH! gold)
 //     line 1 absent   ->  line 2 is white           (TRUCK!, LEVELER!, TOUCHDOWN!)
-//
-// and the points line is always gold with white-hot crown and a warm halo.
+// and the points line is always gold, because it is gold in every bar panel.
 
 import { hash, seedFromString } from '../../foundation/rng.js';
-import { paintLine, layoutLine, linePath, newCanvas } from './ink.js';
-import { GOLD_GLOW, SHADOW_RGB } from './palette.js';
+import { paintLine, layoutLine, linePath, newCanvas, releaseScratch } from './ink.js';
+import { GOLD_GLOW } from './palette.js';
 
 /* ------------------------------------------------------------- proportions */
 
 export const GEO = {
-  cap2: 118,          // line-2 cap height at scale 1.  MURDER! then measures 500px
-                      //   wide = 26% of frame width; the bar's is 24.3% (midair) / 25.4% (truck).
-  cap1: 0.670,        // x cap2
-  capNum: 0.625,      // x cap2
-  capPts: 0.655,      // x capNum
-  dy1: -1.085,        // line-1 baseline, x cap2, relative to line-2 baseline
-  dyNum: 0.820,       // points baseline, x cap2, relative to line-2 baseline
-  ptsGap: 0.110,      // x capNum, between the last digit and P
-  ptsLift: 0.035,     // x capNum, PTS baseline sits marginally above the numerals
-  liftSolo: 0.620,    // x cap2. A one-line lockup has less mass, so it is lifted to
+  cap2: 98,           // line-2 cap height at scale 1, one-line lockup
+  duo: 0.86,          // x cap2 when line 1 is present — the bar shrinks the stack to fit
+  cap1: 0.700,        // x cap2eff   (bar: 19/27)
+  capNum: 0.575,      // x cap2eff   (bar: 17/33 truck, 16/27 midair)
+  capPts: 0.680,      // x capNum
+  dy1: -1.380,        // line-1 baseline, x cap2eff, relative to line-2 baseline
+                      //   (bar: MID-AIR baseline 252, MURDER! baseline 290, cap 27)
+  dyNum: 0.950,       // points baseline, x cap2eff  (bar: +32/33 truck, +25/27 midair)
+  ptsGap: 0.150,      // x capNum, between the last digit and P
+  ptsLift: 0.030,     // x capNum, PTS baseline sits marginally above the numerals
+  liftSolo: 0.560,    // x cap2. A one-line lockup has less mass, so it is lifted to
                       //   sit in the same band of the frame as a two-line one.
-  nudge1: -0.055,     // x line-2 width
-  nudgeNum: -0.010,
-  rotation: -0.0555,  // rad. Rises to the right, as every panel does.
-  maxWidth: 880,
+  nudge1: -0.065,     // x line-2 width  (bar: MID-AIR centre is 10.5px left of MURDER!'s)
+  nudgeNum: 0.004,
+  rotation: -0.0435,  // rad, -2.5 deg. Measured: truck -1.7, midair -1.3, touchdown -2.9,
+                      //   leveler -4.6. Rises to the right, as every panel does.
+  maxWidth: 620,      // TOUCHDOWN! is 10 glyphs; the bar shrinks it to 0.75 of TRUCK!'s
+                      //   cap rather than letting it run the width of the frame.
 };
 
 /** Per-line ink recipes. Kept here so the whole look is legible in one place. */
 const INK = {
-  line1: { tracking: -0.004, xScale: 1.13, grain: 0.40, bolden: 0.036, keyOut: 0.018, crown: 0.50, halo: 0.75 },
-  line2: { tracking: -0.022, xScale: 1.15, grain: 0.46, bolden: 0.043, keyOut: 0.021, crown: 0.55 },
-  num: { tracking: 0.006, xScale: 1.10, grain: 0.22, bolden: 0.047, keyOut: 0.023, crown: 0.55, minor: 1, excl: 1, jitter: 0.40 },
-  pts: { tracking: 0.026, xScale: 1.13, grain: 0.30, bolden: 0.040, keyOut: 0.021, crown: 0.55, minor: 1, jitter: 0.5 },
+  line1: { tracking: 0.090, xScale: 1.52, minor: 0.930, slimX: 0.044, grain: 0.10, fray: 0.9, halo: 0.70, jitter: 0.9 },
+  line2: { tracking: 0.030, xScale: 1.52, minor: 0.885, slimX: 0.048, grain: 0.10, fray: 1.0, jitter: 0.85 },
+  num: { tracking: 0.030, xScale: 1.34, minor: 1, excl: 1, slimX: 0.030, grain: 0.07, fray: 0.7, keyOut: 0.013, jitter: 0.45 },
+  pts: { tracking: 0.055, xScale: 1.34, minor: 1, slimX: 0.028, grain: 0.07, fray: 0.7, keyOut: 0.012, jitter: 0.5 },
 };
 
 function accentFor(state) {
@@ -71,8 +82,8 @@ function accentFor(state) {
 
 /**
  * Bake the whole lockup into one offscreen canvas.
- * Returns { cv, ox, oy, w, h, box } where (ox,oy) is the pixel that carries the
- * lockup's anchor: line-2 centre-x, points-line baseline-y.
+ * Returns { cv, ox, oy, w, h } where (ox,oy) is the pixel that carries the lockup's
+ * anchor: line-2 centre-x, points-line baseline-y.
  */
 export function bakeLockup(faces, state, opts) {
   const A = accentFor(state);
@@ -81,12 +92,11 @@ export function bakeLockup(faces, state, opts) {
   const scale = (opts && opts.scale) || 1;
   // `raster` is RESOLUTION, not size: the plate is baked at the number of device pixels
   // it will actually be blitted at. On a 390x844 phone the overlay's fit is 0.36, so a
-  // 1:1 plate would be a 770x590 surface resampled down to 156px — 24x the pixels and
-  // 24x the memory for no visible difference. Capture always uses raster = 1.
+  // 1:1 plate would be resampled down for no visible gain and 8x the memory.
   const raster = (opts && opts.raster) || 1;
   const R = scale * raster;
 
-  const C = GEO.cap2 * R;
+  const C = GEO.cap2 * R * (A.l1 ? GEO.duo : 1);
   const c1 = GEO.cap1 * C;
   const cN = GEO.capNum * C;
   const cP = GEO.capPts * cN;
@@ -130,11 +140,13 @@ export function bakeLockup(faces, state, opts) {
     l1 ? l1.width * 0.5 + Math.abs(x1) : 0,
     wPts2 * 0.5 + Math.abs(xP)
   );
-  const top = (l1 ? y1 + l1.top : y2 + (l2 ? l2.top : 0)) - CC * 0.30;
-  const bot = (ln ? yNum + ln.bot : y2 + (l2 ? l2.bot : 0)) + CC * 0.30;
+  const top = (l1 ? y1 + l1.top : y2 + (l2 ? l2.top : 0)) - CC * 0.18;
+  const bot = (ln ? yNum + ln.bot : y2 + (l2 ? l2.bot : 0)) + CC * 0.18;
 
-  const padX = Math.ceil(CC * 1.15);
-  const padY = Math.ceil(CC * 1.05);
+  // Padding covers the drop shadow and the 0.34-cap halo, and nothing else. Round 1 used
+  // 1.15C x 1.05C, roughly 40% of the plate's area spent on empty pixels.
+  const padX = Math.ceil(CC * 0.52);
+  const padY = Math.ceil(CC * 0.48);
   const W = Math.ceil(halfW * 2 + padX * 2);
   const H = Math.ceil(bot - top + padY * 2);
   const ox = Math.round(W * 0.5);
@@ -147,45 +159,24 @@ export function bakeLockup(faces, state, opts) {
   const g = cv.getContext('2d');
   g.translate(ox, drawOy);
 
-  /* ---- soft dark halo. The bar darkens the field behind every callout; this is
-     what lets the lockup punch off turf, crowd or a blown-out light. ---- */
-  if (!opts || opts.backdrop !== false) {
-    g.save();
-    const rx = halfW + CC * 0.95;
-    const ry = (bot - top) * 0.52 + CC * 0.42;
-    const cyy = (top + bot) * 0.5;
-    g.translate(0, cyy);
-    g.scale(1, ry / rx);
-    const rg = g.createRadialGradient(0, 0, rx * 0.05, 0, 0, rx);
-    rg.addColorStop(0.00, `rgba(${SHADOW_RGB},0.40)`);
-    rg.addColorStop(0.42, `rgba(${SHADOW_RGB},0.28)`);
-    rg.addColorStop(0.74, `rgba(${SHADOW_RGB},0.10)`);
-    rg.addColorStop(1.00, `rgba(${SHADOW_RGB},0)`);
-    g.fillStyle = rg;
-    g.beginPath();
-    g.arc(0, 0, rx, 0, Math.PI * 2);
-    g.fill();
-    g.restore();
-  }
+  // NO radial backdrop. Round 1 pooled a dark ellipse behind the lockup at alpha 0.40
+  // and on clean turf it read as a smudge on the lens. No bar panel has one; the
+  // legibility comes from each line's own halo, which follows the letters.
 
   /* ---- line 1: always warm white, quieter shadow ---- */
   if (l1) {
     paintLine(g, faces, Object.assign({}, INK.line1, {
       text: A.l1, layout: l1, path: linePath(faces, l1), capH: cc1,
       x: x1, y: y1, rampKey: 'white', seed: hash(seed, 1),
-      sweep: { at: 0.28, w: 0.72, a: 0.13 },
     }));
   }
 
   /* ---- line 2: the loud one ---- */
   if (l2) {
-    // No halo on the red: the bar's MURDER! sits on the field with a shadow and
-    // nothing else. Only the gold carries a warm bloom.
-    const glow = A.key === 'goldLine' ? { color: GOLD_GLOW, blur: 0.22, alpha: 0.20, reps: 2 } : null;
+    const glow = A.key === 'goldLine' ? { color: GOLD_GLOW, blur: 0.22, alpha: 0.10, reps: 1 } : null;
     paintLine(g, faces, Object.assign({}, INK.line2, {
       text: A.l2, layout: l2, path: linePath(faces, l2), capH: CC,
       x: x2, y: y2, rampKey: A.key, seed: hash(seed, 2), glow,
-      sweep: A.key === 'white' ? { at: 0.30, w: 0.75, a: 0.14 } : { at: 0.32, w: 0.85, a: 0.17 },
     }));
   }
 
@@ -195,20 +186,21 @@ export function bakeLockup(faces, state, opts) {
     paintLine(g, faces, Object.assign({}, INK.num, {
       text: numTxt, layout: ln, path: linePath(faces, ln), capH: ccN,
       x: xNumLeft + ln.width * 0.5, y: yNum, rampKey: 'gold', seed: hash(seed, 3),
-      torn: 0.65, flecks: 0.45,
-      glow: { color: GOLD_GLOW, blur: 0.22, alpha: 0.26, reps: 2 },
-      sweep: { at: 0.30, w: 0.70, a: 0.24 },
+      glow: { color: GOLD_GLOW, blur: 0.24, alpha: 0.13, reps: 1 },
+      sweep: { at: 0.30, w: 0.80, a: 0.05 },
     }));
     if (lp) {
       const xPtsLeft = xNumLeft + ln.width + GEO.ptsGap * ccN;
       paintLine(g, faces, Object.assign({}, INK.pts, {
         text: 'PTS', layout: lp, path: linePath(faces, lp), capH: ccP,
         x: xPtsLeft + lp.width * 0.5, y: yNum - GEO.ptsLift * ccN, rampKey: 'gold',
-        seed: hash(seed, 4), torn: 0.80,
-        glow: { color: GOLD_GLOW, blur: 0.22, alpha: 0.20, reps: 1 },
+        seed: hash(seed, 4),
+        glow: { color: GOLD_GLOW, blur: 0.24, alpha: 0.10, reps: 1 },
       }));
     }
   }
+
+  releaseScratch();
 
   return {
     cv, ox, oy, w: W, h: H,
@@ -221,10 +213,13 @@ export function bakeLockup(faces, state, opts) {
 }
 
 /* ------------------------------------------------------------------- cache */
+//
+// Backing store <= 3 MB. A two-line plate is now ~0.9 MB (round 1's padding made it
+// 1.5-2.2), and the LRU holds three, not eight.
 
 const CACHE = new Map();
 const ORDER = [];
-const MAX = 8;
+const MAX = 3;
 
 export function lockupFor(faces, state, opts) {
   const A = accentFor(state);

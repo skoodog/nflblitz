@@ -101,7 +101,7 @@ export function drawStates(c, t, state, ui) {
   c.fillStyle = 'rgba(255,255,255,0.65)';
   c.fillRect(bx, by - 18, bw, 3);
   put(c, ui, 48, by, rows[0]);
-  label(c, ui, 'COMPOSITED OVER A BLOWN-OUT FRAME', 52, by + 132, 18);
+  label(c, ui, 'COMPOSITED OVER A BLOWN-OUT FRAME', bx + bw + 24, by + 60, 18);
 
   // 2x detail — genuinely re-rendered at double resolution, then hard-clipped
   const dx = 760, dy = 118, dw = ui.W - dx - 40, dh = 330;
@@ -125,7 +125,7 @@ export function drawStates(c, t, state, ui) {
     'ABBREVIATION   REL 134..204     INK HEIGHT 38      BLITZ-BLOCK',
     'SCORE          REL 236..332     INK HEIGHT 61      BLITZ-NUM',
     'MOMENTUM       REL Y 86..97     SPLIT AT THE CELL GAP',
-    'TURBO PLATE    48, 954   306 X 82        POLYGON, NOT A ROUNDED RECT',
+    'TURBO PLATE    48, 958   288 X 78        POLYGON, NOT A ROUNDED RECT',
   ];
   for (let i = 0; i < facts.length; i++) label(c, ui, facts[i], ex, ey + 40 + i * 30, 19, 'rgba(158,184,216,0.85)');
 
@@ -145,13 +145,13 @@ export function drawTurbo(c, t, state, ui) {
   TURBO.bake(ui, 1);
   const fills = [0, 0.14, 0.33, 0.55, 0.78, 0.93, 1.0];
   const notes = [
-    'EMPTY WELL — NEAR-BLACK TRACK, NO FILL',
+    'EMPTY WELL, NO FILL',
     'FIRST SEGMENT ONLY',
-    'HOT LEADING EDGE RIDES THE BOUNDARY',
-    'SPECULAR BAND RUNS THE LENGTH OF THE FILL',
+    'HOT EDGE RIDES THE BOUNDARY',
+    'SPECULAR BAND RUNS THE FILL',
     '',
-    'FILL REACHES INTO THE SPUR',
-    'CHARGED — THE BAR BREATHES INSTEAD OF SHOWING AN EDGE',
+    'FILL REACHES THE SPUR',
+    'CHARGED — THE BAR BREATHES',
   ];
   let y = 122;
   for (let i = 0; i < fills.length; i++) {
@@ -172,7 +172,7 @@ export function drawTurbo(c, t, state, ui) {
   label(c, ui, 'AT 0%  ·  THE WELL, THE ANODISED FRAME AND THE TYPE ALONE', dx, 892, 18);
 
   label(c, ui,
-    'PLATE 306 X 82 AT 48,954 LOGICAL  ·  LEFT EDGE LEANS BACK, TOP-RIGHT CHOPPED, THE FILL RUNS OUT INTO THE SPUR',
+    'PLATE 288 X 78 AT 48,958 LOGICAL  ·  LEFT EDGE LEANS BACK, TOP-RIGHT CHOPPED, THE FILL RUNS OUT INTO THE SPUR',
     48, ui.H - 34, 19, 'rgba(120,148,184,0.85)');
 
   TURBO.bake(ui, 1);

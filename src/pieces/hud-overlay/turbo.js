@@ -1,7 +1,7 @@
 // PIECE hud-overlay — the bottom-left TURBO meter.
 //
 // GEOMETRY off bar/panel-truck.png and bar/panel-qb_dropback.png: the plate is
-// 86-88 panel px wide and 23-24 tall against a 310/338 px frame, i.e. ~300 x 80
+// 86-88 panel px wide and 23-24 tall against a 310/338 px frame, i.e. ~288 x 78
 // logical, hugging the bottom-left. The silhouette is NOT a rectangle: the left
 // edge leans back, the top-right corner is chopped, and the fill bar runs out
 // past it into a spur. That silhouette is the single most recognisable thing
@@ -14,14 +14,14 @@ import {
   mkCanvas, poly, vgrad, hgrad, rgba, mix, lighten, darken, grain, brushed, innerEdge, gloss,
 } from './chrome.js';
 
-export const PLATE = { x: 48, y: 954, w: 306, h: 82 };
+export const PLATE = { x: 48, y: 966, w: 288, h: 78 };
 const MG = 26;
 
-export const TRK = { x: 18, y: 47, w: 270, h: 24 };
+export const TRK = { x: 17, y: 45, w: 254, h: 23 };
 
 const BLUE = '#2a5cf0';
 const BLUE_HI = '#7ea6ff';
-const BLUE_LO = '#0b1a55';
+const BLUE_LO = '#122a7a';
 
 let chromeCv = null, fillCv = null, leadCv = null;
 let quality = 1;
@@ -152,7 +152,7 @@ function bakeChrome(ui, s) {
   c.miterLimit = 2;
 
   const pts = outlinePts(W, H);
-  const outer = poly(pts, 7);
+  const outer = poly(pts, 5);
 
   // drop shadow ring, plus the blue spill the panel throws onto the turf
   c.save();
@@ -164,8 +164,8 @@ function bakeChrome(ui, s) {
   c.restore();
   c.save();
   c.globalCompositeOperation = 'lighter';
-  c.shadowColor = 'rgba(46,104,255,0.62)';
-  c.shadowBlur = 22;
+  c.shadowColor = 'rgba(46,104,255,0.50)';
+  c.shadowBlur = 20;
   c.shadowOffsetY = 4;
   c.fillStyle = 'rgba(30,70,200,0.85)';
   c.fill(outer);
@@ -180,7 +180,7 @@ function bakeChrome(ui, s) {
     [0.00, rgba(lighten(BLUE, 0.55), 1)],
     [0.14, rgba(mix(BLUE, BLUE_HI, 0.30), 1)],
     [0.42, rgba(BLUE, 1)],
-    [0.72, rgba(mix(BLUE, BLUE_LO, 0.55), 1)],
+    [0.72, rgba(mix(BLUE, BLUE_LO, 0.42), 1)],
     [1.00, rgba(BLUE_LO, 1)],
   ]);
   c.fill(outer);
@@ -192,7 +192,7 @@ function bakeChrome(ui, s) {
 
   // inner well — near-black gloss
   const innerPts = inset(pts, 6);
-  const inner = poly(innerPts, 4);
+  const inner = poly(innerPts, 3);
   c.fillStyle = vgrad(c, 0, H, [
     [0.00, 'rgba(26,36,62,0.97)'],
     [0.16, 'rgba(13,18,32,0.97)'],
@@ -222,13 +222,20 @@ function bakeChrome(ui, s) {
   c.restore();
 
   // TURBO — blitz-techno, scaled to the plate's measured 0.60 width ratio
+  // The bar's lockup measures 0.61 of the plate WIDE and 0.375 of it TALL.
+  // blitz-techno is a wide face, so hitting both at once needs a horizontal
+  // squeeze: size up 1/XS, then scale the pen back down on x.
   const TRACK = 0.018;                 // the face defaults to 0.10 — far looser
-  let size = 47;                       // than the bar's tight, chunky lockup
+  const XS = 0.87;                     // than the bar's tight, chunky lockup
+  let size = 47;
   try {
     const m = F.measure('TURBO', 'blitz-techno', 100, { tracking: TRACK });
-    if (m && m.w > 0) size = Math.min(56, (W * 0.625) / (m.w / 100));
+    if (m && m.w > 0) size = Math.min(62, (W * 0.615) / (m.w / 100) / XS);
   } catch (e) { /* keep the default */ }
-  F.draw(c, 'TURBO', 34, 39.5, {
+  c.save();
+  c.translate(31, 38.5);
+  c.scale(XS, 1);
+  F.draw(c, 'TURBO', 0, 0, {
     face: 'blitz-techno',
     size,
     tracking: TRACK,
@@ -240,12 +247,13 @@ function bakeChrome(ui, s) {
       [1.00, '#93a6c4'],
     ],
     outline: 'rgba(4,9,24,0.92)',
-    outlineWidth: size * 0.075,
+    outlineWidth: size * 0.048,
     shadow: { color: 'rgba(0,4,14,0.8)', blur: size * 0.22, dy: size * 0.06 },
     glow: { color: 'rgba(120,170,255,0.35)', blur: size * 0.55, alpha: 0.5, reps: 1 },
     emboss: 0.55 * quality,
     grain: 0,
   });
+  c.restore();
 
   c.setTransform(1, 0, 0, 1, 0, 0);
   return chromeCv;
