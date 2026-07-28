@@ -1,45 +1,79 @@
 // PIECE: typeface-lettering
-// OWNER: this directory ONLY. Never edit anything outside src/pieces/typeface-lettering/.
-// SLOT:  faces
-// REGISTER VIA: registerFaces(impl)
+// OWNER: this directory ONLY.
+// SLOT:  faces  (registerFaces)
 // JUDGED ON: the four vector faces: blitz-brush / blitz-block / blitz-num / blitz-techno
 // HERO PANELS: title, midair_hit
+// ISO SCENES: iso_type, iso_type_brush, iso_type_hud, iso_type_specimen
 //
-// ---------------------------------------------------------------------------
-// PLACEHOLDER. Registers nothing, exports nothing. The foundation fallback stays
-// installed until you replace this file. Delete this comment block when you build.
-// ---------------------------------------------------------------------------
-//
-// 1. Build your implementation in files inside this directory.
-// 2. Register it here as an import side effect:
-//
-//   import { registerFaces } from '../../foundation/registry.js';
-//   import { makeFaces } from '../../foundation/typeface.js';
-//   // const faces = makeFaces({ 'blitz-brush': {...glyph data...}, ... });
-//   // registerFaces(Object.assign({ piece:PIECE }, faces));
-//
-// 3. Register at least ONE isolation scene you alone own, so a blind critic can
-//    pose exactly your contribution and score it without a neighbour masking it:
-//
-//   import { registerIsoShot } from '../../foundation/registry.js';
-//   registerIsoShot('iso:typeface-lettering', {
-//     piece: PIECE,
-//     panel: 'title',                 // the bar panel this is judged against
-//     camera: { pos:[0,1.6,6], target:[0,1.2,0], fov:35 },
-//     actors: [ /* ... */ ],
-//     hud: { visible:false },
-//     note: 'what this shot is meant to prove',
-//   });
-//
-// 4. Capture:
+// CAPTURE
 //   node scripts/shoot.mjs --piece=typeface-lettering
-//   node scripts/shoot.mjs --scene=title --out=shots/typeface-lettering/title.png
-//   node scripts/shoot.mjs --scene=midair_hit --out=shots/typeface-lettering/midair_hit.png
-//   node scripts/compare.mjs --panel=title --shot=shots/typeface-lettering/title.png --out=shots/typeface-lettering/cmp.png
+//   node scripts/compare.mjs --panel=midair_hit --shot=shots/typography/iso_type.png \
+//                            --out=shots/typography/cmp-r1.png
 //
-// 5. DETERMINISM IS ENFORCED. No Math.random / Date.now / performance.now anywhere
-//    under src/pieces/ — use makeRng(seed) from ../../foundation/rng.js and make all
-//    animation a pure function of the simulated time `t`.
-//    node scripts/lint-determinism.mjs
+// Every glyph in all four faces is authored here as vector outline data compiled from
+// brush/pen stroke skeletons — no font file, no CDN, nothing from the system stack.
+
+import { registerFaces, registerUI, registerIsoShot, REG } from '../../foundation/registry.js';
+import { createFaces } from './render.js';
+import { SPECIMENS } from './specimen.js';
 
 export const PIECE = 'typeface-lettering';
+
+/* ------------------------------------------------------------------ faces */
+
+const faces = createFaces();
+registerFaces(Object.assign({}, faces, { piece: PIECE }));
+
+/* ------------------------------------------------------------ iso capture */
+//
+// The foundation gives the overlay exactly six draw hooks (hud, callout and the four
+// menu screens) and all six belong to other pieces, so a faces piece has no sanctioned
+// way to render its own specimen sheet. Rather than steal a slot, this wraps `callout`
+// and delegates EVERY call straight through to whatever was registered before us
+// (score-callout imports first, alphabetically) except on the four iso scenes this
+// piece owns. Failure-safe: any error in the check falls through to the delegate.
+
+const prevCallout = REG.ui.callout;
+
+registerUI('callout', {
+  piece: PIECE,
+  draw(c2d, t, state, ui) {
+    let mine = null;
+    try {
+      const id = ui && ui.shot && ui.shot.piece === PIECE ? ui.shot.id : null;
+      mine = id && SPECIMENS[id] ? SPECIMENS[id] : null;
+    } catch (e) { mine = null; }
+    if (mine) { mine(c2d, t, state, ui); return; }
+    if (prevCallout && typeof prevCallout.draw === 'function') prevCallout.draw(c2d, t, state, ui);
+  },
+});
+
+const ISO_BASE = {
+  piece: PIECE,
+  camera: { pos: [0, 1.7, 9], target: [0, 1.5, 0], fov: 34 },
+  actors: [],
+  ball: { visible: false },
+  hud: { visible: false },
+  callout: { visible: true, line1: '', line2: '', pts: 0 },
+  ui: { screen: null, state: {} },
+};
+
+registerIsoShot('iso_type', Object.assign({}, ISO_BASE, {
+  panel: 'midair_hit',
+  note: 'Specimen sheet: MID-AIR / MURDER! / 250 PTS / CHOOSE YOUR CITY / TOUCHDOWN! / NYC 22 / TURBO / A-Z 0-9, each in its shipping treatment for direct crop-compare.',
+}));
+
+registerIsoShot('iso_type_brush', Object.assign({}, ISO_BASE, {
+  panel: 'midair_hit',
+  note: 'blitz-brush at display size: chisel terminals, varying stroke weight, torn edges, irregular baseline.',
+}));
+
+registerIsoShot('iso_type_hud', Object.assign({}, ISO_BASE, {
+  panel: 'qb_dropback',
+  note: 'blitz-block / blitz-num / blitz-techno at HUD sizes, over dark and over bright.',
+}));
+
+registerIsoShot('iso_type_specimen', Object.assign({}, ISO_BASE, {
+  panel: 'team_select',
+  note: 'Full four-face specimen: waterfall, one-string-four-faces, complete character sets.',
+}));

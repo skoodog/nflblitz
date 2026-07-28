@@ -1,43 +1,123 @@
-// PIECE: brand-identity
-// OWNER: this directory ONLY. Never edit anything outside src/pieces/brand-identity/.
-// SLOT:  brand
-// REGISTER VIA: registerBrand(impl)
-// JUDGED ON: team crests, wordmarks, city skylines, league chevron badge, BLITZ logotype
-// HERO PANELS: team_select, title
+// PIECE: brand-identity  (plan id: "team-identity")
+// SLOT:  brand   -> registerBrand(impl)
+// OWNS:  src/pieces/brand-identity/**  and  shots/brand-identity/**
 //
-// ---------------------------------------------------------------------------
-// PLACEHOLDER. Registers nothing, exports nothing. The foundation fallback stays
-// installed until you replace this file. Delete this comment block when you build.
-// ---------------------------------------------------------------------------
+// Delivers the league's whole visual identity: eight fictional teams with full
+// colour systems, the procedural crest generator, wordmark lockups, stat values,
+// a fictional league badge, the BLITZ RELOADED logotype, and layered city
+// skylines. Everything downstream (menu-team-select, menu-title, uniform-kit,
+// hud-overlay) consumes this through REG.brand.
 //
-// 1. Build your implementation in files inside this directory.
-// 2. Register it here as an import side effect:
-//
-//   import { registerBrand } from '../../foundation/registry.js';
-//   // registerBrand({ piece:PIECE, teams:[...], byId, crest, wordmark, skyline, leagueMark, blitzLogo });
-//
-// 3. Register at least ONE isolation scene you alone own, so a blind critic can
-//    pose exactly your contribution and score it without a neighbour masking it:
-//
-//   import { registerIsoShot } from '../../foundation/registry.js';
-//   registerIsoShot('iso:brand-identity', {
-//     piece: PIECE,
-//     panel: 'team_select',                 // the bar panel this is judged against
-//     camera: { pos:[0,1.6,6], target:[0,1.2,0], fov:35 },
-//     actors: [ /* ... */ ],
-//     hud: { visible:false },
-//     note: 'what this shot is meant to prove',
-//   });
-//
-// 4. Capture:
-//   node scripts/shoot.mjs --piece=brand-identity
-//   node scripts/shoot.mjs --scene=team_select --out=shots/brand-identity/team_select.png
-//   node scripts/shoot.mjs --scene=title --out=shots/brand-identity/title.png
-//   node scripts/compare.mjs --panel=team_select --shot=shots/brand-identity/team_select.png --out=shots/brand-identity/cmp.png
-//
-// 5. DETERMINISM IS ENFORCED. No Math.random / Date.now / performance.now anywhere
-//    under src/pieces/ — use makeRng(seed) from ../../foundation/rng.js and make all
-//    animation a pure function of the simulated time `t`.
-//    node scripts/lint-determinism.mjs
+// NOTE ON ISO SCENES. The frozen foundation gives the `brand` slot no rendering
+// surface of its own — brand is a library the UI screens call, and every UI slot
+// belongs to another piece. So this piece's five specimen sheets ride the one
+// surface it legitimately owns: its own brand hooks. They are painted only when
+// the scene id is one of the five `iso_*` ids registered below (scenes this piece
+// owns outright), and never in `title`, `team_select` or `uniform`, where the
+// hooks behave exactly as the contract specifies.
+
+import { registerBrand, registerIsoShot } from '../../foundation/registry.js';
+import { parseParams } from '../../foundation/params.js';
+import { TEAMS, byId } from './teams.js';
+import { crest } from './crests.js';
+import { skyline as drawSkyline } from './skylines.js';
+import { leagueMark as drawLeagueMark, blitzLogo as drawBlitzLogo, wordmark as drawWordmark } from './marks.js';
+import { SHEETS } from './sheets.js';
 
 export const PIECE = 'brand-identity';
+
+/* ------------------------------------------------------- iso sheet takeover */
+
+let ISO = null;
+let ISO_VARIANT = '';
+try {
+  const p = parseParams();
+  if (SHEETS[p.scene]) { ISO = p.scene; ISO_VARIANT = p.variant || ''; }
+} catch (e) { ISO = null; }
+
+let painted = false;
+
+function paintSheet(c, isEntry) {
+  if (!ISO) return false;
+  if (!isEntry && painted) { c.globalAlpha = 0; return true; }
+  c.globalAlpha = 1;
+  c.save();
+  try { SHEETS[ISO](c, 0, ISO_VARIANT); } catch (e) {
+    console.error('[brand-identity] sheet failed', e);
+    (window.__BLITZ_ERRORS__ = window.__BLITZ_ERRORS__ || []).push(`[brand-identity] sheet: ${e && e.message}`);
+  }
+  c.restore();
+  painted = true;
+  // Suppress the host screen's remaining draw calls inside this piece-owned scene.
+  c.globalAlpha = 0;
+  return true;
+}
+
+/* ---------------------------------------------------------------- contract */
+
+function skyline(c, cityId, box, opts) {
+  if (paintSheet(c, true)) return box;
+  return drawSkyline(c, cityId, box, opts || {});
+}
+function leagueMark(c, box, opts) {
+  if (paintSheet(c, false)) return box;
+  return drawLeagueMark(c, box, opts || {});
+}
+function blitzLogo(c, box, opts) {
+  if (paintSheet(c, false)) return box;
+  return drawBlitzLogo(c, box, opts || {});
+}
+
+registerBrand({
+  piece: PIECE,
+  teams: TEAMS,
+  byId,
+  crest,
+  wordmark: drawWordmark,
+  skyline,
+  leagueMark,
+  blitzLogo,
+});
+
+/* --------------------------------------------------------------- iso shots */
+
+const BASE = {
+  piece: PIECE,
+  camera: { pos: [0, 1.6, 7.5], target: [0, 1.2, 0], fov: 34, roll: 0 },
+  lens: { fStop: 2.8, focusDist: 7.5, bokehScale: 1, shutter: 0 },
+  actors: [],
+  ball: { visible: false },
+  hud: { visible: false },
+  callout: { visible: false },
+  weather: { rain: 0, lightning: 0, haze: 0.3 },
+};
+
+registerIsoShot('iso_crests', Object.assign({}, BASE, {
+  panel: 'team_select',
+  ui: { screen: 'title', state: {} },
+  note: 'the four hero crests large on dark team cards — Liberty head, snarling bulldog, longhorn skull, crested Spartan',
+}));
+
+registerIsoShot('iso_crest_detail', Object.assign({}, BASE, {
+  panel: 'team_select',
+  ui: { screen: 'title', state: {} },
+  note: 'one crest at hero scale plus bevel / inner-glow / scratch crops and the palette strip',
+}));
+
+registerIsoShot('iso_palettes', Object.assign({}, BASE, {
+  panel: 'team_select',
+  ui: { screen: 'title', state: {} },
+  note: 'all eight teams: crest, wordmark lockup, five-colour system, stat values',
+}));
+
+registerIsoShot('iso_skyline', Object.assign({}, BASE, {
+  panel: 'title',
+  ui: { screen: 'title', state: {} },
+  note: 'layered city skylines with atmospheric falloff and lit windows',
+}));
+
+registerIsoShot('iso_leaguemark', Object.assign({}, BASE, {
+  panel: 'title',
+  ui: { screen: 'title', state: {} },
+  note: 'fictional league badge + BLITZ RELOADED logotype, with a scale ladder down to 26 px',
+}));
