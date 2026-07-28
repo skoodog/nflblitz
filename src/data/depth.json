@@ -1,0 +1,2012 @@
+{
+ "ARI": {
+  "d_field": [
+   "Budda Baker",
+   "Jalen Thompson",
+   "Garrett Williams",
+   "Sean Murphy-Bunting",
+   "Will Johnson",
+   "Max Melton"
+  ],
+  "d_lb": [
+   "Akeem Davis-Gaither",
+   "Mykal Walker",
+   "Cody Simon",
+   "Owen Pappoe",
+   "Vi Jones"
+  ],
+  "d_line": [
+   "Calais Campbell",
+   "Dalvin Tomlinson",
+   "Walter Nolen",
+   "Bilal Nichols",
+   "Justin Jones",
+   "Darius Robinson"
+  ],
+  "o_line": [
+   "Hjalte Froholdt",
+   "Evan Brown",
+   "Jonah Williams",
+   "Kelvin Beachum",
+   "Royce Newman",
+   "Isaiah Adams"
+  ],
+  "o_pass": [
+   "Michael Wilson",
+   "Zay Jones",
+   "Greg Dortch",
+   "Quez Watkins",
+   "Simi Fehoko",
+   "Tejhaun Palmer"
+  ],
+  "o_rush": [
+   "James Conner",
+   "Trey Benson",
+   "Emari Demercado",
+   "Michael Carter",
+   "DeeJay Dallas"
+  ],
+  "o_te": [
+   "Trey McBride",
+   "Tip Reiman",
+   "Elijah Higgins",
+   "Josiah Deguara"
+  ],
+  "quarterback": [
+   "Kyler Murray",
+   "Jacoby Brissett",
+   "Clayton Tune"
+  ],
+  "special_teams": [
+   "Blake Gillikin",
+   "Chad Ryland",
+   "Aaron Brewer"
+  ]
+ },
+ "ATL": {
+  "d_field": [
+   "Jordan Fuller",
+   "Clark Phillips III",
+   "Mike Hughes",
+   "Dee Alford",
+   "Billy Bowman Jr.",
+   "Xavier Watts"
+  ],
+  "d_lb": [
+   "Kaden Elliss",
+   "Divine Deablo",
+   "Troy Andersen",
+   "JD Bertrand",
+   "Josh Woods",
+   "Caleb Johnson"
+  ],
+  "d_line": [
+   "David Onyemata",
+   "Leonard Floyd",
+   "Morgan Fox",
+   "Ruke Orhorhoro",
+   "Brandon Dorlus",
+   "Kentavius Street"
+  ],
+  "o_line": [
+   "Chris Lindstrom",
+   "Jake Matthews",
+   "Kaleb McGary",
+   "Matthew Bergeron",
+   "Elijah Wilkinson",
+   "Brandon Parker"
+  ],
+  "o_pass": [
+   "Drake London",
+   "Darnell Mooney",
+   "Jamal Agnew",
+   "KhaDarel Hodge",
+   "Nick Nash",
+   "Casey Washington"
+  ],
+  "o_rush": [
+   "Bijan Robinson",
+   "Tyler Allgeier",
+   "Jashaun Corbin",
+   "Elijah Dotson"
+  ],
+  "o_te": [
+   "Kyle Pitts",
+   "Charlie Woerner",
+   "Teagan Quitoriano",
+   "Nikola Kalinic",
+   "Feleipe Franks"
+  ],
+  "quarterback": [
+   "Kirk Cousins",
+   "Easton Stick",
+   "Emory Jones"
+  ],
+  "special_teams": [
+   "Bradley Pinion",
+   "Younghoe Koo",
+   "Liam McCullough"
+  ]
+ },
+ "BAL": {
+  "d_field": [
+   "Marlon Humphrey",
+   "Jaire Alexander",
+   "Kyle Hamilton",
+   "Chidobe Awuzie",
+   "Ar'Darius Washington",
+   "Nate Wiggins"
+  ],
+  "d_lb": [
+   "Roquan Smith",
+   "Trenton Simpson",
+   "Teddye Buchanan",
+   "Jacob Hummel",
+   "Jay Higgins",
+   "William Kwenkeu"
+  ],
+  "d_line": [
+   "Nnamdi Madubuike",
+   "Travis Jones",
+   "John Jenkins",
+   "Broderick Washington",
+   "Aeneas Peebles",
+   "Kaimon Rucker"
+  ],
+  "o_line": [
+   "Ronnie Stanley",
+   "Tyler Linderbaum",
+   "Roger Rosengarten",
+   "Daniel Faalele",
+   "Andrew Vorhees",
+   "Emery Jones Jr."
+  ],
+  "o_pass": [
+   "Zay Flowers",
+   "DeAndre Hopkins",
+   "Rashod Bateman",
+   "Tylan Wallace",
+   "Devontez Walker",
+   "Anthony Miller"
+  ],
+  "o_rush": [
+   "Derrick Henry",
+   "Justice Hill",
+   "Keaton Mitchell",
+   "Rasheen Ali"
+  ],
+  "o_te": [
+   "Mark Andrews",
+   "Isaiah Likely",
+   "Charlie Kolar"
+  ],
+  "quarterback": [
+   "Lamar Jackson",
+   "Cooper Rush",
+   "Devin Leary"
+  ],
+  "special_teams": [
+   "Jordan Stout",
+   "Tyler Loop",
+   "Nick Moore"
+  ]
+ },
+ "BUF": {
+  "d_field": [
+   "Christian Benford",
+   "Taron Johnson",
+   "Taylor Rapp",
+   "Maxwell Hairston",
+   "Damar Hamlin",
+   "Tre'Davious White"
+  ],
+  "d_lb": [
+   "Matt Milano",
+   "Shaq Thompson",
+   "Terrel Bernard",
+   "Dorian Williams",
+   "Joe Andreessen",
+   "Edefuan Ulofoshio"
+  ],
+  "d_line": [
+   "Greg Rousseau",
+   "Joey Bosa",
+   "Ed Oliver",
+   "DaQuan Jones",
+   "A.J. Epenesa",
+   "Larry Ogunjobi"
+  ],
+  "o_line": [
+   "Dion Dawkins",
+   "Spencer Brown",
+   "Connor McGovern",
+   "David Edwards",
+   "O'Cyrus Torrence",
+   "Kendrick Green"
+  ],
+  "o_pass": [
+   "Khalil Shakir",
+   "Elijah Moore",
+   "Curtis Samuel",
+   "Keon Coleman",
+   "KJ Hamler",
+   "Kaden Prather"
+  ],
+  "o_rush": [
+   "James Cook",
+   "Ray Davis",
+   "Ty Johnson",
+   "Darrynton Evans"
+  ],
+  "o_te": [
+   "Dawson Knox",
+   "Dalton Kincaid",
+   "Jackson Hawes",
+   "Zach Davidson"
+  ],
+  "quarterback": [
+   "Josh Allen",
+   "Mike White",
+   "Mitchell Trubisky",
+   "Shane Buechele"
+  ],
+  "special_teams": [
+   "Tyler Bass",
+   "Reid Ferguson",
+   "Brad Robbins"
+  ]
+ },
+ "CAR": {
+  "d_field": [
+   "Jaycee Horn",
+   "Tre'von Moehrig",
+   "Mike Jackson",
+   "Akayleb Evans",
+   "Nick Scott",
+   "Chau Smith-Wade"
+  ],
+  "d_lb": [
+   "Christian Rozeboom",
+   "Trevin Wallace",
+   "Jacoby Windmon",
+   "Jon Rhattigan",
+   "Claudin Cherelus"
+  ],
+  "d_line": [
+   "Derrick Brown",
+   "Tershawn Wharton",
+   "A'Shawn Robinson",
+   "Bobby Brown III",
+   "Shy Tuttle",
+   "Cam Jackson"
+  ],
+  "o_line": [
+   "Taylor Moton",
+   "Damien Lewis",
+   "Robert Hunt",
+   "Ikem Ekwonu",
+   "Austin Corbett",
+   "Brady Christensen"
+  ],
+  "o_pass": [
+   "Adam Thielen",
+   "Tetairoa McMillan",
+   "Xavier Legette",
+   "Hunter Renfrow",
+   "Jalen Coker",
+   "David Moore"
+  ],
+  "o_rush": [
+   "Chuba Hubbard",
+   "Rico Dowdle",
+   "Jonathon Brooks",
+   "Trevor Etienne",
+   "Raheem Blackshear",
+   "Emani Bailey"
+  ],
+  "o_te": [
+   "Ja'Tavion Sanders",
+   "Tommy Tremble",
+   "Mitchell Evans",
+   "James Mitchell",
+   "Dominique Dafney",
+   "Tyler Mabry"
+  ],
+  "quarterback": [
+   "Bryce Young",
+   "Andy Dalton"
+  ],
+  "special_teams": [
+   "J.J. Jansen",
+   "Sam Martin",
+   "Matthew Wright",
+   "Ryan Fitzgerald"
+  ]
+ },
+ "CHI": {
+  "d_field": [
+   "Jaylon Johnson",
+   "Jaquan Brisker",
+   "Kyler Gordon",
+   "Jonathan Owens",
+   "Tyrique Stevenson",
+   "Nick McCloud"
+  ],
+  "d_lb": [
+   "T.J. Edwards",
+   "Tremaine Edmunds",
+   "Ruben Hyppolite II",
+   "Noah Sewell",
+   "Power Echols",
+   "Amen Ogbongbemiga"
+  ],
+  "d_line": [
+   "Grady Jarrett",
+   "Montez Sweat",
+   "Andrew Billings",
+   "Dayo Odeyingbo",
+   "Shemar Turner",
+   "Tanoh Kpassagnon"
+  ],
+  "o_line": [
+   "Joe Thuney",
+   "Darnell Wright",
+   "Drew Dalman",
+   "Braxton Jones",
+   "Jonah Jackson",
+   "Ozzy Trapilo"
+  ],
+  "o_pass": [
+   "DJ Moore",
+   "Rome Odunze",
+   "Luther Burden III",
+   "Devin Duvernay",
+   "Olamide Zaccheaus",
+   "Miles Boykin"
+  ],
+  "o_rush": [
+   "D'Andre Swift",
+   "Roschon Johnson",
+   "Kyle Monangai",
+   "Travis Homer"
+  ],
+  "o_te": [
+   "Cole Kmet",
+   "Colston Loveland",
+   "Durham Smythe",
+   "Stephen Carlson"
+  ],
+  "quarterback": [
+   "Caleb Williams",
+   "Case Keenum",
+   "Tyson Bagent"
+  ],
+  "special_teams": [
+   "Cairo Santos",
+   "Tory Taylor",
+   "Scott Daly"
+  ]
+ },
+ "CIN": {
+  "d_field": [
+   "Cam Taylor-Britt",
+   "DJ Turner II",
+   "Geno Stone",
+   "Jordan Battle",
+   "Josh Newton",
+   "Marco Wilson"
+  ],
+  "d_lb": [
+   "Logan Wilson",
+   "Demetrius Knight Jr.",
+   "Oren Burks",
+   "Barrett Carter",
+   "Joe Giles-Harris",
+   "Maema Njongmeta"
+  ],
+  "d_line": [
+   "Trey Hendrickson",
+   "B.J. Hill",
+   "Shemar Stewart",
+   "Joseph Ossai",
+   "Taven Bryan",
+   "Myles Murphy"
+  ],
+  "o_line": [
+   "Ted Karras",
+   "Amarius Mims",
+   "Lucas Patrick",
+   "Cordell Volson",
+   "Dylan Fairchild",
+   "Cody Ford"
+  ],
+  "o_pass": [
+   "Ja'Marr Chase",
+   "Tee Higgins",
+   "Andrei Iosivas",
+   "Charlie Jones",
+   "Jermaine Burton",
+   "Isaiah Williams"
+  ],
+  "o_rush": [
+   "Chase Brown",
+   "Samaje Perine",
+   "Tahj Brooks",
+   "Kendall Milton",
+   "Gary Brightwell"
+  ],
+  "o_te": [
+   "Mike Gesicki",
+   "Drew Sample",
+   "Tanner Hudson",
+   "Tanner McLachlan",
+   "Cam Grandy"
+  ],
+  "quarterback": [
+   "Joe Burrow",
+   "Desmond Ridder",
+   "Jake Browning"
+  ],
+  "special_teams": [
+   "Evan McPherson",
+   "Ryan Rehkow",
+   "Cal Adomitis"
+  ]
+ },
+ "CLE": {
+  "d_field": [
+   "Denzel Ward",
+   "Grant Delpit",
+   "Greg Newsome II",
+   "Rayshawn Jenkins",
+   "Damontae Kazee",
+   "Nik Needham"
+  ],
+  "d_lb": [
+   "Jeremiah Owusu-Koramoah",
+   "Jerome Baker",
+   "Carson Schwesinger",
+   "Devin Bush",
+   "Nathaniel Watson",
+   "Mohamoud Diabate"
+  ],
+  "d_line": [
+   "Myles Garrett",
+   "Mason Graham",
+   "Shelby Harris",
+   "Maliek Collins",
+   "Cameron Thomas",
+   "Isaiah McGuire"
+  ],
+  "o_line": [
+   "Joel Bitonio",
+   "Teven Jenkins",
+   "Jack Conklin",
+   "Wyatt Teller",
+   "Ethan Pocic",
+   "Dawand Jones"
+  ],
+  "o_pass": [
+   "Jerry Jeudy",
+   "Diontae Johnson",
+   "Cedric Tillman",
+   "DeAndre Carter",
+   "David Bell",
+   "Jamari Thrash"
+  ],
+  "o_rush": [
+   "Jerome Ford",
+   "Dylan Sampson"
+  ],
+  "o_te": [
+   "David Njoku",
+   "Harold Fannin Jr.",
+   "Brenden Bates",
+   "Blake Whiteheart"
+  ],
+  "quarterback": [
+   "Joe Flacco",
+   "Deshaun Watson",
+   "Kenny Pickett",
+   "Shedeur Sanders",
+   "Dillon Gabriel"
+  ],
+  "special_teams": [
+   "Corey Bojorquez",
+   "Dustin Hopkins",
+   "Rex Sunahara"
+  ]
+ },
+ "DAL": {
+  "d_field": [
+   "DaRon Bland",
+   "Trevon Diggs",
+   "Malik Hooker",
+   "Donovan Wilson",
+   "Kaiir Elam",
+   "Shavon Revel Jr."
+  ],
+  "d_lb": [
+   "DeMarvion Overshown",
+   "Damone Clark",
+   "Jack Sanborn",
+   "Marist Liufau",
+   "Shemar James"
+  ],
+  "d_line": [
+   "Micah Parsons",
+   "Osa Odighizuwa",
+   "Sam Williams",
+   "Donovan Ezeiruaku",
+   "Mazi Smith",
+   "Payton Turner"
+  ],
+  "o_line": [
+   "Tyler Smith",
+   "Tyler Booker",
+   "Cooper Beebe",
+   "Terence Steele",
+   "Tyler Guyton",
+   "Robert Jones"
+  ],
+  "o_pass": [
+   "CeeDee Lamb",
+   "George Pickens",
+   "Jalen Tolbert",
+   "KaVontae Turpin",
+   "Jonathan Mingo",
+   "Parris Campbell"
+  ],
+  "o_rush": [
+   "Javonte Williams",
+   "Miles Sanders",
+   "Jaydon Blue",
+   "Deuce Vaughn",
+   "Phil Mafah"
+  ],
+  "o_te": [
+   "Jake Ferguson",
+   "Luke Schoonmaker",
+   "Brevyn Spann-Ford",
+   "Princeton Fant"
+  ],
+  "quarterback": [
+   "Dak Prescott",
+   "Joe Milton III",
+   "Will Grier"
+  ],
+  "special_teams": [
+   "Brandon Aubrey",
+   "Bryan Anger",
+   "Trent Sieg"
+  ]
+ },
+ "DEN": {
+  "d_field": [
+   "Talanoa Hufanga",
+   "Brandon Jones",
+   "Jahdae Barron",
+   "Riley Moss",
+   "Ja'Quan McMillian",
+   "Kris Abrams-Draine"
+  ],
+  "d_lb": [
+   "Dre Greenlaw",
+   "Alex Singleton",
+   "Drew Sanders",
+   "Justin Strnad",
+   "Levelle Bailey"
+  ],
+  "d_line": [
+   "Zach Allen",
+   "John Franklin-Myers",
+   "D.J. Jones",
+   "Malcolm Roach",
+   "Sai'vion Jones",
+   "Eyioma Uwazurike"
+  ],
+  "o_line": [
+   "Quinn Meinerz",
+   "Garett Bolles",
+   "Mike McGlinchey",
+   "Luke Wattenberg",
+   "Ben Powers",
+   "Calvin Throckmorton"
+  ],
+  "o_pass": [
+   "Courtland Sutton",
+   "Devaughn Vele",
+   "Troy Franklin",
+   "A.T. Perry",
+   "Pat Bryant",
+   "Michael Bandy"
+  ],
+  "o_rush": [
+   "J.K. Dobbins",
+   "Jaleel McLaughlin",
+   "RJ Harvey",
+   "Tyler Badie",
+   "Blake Watson"
+  ],
+  "o_te": [
+   "Evan Engram",
+   "Adam Trautman",
+   "Lucas Krull",
+   "Nate Adkins",
+   "Caleb Lohner"
+  ],
+  "quarterback": [
+   "Bo Nix",
+   "Jarrett Stidham",
+   "Sam Ehlinger"
+  ],
+  "special_teams": [
+   "Wil Lutz",
+   "Mitchell Fraboni"
+  ]
+ },
+ "DET": {
+  "d_field": [
+   "Kerby Joseph",
+   "Brian Branch",
+   "Amik Robertson",
+   "Terrion Arnold",
+   "Avonte Maddox",
+   "Rock Ya-Sin"
+  ],
+  "d_lb": [
+   "Jack Campbell",
+   "Alex Anzalone",
+   "Malcolm Rodriguez",
+   "Derrick Barnes",
+   "Zach Cunningham",
+   "Trevor Nowaske"
+  ],
+  "d_line": [
+   "Aidan Hutchinson",
+   "D.J. Reader",
+   "Alim McNeill",
+   "Tyleik Williams",
+   "Levi Onwuzurike",
+   "Roy Lopez"
+  ],
+  "o_line": [
+   "Penei Sewell",
+   "Taylor Decker",
+   "Graham Glasgow",
+   "Netane Muti",
+   "Tate Ratledge",
+   "Christian Mahogany"
+  ],
+  "o_pass": [
+   "Amon-Ra St. Brown",
+   "Jameson Williams",
+   "Tim Patrick",
+   "Kalif Raymond",
+   "Ronnie Bell",
+   "Isaac TeSlaa"
+  ],
+  "o_rush": [
+   "Jahmyr Gibbs",
+   "David Montgomery",
+   "Craig Reynolds",
+   "Sione Vaki"
+  ],
+  "o_te": [
+   "Sam LaPorta",
+   "Brock Wright",
+   "Shane Zylstra",
+   "Kenny Yeboah"
+  ],
+  "quarterback": [
+   "Jared Goff",
+   "Hendon Hooker",
+   "Kyle Allen"
+  ],
+  "special_teams": [
+   "Jack Fox",
+   "Hogan Hatten",
+   "Jake Bates"
+  ]
+ },
+ "GB": {
+  "d_field": [
+   "Xavier McKinney",
+   "Nate Hobbs",
+   "Keisean Nixon",
+   "Javon Bullard",
+   "Carrington Valentine",
+   "Evan Williams"
+  ],
+  "d_lb": [
+   "Edgerrin Cooper",
+   "Quay Walker",
+   "Isaiah McDuffie",
+   "Ty'Ron Hopper",
+   "Kristian Welch"
+  ],
+  "d_line": [
+   "Kenny Clark",
+   "Rashan Gary",
+   "Devonte Wyatt",
+   "Lukas Van Ness",
+   "Kingsley Enagbare",
+   "Barryn Sorrell"
+  ],
+  "o_line": [
+   "Elgton Jenkins",
+   "Zach Tom",
+   "Rasheed Walker",
+   "Aaron Banks",
+   "Jordan Morgan",
+   "Sean Rhyan"
+  ],
+  "o_pass": [
+   "Jayden Reed",
+   "Romeo Doubs",
+   "Christian Watson",
+   "Matthew Golden",
+   "Dontayvion Wicks",
+   "Mecole Hardman"
+  ],
+  "o_rush": [
+   "Josh Jacobs",
+   "MarShawn Lloyd",
+   "Israel Abanikanda",
+   "Chris Brooks",
+   "Emanuel Wilson"
+  ],
+  "o_te": [
+   "Tucker Kraft",
+   "Luke Musgrave",
+   "John FitzPatrick",
+   "Ben Sims",
+   "Messiah Swinson"
+  ],
+  "quarterback": [
+   "Jordan Love",
+   "Malik Willis",
+   "Sean Clifford"
+  ],
+  "special_teams": [
+   "Brandon McManus",
+   "Daniel Whelan"
+  ]
+ },
+ "HOU": {
+  "d_field": [
+   "C.J. Gardner-Johnson",
+   "Jalen Pitre",
+   "Jimmie Ward",
+   "Kamari Lassiter",
+   "Calen Bullock",
+   "Jaylin Smith"
+  ],
+  "d_lb": [
+   "Azeez Al-Shaair",
+   "E.J. Speed",
+   "Henry To'oTo'o",
+   "Christian Harris",
+   "Jamal Hill",
+   "Nick Niemann"
+  ],
+  "d_line": [
+   "Danielle Hunter",
+   "Denico Autry",
+   "Sheldon Rankins",
+   "Derek Barnett",
+   "Darrell Taylor",
+   "Casey Toohill"
+  ],
+  "o_line": [
+   "Trent Brown",
+   "Cam Robinson",
+   "Tytus Howard",
+   "Laken Tomlinson",
+   "Juice Scruggs",
+   "Ed Ingram"
+  ],
+  "o_pass": [
+   "Nico Collins",
+   "Tank Dell",
+   "Christian Kirk",
+   "Jayden Higgins",
+   "Braxton Berrios",
+   "Jaylin Noel"
+  ],
+  "o_rush": [
+   "Joe Mixon",
+   "Nick Chubb",
+   "Dameon Pierce",
+   "Woody Marks",
+   "Dare Ogunbowale",
+   "J.J. Taylor"
+  ],
+  "o_te": [
+   "Dalton Schultz",
+   "Brevin Jordan",
+   "Cade Stover",
+   "Luke Lachey"
+  ],
+  "quarterback": [
+   "C.J. Stroud",
+   "Davis Mills",
+   "Graham Mertz"
+  ],
+  "special_teams": [
+   "Ka'imi Fairbairn",
+   "Tommy Townsend",
+   "Austin Brinkman"
+  ]
+ },
+ "IND": {
+  "d_field": [
+   "Kenny Moore II",
+   "Charvarius Ward",
+   "Camryn Bynum",
+   "Nick Cross",
+   "Jaylon Jones",
+   "Tre Herndon"
+  ],
+  "d_lb": [
+   "Zaire Franklin",
+   "Jaylon Carlies",
+   "Jacob Phillips",
+   "Joe Bachie",
+   "Segun Olubi",
+   "Cameron McGrone"
+  ],
+  "d_line": [
+   "DeForest Buckner",
+   "Grover Stewart",
+   "Kwity Paye",
+   "Laiatu Latu",
+   "Samson Ebukam",
+   "JT Tuimoloau"
+  ],
+  "o_line": [
+   "Quenton Nelson",
+   "Bernhard Raimann",
+   "Braden Smith",
+   "Matt Goncalves",
+   "Tanor Bortolini",
+   "Jalen Travis"
+  ],
+  "o_pass": [
+   "Josh Downs",
+   "Alec Pierce",
+   "Adonai Mitchell",
+   "Ashton Dulin",
+   "Anthony Gould",
+   "Laquon Treadwell"
+  ],
+  "o_rush": [
+   "Jonathan Taylor",
+   "Khalil Herbert",
+   "DJ Giddens",
+   "Salvon Ahmed",
+   "Tyler Goodson"
+  ],
+  "o_te": [
+   "Tyler Warren",
+   "Mo Alie-Cox",
+   "Jelani Woods",
+   "Will Mallory",
+   "Sean McKeon"
+  ],
+  "quarterback": [
+   "Daniel Jones",
+   "Riley Leonard"
+  ],
+  "special_teams": [
+   "Luke Rhodes",
+   "Rigoberto Sanchez",
+   "Maddux Trujillo",
+   "Spencer Shrader"
+  ]
+ },
+ "JAX": {
+  "d_field": [
+   "Jourdan Lewis",
+   "Tyson Campbell",
+   "Darnell Savage",
+   "Andrew Wingard",
+   "Caleb Ransaw",
+   "Eric Murray"
+  ],
+  "d_lb": [
+   "Devin Lloyd",
+   "Chad Muma",
+   "Jack Kiser",
+   "Ventrell Miller",
+   "Jalen McLeod",
+   "Branson Combs"
+  ],
+  "d_line": [
+   "Josh Hines-Allen",
+   "Arik Armstead",
+   "Travon Walker",
+   "DaVon Hamilton",
+   "Emmanuel Ogbah",
+   "Dawuane Smoot"
+  ],
+  "o_line": [
+   "Ezra Cleveland",
+   "Patrick Mekari",
+   "Walker Little",
+   "Anton Harrison",
+   "Wyatt Milum",
+   "Chuma Edoga"
+  ],
+  "o_pass": [
+   "Dyami Brown",
+   "Parker Washington",
+   "Trenton Irwin",
+   "Chandler Brayboy",
+   "Eli Pancol",
+   "Austin Trammell"
+  ],
+  "o_rush": [
+   "Tank Bigsby",
+   "Bhayshul Tuten",
+   "Ja'Quinden Jackson"
+  ],
+  "o_te": [
+   "Brenton Strange",
+   "Johnny Mundt",
+   "Hunter Long",
+   "Quintin Morris"
+  ],
+  "quarterback": [
+   "Trevor Lawrence",
+   "Nick Mullens",
+   "John Wolford"
+  ],
+  "special_teams": [
+   "Logan Cooke",
+   "Cam Little",
+   "Ross Matiscik"
+  ]
+ },
+ "KC": {
+  "d_field": [
+   "Trent McDuffie",
+   "Bryan Cook",
+   "Jaylen Watson",
+   "Kristian Fulton",
+   "Chamarri Conner",
+   "Joshua Williams"
+  ],
+  "d_lb": [
+   "Drue Tranquill",
+   "Leo Chenal",
+   "Nick Bolton",
+   "Jeffrey Bassa",
+   "Cam Jones",
+   "Cole Christiansen"
+  ],
+  "d_line": [
+   "Chris Jones",
+   "George Karlaftis",
+   "Charles Omenihu",
+   "Ashton Gillotte",
+   "Felix Anudike-Uzomah",
+   "Jerry Tillery"
+  ],
+  "o_line": [
+   "Creed Humphrey",
+   "Trey Smith",
+   "Jawaan Taylor",
+   "Josh Simmons",
+   "Kingsley Suamataia",
+   "Jaylon Moore"
+  ],
+  "o_pass": [
+   "Rashee Rice",
+   "Marquise Brown",
+   "Xavier Worthy",
+   "JuJu Smith-Schuster",
+   "Skyy Moore",
+   "Jalen Royals"
+  ],
+  "o_rush": [
+   "Isiah Pacheco",
+   "Kareem Hunt",
+   "Elijah Mitchell",
+   "Carson Steele",
+   "Brashard Smith"
+  ],
+  "o_te": [
+   "Travis Kelce",
+   "Noah Gray",
+   "Jared Wiley",
+   "Robert Tonyan",
+   "Jake Briningstool"
+  ],
+  "quarterback": [
+   "Patrick Mahomes",
+   "Bailey Zappe",
+   "Chris Oladokun"
+  ],
+  "special_teams": [
+   "Harrison Butker",
+   "Matt Araiza",
+   "James Winchester"
+  ]
+ },
+ "LAC": {
+  "d_field": [
+   "Tarheeb Still",
+   "Elijah Molden",
+   "Alohi Gilman",
+   "Donte Jackson",
+   "Tony Jefferson",
+   "Benjamin St-Juste"
+  ],
+  "d_lb": [
+   "Daiyan Henley",
+   "Denzel Perryman",
+   "Junior Colson",
+   "Troy Dye",
+   "Del'Shawn Phillips",
+   "Kana'i Mauga"
+  ],
+  "d_line": [
+   "Khalil Mack",
+   "Teair Tart",
+   "Da'Shawn Hand",
+   "Jamaree Caldwell",
+   "Justin Eboigbe",
+   "Otito Ogbonnia"
+  ],
+  "o_line": [
+   "Rashawn Slater",
+   "Joe Alt",
+   "Zion Johnson",
+   "Andre James",
+   "Bradley Bozeman",
+   "Jamaree Salyer"
+  ],
+  "o_pass": [
+   "Ladd McConkey",
+   "Quentin Johnston",
+   "Tre Harris",
+   "Jalen Reagor",
+   "Derius Davis",
+   "KeAndre Lambert-Smith"
+  ],
+  "o_rush": [
+   "Najee Harris",
+   "Omarion Hampton",
+   "Nyheim Hines",
+   "Hassan Haskins",
+   "Raheim Sanders",
+   "Kimani Vidal"
+  ],
+  "o_te": [
+   "Tyler Conklin",
+   "Will Dissly",
+   "Oronde Gadsden II",
+   "Tucker Fisk",
+   "Stevo Klotz"
+  ],
+  "quarterback": [
+   "Justin Herbert",
+   "Taylor Heinicke",
+   "Trey Lance"
+  ],
+  "special_teams": [
+   "Josh Harris",
+   "J.K. Scott",
+   "Cameron Dicker"
+  ]
+ },
+ "LV": {
+  "d_field": [
+   "Jeremy Chinn",
+   "Eric Stokes",
+   "Darien Porter",
+   "Jamal Adams",
+   "Darnay Holmes",
+   "Decamerion Richardson"
+  ],
+  "d_lb": [
+   "Germaine Pratt",
+   "Elandon Roberts",
+   "Devin White",
+   "Tommy Eichenberg",
+   "Jaylon Smith",
+   "Michael Barrett"
+  ],
+  "d_line": [
+   "Maxx Crosby",
+   "Adam Butler",
+   "Malcolm Koonce",
+   "Leki Fotu",
+   "Jonah Laulu",
+   "Tonka Hemingway"
+  ],
+  "o_line": [
+   "Kolton Miller",
+   "Dylan Parham",
+   "Jackson Powers-Johnson",
+   "Jordan Meredith",
+   "DJ Glaze",
+   "Alex Cappa"
+  ],
+  "o_pass": [
+   "Jakobi Meyers",
+   "Tre Tucker",
+   "Jack Bech",
+   "Kyle Philips",
+   "Collin Johnson",
+   "Dont'e Thornton Jr."
+  ],
+  "o_rush": [
+   "Ashton Jeanty",
+   "Raheem Mostert",
+   "Zamir White",
+   "Sincere McCormick",
+   "Chris Collier",
+   "Dylan Laube"
+  ],
+  "o_te": [
+   "Brock Bowers",
+   "Michael Mayer",
+   "Ian Thomas",
+   "Justin Shorter",
+   "Carter Runyon"
+  ],
+  "quarterback": [
+   "Geno Smith",
+   "Aidan O'Connell",
+   "Cam Miller"
+  ],
+  "special_teams": [
+   "Daniel Carlson",
+   "Jacob Bobenmoyer"
+  ]
+ },
+ "MIA": {
+  "d_field": [
+   "Minkah Fitzpatrick",
+   "Kader Kohou",
+   "Mike Hilton",
+   "Jack Jones",
+   "Ashtyn Davis",
+   "Ifeatu Melifonwu"
+  ],
+  "d_lb": [
+   "Jordyn Brooks",
+   "Tyrel Dodson",
+   "K.J. Britt",
+   "Channing Tindall",
+   "Eugene Asante"
+  ],
+  "d_line": [
+   "Zach Sieler",
+   "Kenneth Grant",
+   "Jordan Phillips",
+   "Benito Jones",
+   "Matthew Butler",
+   "Matt Dickerson"
+  ],
+  "o_line": [
+   "James Daniels",
+   "Aaron Brewer",
+   "Austin Jackson",
+   "Jonah Savaiinaea",
+   "Patrick Paul",
+   "Daniel Brunskill"
+  ],
+  "o_pass": [
+   "Tyreek Hill",
+   "Jaylen Waddle",
+   "Nick Westbrook-Ikhine",
+   "Malik Washington",
+   "Dee Eskridge",
+   "Tahj Washington"
+  ],
+  "o_rush": [
+   "De'Von Achane",
+   "Alexander Mattison",
+   "Jaylen Wright",
+   "Ollie Gordon II"
+  ],
+  "o_te": [
+   "Darren Waller",
+   "Pharaoh Brown",
+   "Julian Hill",
+   "Jalin Conyers"
+  ],
+  "quarterback": [
+   "Tua Tagovailoa",
+   "Zach Wilson",
+   "Quinn Ewers"
+  ],
+  "special_teams": [
+   "Jake Bailey",
+   "Jason Sanders",
+   "Ryan Stonehouse",
+   "Joe Cardona"
+  ]
+ },
+ "MIN": {
+  "d_field": [
+   "Harrison Smith",
+   "Josh Metellus",
+   "Mekhi Blackmon",
+   "Ambry Thomas",
+   "Jeff Okudah",
+   "Tavierre Thomas"
+  ],
+  "d_lb": [
+   "Blake Cashman",
+   "Eric Wilson",
+   "Kobe King",
+   "Austin Keys",
+   "Chaz Chambliss"
+  ],
+  "d_line": [
+   "Jonathan Allen",
+   "Javon Hargrave",
+   "Harrison Phillips",
+   "Jalen Redmond",
+   "Levi Drake Rodriguez",
+   "Jonathan Harris"
+  ],
+  "o_line": [
+   "Christian Darrisaw",
+   "Brian O'Neill",
+   "Ryan Kelly",
+   "Will Fries",
+   "Donovan Jackson",
+   "Blake Brandel"
+  ],
+  "o_pass": [
+   "Justin Jefferson",
+   "Jordan Addison",
+   "Rondale Moore",
+   "Jalen Nailor",
+   "Tai Felton",
+   "Myles Price"
+  ],
+  "o_rush": [
+   "Aaron Jones",
+   "Jordan Mason",
+   "Ty Chandler"
+  ],
+  "o_te": [
+   "T.J. Hockenson",
+   "Josh Oliver",
+   "Gavin Bartholomew",
+   "Giovanni Ricci",
+   "Bryson Nesbit"
+  ],
+  "quarterback": [
+   "J.J. McCarthy",
+   "Sam Howell",
+   "Max Brosmer",
+   "Brett Rypien"
+  ],
+  "special_teams": [
+   "Andrew DePaola",
+   "Ryan Wright",
+   "Will Reichard"
+  ]
+ },
+ "NE": {
+  "d_field": [
+   "Christian Gonzalez",
+   "Jabrill Peppers",
+   "Carlton Davis III",
+   "Kyle Dugger",
+   "Marcus Jones",
+   "Marcus Epps"
+  ],
+  "d_lb": [
+   "Robert Spillane",
+   "Jahlani Tavai",
+   "Jack Gibbens",
+   "Christian Elliss",
+   "Monty Rice",
+   "Cam Riley"
+  ],
+  "d_line": [
+   "Milton Williams",
+   "Christian Barmore",
+   "Keion White",
+   "Joshua Farmer",
+   "Khyiris Tonga",
+   "Jaquelin Roy"
+  ],
+  "o_line": [
+   "Mike Onwenu",
+   "Morgan Moses",
+   "Will Campbell",
+   "Garrett Bradbury",
+   "Cole Strange",
+   "Layden Robinson"
+  ],
+  "o_pass": [
+   "Stefon Diggs",
+   "DeMario Douglas",
+   "Kendrick Bourne",
+   "Ja'Lynn Polk",
+   "Kayshon Boutte",
+   "Mack Hollins"
+  ],
+  "o_rush": [
+   "Rhamondre Stevenson",
+   "Antonio Gibson",
+   "TreVeyon Henderson"
+  ],
+  "o_te": [
+   "Hunter Henry",
+   "Austin Hooper",
+   "Jaheim Bell",
+   "CJ Dippre",
+   "Tyler Davis"
+  ],
+  "quarterback": [
+   "Drake Maye",
+   "Joshua Dobbs",
+   "Ben Wooldridge"
+  ],
+  "special_teams": [
+   "Bryce Baringer",
+   "John Parker Romo",
+   "Julian Ashby"
+  ]
+ },
+ "NO": {
+  "d_field": [
+   "Justin Reid",
+   "Julian Blackmon",
+   "Kool-Aid McKinstry",
+   "Alontae Taylor",
+   "Isaac Yiadom",
+   "Jordan Howden"
+  ],
+  "d_lb": [
+   "Demario Davis",
+   "Pete Werner",
+   "Danny Stutsman",
+   "Jaylan Ford",
+   "Nephi Sewell",
+   "D'Marco Jackson"
+  ],
+  "d_line": [
+   "Carl Granderson",
+   "Davon Godchaux",
+   "Cameron Jordan",
+   "Chase Young",
+   "Bryan Bresee",
+   "Nathan Shepherd"
+  ],
+  "o_line": [
+   "Erik McCoy",
+   "Cesar Ruiz",
+   "Taliese Fuaga",
+   "Kelvin Banks Jr.",
+   "Trevor Penning",
+   "Dillon Radunz"
+  ],
+  "o_pass": [
+   "Chris Olave",
+   "Brandin Cooks",
+   "Rashid Shaheed",
+   "Donovan Peoples-Jones",
+   "Bub Means",
+   "Dante Pettis"
+  ],
+  "o_rush": [
+   "Alvin Kamara",
+   "Cam Akers",
+   "Kendre Miller",
+   "Clyde Edwards-Helaire",
+   "Devin Neal"
+  ],
+  "o_te": [
+   "Taysom Hill",
+   "Juwan Johnson",
+   "Foster Moreau",
+   "Jack Stoll",
+   "Moliki Matavao"
+  ],
+  "quarterback": [
+   "Spencer Rattler",
+   "Tyler Shough",
+   "Jake Haener"
+  ],
+  "special_teams": [
+   "Zach Wood",
+   "Blake Grupe",
+   "Matthew Hayball",
+   "James Burnip"
+  ]
+ },
+ "NYG": {
+  "d_field": [
+   "Jevon Holland",
+   "Paulson Adebo",
+   "Tyler Nubin",
+   "Deonte Banks",
+   "Dane Belton",
+   "K'Von Wallace"
+  ],
+  "d_lb": [
+   "Bobby Okereke",
+   "Micah McFadden",
+   "Chris Board",
+   "Dyontae Johnson",
+   "Darius Muasau",
+   "Ty Summers"
+  ],
+  "d_line": [
+   "Abdul Carter",
+   "Chauncey Golston",
+   "Roy Robertson-Harris",
+   "Darius Alexander",
+   "Elijah Chatman",
+   "Jeremiah Ledbetter"
+  ],
+  "o_line": [
+   "Andrew Thomas",
+   "Greg Van Roten",
+   "Jermaine Eluemunor",
+   "Jon Runyan",
+   "Evan Neal",
+   "Aaron Stinnie"
+  ],
+  "o_pass": [
+   "Malik Nabers",
+   "Darius Slayton",
+   "Wan'Dale Robinson",
+   "Jalin Hyatt",
+   "Zach Pascal",
+   "Bryce Ford-Wheaton"
+  ],
+  "o_rush": [
+   "Devin Singletary",
+   "Cam Skattebo",
+   "Eric Gray"
+  ],
+  "o_te": [
+   "Theo Johnson",
+   "Chris Manhertz",
+   "Daniel Bellinger",
+   "Greg Dulcich",
+   "Thomas Fidone II"
+  ],
+  "quarterback": [
+   "Russell Wilson",
+   "Jameis Winston",
+   "Jaxson Dart",
+   "Tommy DeVito"
+  ],
+  "special_teams": [
+   "Graham Gano",
+   "Jamie Gillan",
+   "Casey Kreiter"
+  ]
+ },
+ "NYJ": {
+  "d_field": [
+   "Sauce Gardner",
+   "Andre Cisco",
+   "Michael Carter II",
+   "Tony Adams",
+   "Brandon Stephens",
+   "Azareye'h Thomas"
+  ],
+  "d_lb": [
+   "Quincy Williams",
+   "Jamien Sherwood",
+   "Jamin Davis",
+   "Francisco Mauigoa",
+   "Zaire Barnes",
+   "Aaron Smith"
+  ],
+  "d_line": [
+   "Quinnen Williams",
+   "Derrick Nnadi",
+   "Micheal Clemons",
+   "Phidarian Mathis",
+   "Tyler Baron",
+   "Jay Tufele"
+  ],
+  "o_line": [
+   "Alijah Vera-Tucker",
+   "John Simpson",
+   "Joe Tippmann",
+   "Armand Membou",
+   "Josh Myers",
+   "Max Mitchell"
+  ],
+  "o_pass": [
+   "Garrett Wilson",
+   "Allen Lazard",
+   "Josh Reynolds",
+   "Xavier Gipson",
+   "Malachi Corley",
+   "Tyler Johnson"
+  ],
+  "o_rush": [
+   "Breece Hall",
+   "Braelon Allen",
+   "Isaiah Davis",
+   "Donovan Edwards",
+   "Kene Nwangwu"
+  ],
+  "o_te": [
+   "Mason Taylor",
+   "Jeremy Ruckert",
+   "Stone Smartt",
+   "Zack Kuntz"
+  ],
+  "quarterback": [
+   "Justin Fields",
+   "Tyrod Taylor",
+   "Brady Cook"
+  ],
+  "special_teams": [
+   "Nick Folk",
+   "Thomas Hennessy",
+   "Austin McNamara",
+   "Harrison Mevis"
+  ]
+ },
+ "PHI": {
+  "d_field": [
+   "Quinyon Mitchell",
+   "Cooper DeJean",
+   "Reed Blankenship",
+   "Adoree' Jackson",
+   "Kelee Ringo",
+   "Sydney Brown"
+  ],
+  "d_lb": [
+   "Zack Baun",
+   "Nakobe Dean",
+   "Jihaad Campbell",
+   "Smael Mondon Jr.",
+   "Ochaun Mathis",
+   "Dallas Gant"
+  ],
+  "d_line": [
+   "Jalen Carter",
+   "Jordan Davis",
+   "Azeez Ojulari",
+   "Ogbo Okoronkwo",
+   "Ty Robinson",
+   "Moro Ojomo"
+  ],
+  "o_line": [
+   "Lane Johnson",
+   "Jordan Mailata",
+   "Landon Dickerson",
+   "Cam Jurgens",
+   "Matt Pryor",
+   "Kendall Lamm"
+  ],
+  "o_pass": [
+   "A.J. Brown",
+   "DeVonta Smith",
+   "Jahan Dotson",
+   "Ainias Smith",
+   "Johnny Wilson",
+   "Elijah Cooks"
+  ],
+  "o_rush": [
+   "Saquon Barkley",
+   "Will Shipley",
+   "Avery Williams"
+  ],
+  "o_te": [
+   "Dallas Goedert",
+   "Harrison Bryant",
+   "Grant Calcaterra",
+   "Kylen Granson",
+   "Cameron Latu",
+   "Nick Muse"
+  ],
+  "quarterback": [
+   "Jalen Hurts",
+   "Kyle McCord",
+   "Dorian Thompson-Robinson",
+   "Tanner McKee"
+  ],
+  "special_teams": [
+   "Jake Elliott",
+   "Braden Mann",
+   "Charley Hughlett"
+  ]
+ },
+ "PIT": {
+  "d_field": [
+   "Jalen Ramsey",
+   "DeShon Elliott",
+   "Chuck Clark",
+   "Juan Thornhill",
+   "Brandin Echols",
+   "James Pierre"
+  ],
+  "d_lb": [
+   "Patrick Queen",
+   "Cole Holcomb",
+   "Payton Wilson",
+   "Malik Harrison",
+   "Carson Bruener",
+   "Mark Robinson"
+  ],
+  "d_line": [
+   "Cameron Heyward",
+   "Derrick Harmon",
+   "Keeanu Benton",
+   "Daniel Ekuale",
+   "Dean Lowry",
+   "Logan Lee"
+  ],
+  "o_line": [
+   "Zach Frazier",
+   "Isaac Seumalo",
+   "Troy Fautanu",
+   "Mason McCormick",
+   "Broderick Jones",
+   "Max Scharping"
+  ],
+  "o_pass": [
+   "Robert Woods",
+   "Ben Skowronek",
+   "Roman Wilson",
+   "Scott Miller",
+   "Brandon Johnson"
+  ],
+  "o_rush": [
+   "Jaylen Warren",
+   "Kaleb Johnson",
+   "Kenneth Gainwell",
+   "Trey Sermon",
+   "Evan Hull"
+  ],
+  "o_te": [
+   "Pat Freiermuth",
+   "Jonnu Smith",
+   "Darnell Washington",
+   "Donald Parham",
+   "Connor Heyward"
+  ],
+  "quarterback": [
+   "Aaron Rodgers",
+   "Mason Rudolph",
+   "Skylar Thompson",
+   "Will Howard"
+  ],
+  "special_teams": [
+   "Chris Boswell",
+   "Cameron Johnston",
+   "Corliss Waitman",
+   "Ben Sauls",
+   "Christian Kuntz"
+  ]
+ },
+ "SEA": {
+  "d_field": [
+   "Devon Witherspoon",
+   "Julian Love",
+   "Shaquill Griffin",
+   "Coby Bryant",
+   "Nick Emmanwori",
+   "Nehemiah Pritchett"
+  ],
+  "d_lb": [
+   "Tyrice Knight",
+   "Drake Thomas",
+   "Josh Ross",
+   "Patrick O'Connell"
+  ],
+  "d_line": [
+   "Leonard Williams",
+   "Jarran Reed",
+   "Byron Murphy II",
+   "Johnathan Hankins",
+   "Mike Morris",
+   "Rylie Mills"
+  ],
+  "o_line": [
+   "Charles Cross",
+   "Abraham Lucas",
+   "Grey Zabel",
+   "Anthony Bradford",
+   "Christian Haynes",
+   "Josh Jones"
+  ],
+  "o_pass": [
+   "Cooper Kupp",
+   "Jaxon Smith-Njigba",
+   "Marquez Valdes-Scantling",
+   "Tory Horton",
+   "Jake Bobo",
+   "Steven Sims"
+  ],
+  "o_rush": [
+   "Kenneth Walker III",
+   "Zach Charbonnet",
+   "Damien Martinez",
+   "George Holani",
+   "Kenny McIntosh"
+  ],
+  "o_te": [
+   "Elijah Arroyo",
+   "Eric Saubert",
+   "Brady Russell"
+  ],
+  "quarterback": [
+   "Sam Darnold",
+   "Drew Lock",
+   "Jalen Milroe"
+  ],
+  "special_teams": [
+   "Michael Dickson",
+   "Jason Myers",
+   "Chris Stoll"
+  ]
+ },
+ "SF": {
+  "d_field": [
+   "Deommodore Lenoir",
+   "Ji'Ayir Brown",
+   "Renardo Green",
+   "Malik Mustapha",
+   "Tre Brown",
+   "Richie Grant"
+  ],
+  "d_lb": [
+   "Fred Warner",
+   "Nick Martin",
+   "Dee Winters",
+   "Luke Gifford",
+   "Jalen Graham",
+   "Tatum Bethune"
+  ],
+  "d_line": [
+   "Nick Bosa",
+   "Mykel Williams",
+   "Alfred Collins",
+   "Kevin Givens",
+   "Jordan Elliott",
+   "CJ West"
+  ],
+  "o_line": [
+   "Trent Williams",
+   "Dominick Puni",
+   "Jake Brendel",
+   "Colton McKivitz",
+   "Andre Dillard",
+   "Ben Bartch"
+  ],
+  "o_pass": [
+   "Brandon Aiyuk",
+   "Jauan Jennings",
+   "Ricky Pearsall",
+   "Demarcus Robinson",
+   "Isaiah Hodgins",
+   "Jacob Cowing"
+  ],
+  "o_rush": [
+   "Christian McCaffrey",
+   "Isaac Guerendo",
+   "Jordan James",
+   "Ameer Abdullah",
+   "Patrick Taylor"
+  ],
+  "o_te": [
+   "George Kittle",
+   "Luke Farrell",
+   "Brayden Willis",
+   "Ross Dwelley",
+   "Jake Tonges"
+  ],
+  "quarterback": [
+   "Brock Purdy",
+   "Mac Jones",
+   "Kurtis Rourke"
+  ],
+  "special_teams": [
+   "Thomas Morstead",
+   "Greg Joseph",
+   "Jake Moody",
+   "Jon Weeks"
+  ]
+ },
+ "TB": {
+  "d_field": [
+   "Jamel Dean",
+   "Zyon McCollum",
+   "Benjamin Morrison",
+   "Tykee Smith",
+   "Christian Izien",
+   "Jacob Parrish"
+  ],
+  "d_lb": [
+   "Lavonte David",
+   "Deion Jones",
+   "SirVocea Dennis"
+  ],
+  "d_line": [
+   "Vita Vea",
+   "Calijah Kancey",
+   "Greg Gaines",
+   "Logan Hall",
+   "Adam Gotsis",
+   "Elijah Roberts"
+  ],
+  "o_line": [
+   "Tristan Wirfs",
+   "Luke Goedeke",
+   "Cody Mauch",
+   "Graham Barton",
+   "Ben Bredeson",
+   "Elijah Klein"
+  ],
+  "o_pass": [
+   "Mike Evans",
+   "Emeka Egbuka",
+   "Jalen McMillan",
+   "Sterling Shepard",
+   "Trey Palmer",
+   "Tez Johnson"
+  ],
+  "o_rush": [
+   "Bucky Irving",
+   "Rachaad White",
+   "Sean Tucker"
+  ],
+  "o_te": [
+   "Cade Otton",
+   "Ko Kieft",
+   "Payne Durham",
+   "Devin Culp"
+  ],
+  "quarterback": [
+   "Baker Mayfield",
+   "Kyle Trask",
+   "Michael Pratt"
+  ],
+  "special_teams": [
+   "Chase McLaughlin",
+   "Riley Dixon",
+   "Evan Deckers"
+  ]
+ },
+ "TEN": {
+  "d_field": [
+   "L'Jarius Sneed",
+   "Xavier Woods",
+   "Amani Hooker",
+   "Roger McCreary",
+   "Kevin Winston Jr.",
+   "Marcus Harris"
+  ],
+  "d_lb": [
+   "Cody Barton",
+   "Cedric Gray",
+   "James Williams",
+   "Anfernee Orji",
+   "Amari Burney",
+   "Curtis Jacobs"
+  ],
+  "d_line": [
+   "Jeffery Simmons",
+   "T'Vondre Sweat",
+   "Sebastian Joseph-Day",
+   "Carlos Watkins",
+   "James Lynch",
+   "Ali Gaye"
+  ],
+  "o_line": [
+   "Kevin Zeitler",
+   "JC Latham",
+   "Peter Skoronski",
+   "Lloyd Cushenberry III",
+   "Sam Mustipher",
+   "Jackson Slater"
+  ],
+  "o_pass": [
+   "Calvin Ridley",
+   "Tyler Lockett",
+   "Van Jefferson",
+   "Elic Ayomanor",
+   "Chimere Dike",
+   "Xavier Restrepo"
+  ],
+  "o_rush": [
+   "Tony Pollard",
+   "Tyjae Spears",
+   "Kalel Mullings",
+   "Julius Chestnut",
+   "Jordan Mims"
+  ],
+  "o_te": [
+   "Josh Whyle",
+   "Gunnar Helm",
+   "David Martin-Robinson",
+   "Thomas Odukoya"
+  ],
+  "quarterback": [
+   "Will Levis",
+   "Tim Boyle",
+   "Brandon Allen"
+  ],
+  "special_teams": [
+   "Johnny Hekker",
+   "Joey Slye",
+   "Morgan Cox"
+  ]
+ },
+ "WAS": {
+  "d_field": [
+   "Marshon Lattimore",
+   "Jonathan Jones",
+   "Mike Sainristil",
+   "Quan Martin",
+   "Trey Amos",
+   "Jeremy Reaves"
+  ],
+  "d_lb": [
+   "Bobby Wagner",
+   "Frankie Luvu",
+   "Nick Bellore",
+   "Jordan Magee",
+   "Kain Medrano"
+  ],
+  "d_line": [
+   "Dorance Armstrong",
+   "Jer'Zhan Newton",
+   "Clelin Ferrell",
+   "Eddie Goldman",
+   "Jacob Martin",
+   "Javon Kinlaw"
+  ],
+  "o_line": [
+   "Laremy Tunsil",
+   "Sam Cosmi",
+   "Tyler Biadasz",
+   "Andrew Wylie",
+   "Brandon Coleman",
+   "Josh Conerly Jr."
+  ],
+  "o_pass": [
+   "Terry McLaurin",
+   "Noah Brown",
+   "Chris Moore",
+   "Jaylin Lane",
+   "K.J. Osborn",
+   "Michael Gallup"
+  ],
+  "o_rush": [
+   "Austin Ekeler",
+   "Jeremy McNichols"
+  ],
+  "o_te": [
+   "Zach Ertz",
+   "Ben Sinnott",
+   "John Bates",
+   "Lawrence Cager",
+   "Cole Turner",
+   "Tyree Jackson"
+  ],
+  "quarterback": [
+   "Jayden Daniels",
+   "Marcus Mariota",
+   "Josh Johnson",
+   "Sam Hartman"
+  ],
+  "special_teams": [
+   "Matt Gay",
+   "Tress Way",
+   "Tyler Ott"
+  ]
+ }
+}
