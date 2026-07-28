@@ -3,7 +3,7 @@
 //
 // WHAT THIS PIECE OWNS
 //   (1) Every material a player wears — jersey, pants, socks, gloves, cleats, helmet,
-//       facemask, visor, pads, towel, undershirt and skin — for all 32 REAL NFL clubs in
+//       facemask, visor, pads, towel, undershirt and skin — for all 32 clubs in
 //       five variants, built from the clubs' OFFICIAL colours in src/data/teams.json and
 //       carrying real jersey numbers and names from src/data/players.json.
 //   (2) The PICK YOUR UNIFORM screen, and the locker stage the model stands on.

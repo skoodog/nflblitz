@@ -2,7 +2,7 @@
 //
 // These are the frames a blind critic scores this piece on: the four hero clubs
 // large on dark cards (the direct A/B against panel-team_select), one crest at
-// hero scale with its material breakdown, all 32 real clubs as a league board,
+// hero scale with its material breakdown, all 32 clubs as a league board,
 // the official colour systems, the city skylines, and the league mark.
 //
 // Everything is Canvas2D on the foundation's logical 1920x1080 overlay.
@@ -315,7 +315,7 @@ export function sheetCrestDetail(c, t, id = 'CHI') {
   grainPass(c, W, H, 33, 0.05, 2);
 }
 
-/** All 32 real clubs, one board. */
+/** All 32 clubs, one board. */
 export function sheetLeague(c, t) {
   stage(c, { wash: '#31435e' });
   header(c, 'THIRTY-TWO CLUBS', 84, { size: 58, ruleW: 560 });
@@ -384,10 +384,10 @@ export function sheetLeague(c, t) {
       c.fillRect(Math.min(gx0, gx1), ly - 7, Math.abs(gx1 - gx0), 1.4);
     }
   };
-  label('AMERICAN FOOTBALL CONFERENCE', y0 - 16);
-  label('NATIONAL FOOTBALL CONFERENCE', rowY(2) - 16);
+  label('IRON CONFERENCE', y0 - 16);
+  label('STORM CONFERENCE', rowY(2) - 16);
 
-  footer(c, 'EVERY CLUB DRAWN AS ITS OWN MASCOT, IN ITS OWN OFFICIAL COLOURS', 'ONE CREST GENERATOR / 18 PARAMETRIC FORMS');
+  footer(c, 'EVERY CLUB DRAWN AS ITS OWN MASCOT, IN ITS OWN CLUB COLOURS', 'ONE CREST GENERATOR / 18 PARAMETRIC FORMS');
   grainPass(c, W, H, 37, 0.05, 2);
 }
 
@@ -455,7 +455,7 @@ export function sheetPalettes(c, t) {
     }
   }
 
-  footer(c, 'OFFICIAL CLUB COLOUR SETS — src/data/teams.json (nflverse)', 'CREST PALETTES ARE SHADES OF THESE, NEVER NEW HUES');
+  footer(c, 'CLUB COLOUR SETS — src/data/teams.json', 'CREST PALETTES ARE SHADES OF THESE, NEVER NEW HUES');
   grainPass(c, W, H, 39, 0.05, 2);
 }
 

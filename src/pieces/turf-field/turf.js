@@ -22,10 +22,10 @@ import { createShells } from './shells.js';
 const PIECE = 'turf-field';
 
 /* ------------------------------------------------------------------- teams */
-// The shot library still speaks the pre-change abbreviations. Everything that is a
-// real club abbreviation resolves straight through to src/data/teams.json; the one
-// invented id maps to the club it stood in for. Colours are NEVER invented here.
-const ALIAS = { NYC: 'NYG', LAR: 'LA', STL: 'LA', OAK: 'LV', SD: 'LAC', WSH: 'WAS' };
+// The shot library speaks a few legacy abbreviations. Anything that is a live club
+// id resolves straight through to src/data/teams.json; legacy ids map to the club
+// that replaced them. Colours are NEVER invented here.
+const ALIAS = { LAR: 'LA', STL: 'LA', OAK: 'LV', SD: 'LA', WSH: 'WAS', NYG: 'NYC', NYJ: 'NYC' };
 
 function teamOf(id) {
   const key = ALIAS[id] || id;

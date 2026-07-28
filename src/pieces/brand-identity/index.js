@@ -2,8 +2,8 @@
 // SLOT:  brand   -> registerBrand(impl)
 // OWNS:  src/pieces/brand-identity/**  and  shots/brand-identity/**
 //
-// Delivers the league's whole visual identity: all 32 REAL NFL clubs with their
-// official colour systems and Madden-26-derived club values, the procedural
+// Delivers the league's whole visual identity: all 32 clubs with their
+// club colour systems and ratings-derived club values, the procedural
 // crest generator (every club drawn as its own illustrated mascot), wordmark
 // lockups, the NFL shield, the BLITZ logotype, and layered city skylines.
 // Everything downstream (menu-title, uniform-kit, hud-overlay) consumes this
@@ -108,7 +108,7 @@ registerIsoShot('iso_crest_detail', Object.assign({}, BASE, {
 registerIsoShot('iso_league', Object.assign({}, BASE, {
   panel: 'team_select',
   ui: { screen: 'title', state: {} },
-  note: 'all 32 real clubs, each drawn as its own mascot in its own official colours, by conference and division',
+  note: 'all 32 clubs, each drawn as its own mascot in its own club colours, by conference and division',
 }));
 
 registerIsoShot('iso_palettes', Object.assign({}, BASE, {

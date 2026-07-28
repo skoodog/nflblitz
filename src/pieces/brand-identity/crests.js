@@ -1,10 +1,10 @@
-// PIECE brand-identity — the crest generator: 32 real NFL club marks, drawn as
+// PIECE brand-identity — the crest generator: 32 club marks, drawn as
 // heavy ILLUSTRATED mascots in the concept sheet's idiom.
 //
 // The bar's crest language is not a flat vector logo: it is a chunky painted
 // mascot head with a black keyline, faceted plate shading, near-white specular
 // slivers, hot glowing eyes, a team-colour shard burst behind and a scratch +
-// grain finish. Real NFL primary marks are flat vector; dropped into this
+// grain finish. Club primary marks are flat vector; dropped into this
 // treatment they would read as clip art. So every club is rendered as its OWN
 // mascot / identity in that painted style, in that club's real official colours.
 //

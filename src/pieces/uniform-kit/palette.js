@@ -1,10 +1,10 @@
 // PIECE uniform-kit — the kit colour system.
 //
-// Every value here traces back to a REAL club's official colour set in
-// src/data/teams.json (surfaced through REG.brand.byId().colors.officials).
-// Nothing is invented: the five variants are five DIFFERENT ARRANGEMENTS of the
-// same 2-4 official hexes, which is exactly how a real club builds home / away /
-// colour-rush / alternate / throwback sets.
+// Every value here traces back to a club's colour set in src/data/teams.json
+// (surfaced through REG.brand.byId().colors.officials). Nothing is invented at
+// this layer: the five variants are five DIFFERENT ARRANGEMENTS of the same 2-4
+// club hexes, which is how a club actually builds home / away / colour-rush /
+// alternate / throwback sets.
 //
 // The whole point of the file is that a variant is a small struct of colours, not
 // a new texture set and never a new shader program. `materials.js` turns a Kit into
