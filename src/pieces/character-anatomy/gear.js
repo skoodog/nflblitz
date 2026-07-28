@@ -76,6 +76,9 @@ function gridPlate(part, rimPart, NU, NV, fn, weights, thickness) {
 /* ----------------------------------------------------------------- gloves */
 
 export function buildGlove(S, parts, side) {
+  // PROXY: no glove. `buildArm` closes the arm tube at the wrist instead, which costs 5
+  // triangles against the glove's 55 and is indistinguishable past ~8 m.
+  if (S.proxy) return;
   const ch = S.chains[side === 'L' ? 'armL' : 'armR'];
   const { gs, BI } = S;
   const hand = BI[side === 'L' ? 'hand_L' : 'hand_R'];
@@ -184,9 +187,13 @@ export function buildCleat(S, parts, side) {
 
   const shoe = newPart('cleat');
   const rings = [];
-  const N = SHOE.length;
+  // PROXY: 5 sections instead of 10, and no separate outsole plate. The cleat was 440 of
+  // the old LOD3 actor's 2,256 triangles (20%), and half of that was an outsole lip that
+  // is one pixel of dark under the boot at any distance an imposter is used at.
+  const N = S.proxy ? 5 : SHOE.length;
+  const pick = S.proxy ? [0, 2, 4, 7, 9] : null;
   for (let i = 0; i < N; i++) {
-    const s = SHOE[i];
+    const s = SHOE[pick ? pick[i] : i];
     const z = z0 + s[0] * gs;
     const w = s[1] * gs * S.footS;
     const yT = s[2] * gs, yB = s[3] * gs;
@@ -207,6 +214,7 @@ export function buildCleat(S, parts, side) {
     });
   }
   loft(shoe, rings, S.seg.cleat, { capStart: true, capEnd: true });
+  if (S.proxy) { computeNormals(shoe); parts.push(shoe); return; }
 
   // midsole plate: a visible outsole lip, which is what makes a shoe read as a shoe
   const sole = newPart('cleat', { flat: true });

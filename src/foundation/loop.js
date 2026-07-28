@@ -106,8 +106,17 @@ export function createLoop(opts) {
 
   function frame(nowMs) {
     rafId = requestAnimationFrame(frame);
-    if (!pacer.onVsync(nowMs)) return;       // a skipped vsync costs literally nothing
-    if (paused) { lastPresentMs = nowMs; return; }
+    // WHOLE-FRAME ACCOUNTING. `rafEnter` is the first statement of every callback and
+    // `rafExit` the last of every path through it, presented or not. Round 2 measured
+    // nine spans and nothing else, so a 50 ms interval with 1 ms of span time had
+    // nowhere to be attributed. Now the callback's own duration, the pacer's skipped
+    // callbacks, and the gap between callbacks are all separately billed. Cost: two
+    // extra performance.now() calls per callback.
+    if (tel) tel.rafEnter(nowMs);
+    // "a skipped vsync costs literally nothing" was an assertion. It is now measured
+    // into the `skip` channel, which is where an assertion belongs.
+    if (!pacer.onVsync(nowMs)) { if (tel) tel.rafExit(); return; }
+    if (paused) { lastPresentMs = nowMs; if (tel) tel.rafExit(); return; }
 
     if (tel) tel.frameStart(nowMs);
 
@@ -164,7 +173,7 @@ export function createLoop(opts) {
     // 7 RENDER -------------------------------------------------------------------
     if (tel) tel.begin(S_RENDERJS);
     if (hRender) hRender(alpha, simTime);
-    if (tel) tel.end(S_RENDERJS);
+    if (tel) { tel.end(S_RENDERJS); tel.stampRenderDispatch(); }
 
     // 8 OVERLAY ------------------------------------------------------------------
     if (tel) tel.begin(S_OVERLAY);
@@ -191,6 +200,7 @@ export function createLoop(opts) {
       if ((presented % heapEvery) === 0) tel.sampleHeap();
     }
     if (hFrameEnd) hFrameEnd(presented, nowMs);
+    if (tel) tel.rafExit();
   }
 
   return Object.assign(state, {

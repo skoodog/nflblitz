@@ -1,18 +1,36 @@
 // PIECE: character-anatomy — actor assembly + the LOD chain.
 //
-// One actor == one merged SkinnedMesh with one geometry group per material slot, so the
-// number a critic counts (draw calls) is exactly the number of slots the LOD level
-// exposes. That is the whole reason the LOD chain is expressed as a SLOT MAP rather than
-// as separate models: the silhouette is built once and never changes between levels, and
-// only the material split (and the ring/segment density) comes down.
+// LOD0-LOD2 are merged SkinnedMeshes with one geometry group per material slot, so the
+// number a critic counts (draw calls) is exactly the number of slots the level exposes.
+// LOD3 is NOT a mesh at all: it is one instance in a shared, non-skinned InstancedMesh
+// (see imposter.js), so N distant actors cost ONE draw call and ZERO SkinnedMeshes.
 //
-//   LOD0  12 slots  full: tubular facemask, visor, epaulette lip, fingers, towel,
-//                   back plate, forearm pad, undershirt sleeve
-//   LOD1   6 slots  same silhouette, coarser rings, no fingers/towel/back plate
-//   LOD2   1 slot   same silhouette again, ~1/8 the triangles
-//   LOD3   1 slot   ultra-coarse proxy for imposter batching (still the same read)
+// MEASURED, per actor, `skill` archetype, seed 4211 (node scripts/budget.mjs and the
+// per-LOD probe in this file's `lodReport()`):
+//
+//            draw calls   triangles     what changes
+//   LOD0        12          24,782      full: tubular facemask, visor, epaulette lip,
+//                                       fingers, towel, back plate, forearm pad, sleeve
+//   LOD1         6           9,858      coarser rings, no fingers/towel/back plate
+//   LOD2         3           3,450      skin / jersey / pants only — the three-value
+//                                       structure that still reads at 60 px
+//   LOD3    1 SHARED             814     non-skinned proxy, ONE geometry for every distant
+//                                       actor: closed helmet shell (no face port, no cage
+//                                       tubes), no gloves, no head, 5-section cleats, the
+//                                       sleeve's bulk folded into the arm. The pose is
+//                                       BAKED IN (see bakePose) because an imposter has no
+//                                       skeleton to be posed by. Baked vertex values carry
+//                                       the jersey/pants/sock banding; the instance colour
+//                                       carries the team.
+//
+// The ladder is strictly decreasing on BOTH axes — 12 > 6 > 3 > 1 draw calls and
+// 24,782 > 9,858 > 3,450 > 814 triangles — which is the property the rung table's
+// `imposter` column needed and did not have. Before this round LOD2 and LOD3 were both
+// single-slot SkinnedMeshes at 3,538 and 2,256 triangles: 1 draw call each, 1 skinned
+// actor each, so the `imposter` column moved neither of the two numbers it gates.
 
 import { BONES, SOCKETS, PROPORTIONS, makeSkeleton } from '../../foundation/rig.js';
+import { REG } from '../../foundation/registry.js';
 import { MAT_SLOTS } from '../../foundation/contracts.js';
 import { makeRng } from '../../foundation/rng.js';
 import texlab from '../../foundation/texlab.js';
@@ -27,23 +45,58 @@ import { buildGlove, buildCleat, buildBackPlate, buildTowel } from './gear.js';
 /* -------------------------------------------------------------- LOD slots */
 
 /** slot -> slot remap per LOD level. Absent key means "keep as authored". */
-const LOD_SLOTMAP = [
-  null,
-  {
-    undershirt: 'skin', pad: 'jersey', towel: 'jersey', glove: 'jersey',
-    sock: 'pants', visor: 'helmetShell',
-  },
-  { /* LOD2: everything collapses to one */ },
-  { },
-];
+const LOD1_SLOTMAP = {
+  undershirt: 'skin', pad: 'jersey', towel: 'jersey', glove: 'jersey',
+  sock: 'pants', visor: 'helmetShell',
+};
+/**
+ * LOD2 keeps THREE slots, not one. Collapsing an actor to a single flat colour was the
+ * reason LOD2 and LOD3 looked interchangeable in the first place: a football player at
+ * distance is read by its VALUE BANDS — dark jersey, light pants, dark boot — and one
+ * material erases all of them. Three groups is three draw calls; at the floor rung that
+ * is 6 actors x 3 = 18 calls against a cap of 60, and it buys back the single strongest
+ * legibility cue in the whole figure.
+ */
+const LOD2_SLOTMAP = {
+  undershirt: 'jersey', pad: 'jersey', towel: 'jersey', glove: 'jersey',
+  sock: 'jersey', cleat: 'jersey', helmetShell: 'jersey', facemask: 'jersey',
+  visor: 'jersey',
+};
 const LOD1_ORDER = ['skin', 'jersey', 'pants', 'cleat', 'helmetShell', 'facemask'];
+const LOD2_ORDER = ['skin', 'jersey', 'pants'];
 
 function remapSlot(slot, lodLevel) {
   if (lodLevel === 0) return slot;
-  if (lodLevel >= 2) return 'jersey';
-  const m = LOD_SLOTMAP[1][slot];
-  return m || slot;
+  if (lodLevel >= 3) return 'jersey';
+  if (lodLevel === 2) return LOD2_SLOTMAP[slot] || slot;
+  return LOD1_SLOTMAP[slot] || slot;
 }
+
+/**
+ * PROXY KIT MAP — baked per vertex at LOD3 as [value, mask].
+ *
+ * `mask` 0 means "wear the instance's JERSEY colour", 1 means "wear its PANTS colour";
+ * `value` shades within that family. A single instanced draw call therefore reproduces
+ * the real kit's value structure, in the real club's colours, for fourteen different
+ * clubs at once.
+ *
+ * The first version of this was a single multiplicative grey ramp against ONE instance
+ * colour, and it did not work — captured in shots/character-anatomy/iso_player_imposter.png
+ * before the second colour existed. One multiplier cannot express Chicago (near-black
+ * jersey, white pants): the best it can do is the average, so the imposter came out a flat
+ * mid-grey standing next to a black-and-white LOD2 player. A 2:1 ramp cannot fake a 10:1
+ * value ratio, and "it is only 40 pixels" is not an argument for the wrong colour.
+ *
+ * `skin` maps to the JERSEY family on purpose: a long-sleeved player is a real and common
+ * kit, and jersey-coloured forearms read as sleeves. Pants-coloured forearms read as an
+ * error. Cleats map to the PANTS family darkened hard, which lands near-black whether the
+ * club's pants are white or dark.
+ */
+const PROXY_TINT = {
+  skin: [1.12, 0], undershirt: [0.80, 0], jersey: [1.00, 0], pants: [1.00, 1],
+  sock: [0.88, 0], cleat: [0.28, 1], glove: [0.70, 0], helmetShell: [1.10, 0],
+  facemask: [0.38, 0], visor: [0.30, 0], pad: [1.05, 0], towel: [1.10, 1],
+};
 
 /* ------------------------------------------------------------------- spec */
 
@@ -60,9 +113,16 @@ const DETAIL = [
     d: 0, torso: 12, arm: 7, leg: 7, pad: 9, glove: 6, cleat: 7, helmU: 20, helmV: 12,
     rows: { torso: 12, arm: 9, leg: 9, sock: 6, pad: 7, headU: 10, headV: 7, mask: 7, maskV: 5 },
   },
-  /* LOD3 */ {
-    d: 0, torso: 8, arm: 5, leg: 5, pad: 6, glove: 5, cleat: 5, helmU: 12, helmV: 8,
-    rows: { torso: 8, arm: 6, leg: 6, sock: 4, pad: 5, headU: 8, headV: 6, mask: 5, maskV: 4 },
+  /* LOD3 — the imposter proxy. `d: -1` switches every `S.lod >= 1` detail off AND sets
+     S.proxy, which is what the part builders branch on to swap in their cheap forms. */
+  {
+    // rows.pad is 6, not the 4 the rest of the proxy runs at, and that is deliberate: with
+    // 4 rings the shoulder shelf holds near-full thickness two thirds of the way out and
+    // then drops to a point, which reads as a BROAD FLAT PLATE against LOD2's taper. The
+    // pad shelf is the single strongest silhouette cue in the figure, so it is the one
+    // place the imposter spends triangles it saves everywhere else.
+    d: -1, torso: 8, arm: 6, leg: 5, pad: 8, glove: 0, cleat: 5, helmU: 12, helmV: 5,
+    rows: { torso: 5, arm: 5, leg: 4, sock: 3, pad: 6, headU: 0, headV: 0, mask: 0, maskV: 0 },
   },
 ];
 
@@ -105,7 +165,7 @@ function buildSpec(rig, opts, lodLevel) {
   const headY = wp('head')[1];
 
   const S = {
-    gs, P, BI, lod: D.d, lodLevel, rng,
+    gs, P, BI, lod: D.d, lodLevel, rng, proxy: D.d < 0,
     seg: { torso: D.torso, arm: D.arm, leg: D.leg, pad: D.pad, glove: D.glove, cleat: D.cleat },
     helmU: D.helmU, helmV: D.helmV, rows: D.rows,
     sp: spineChain,
@@ -169,9 +229,178 @@ export function buildActorGeometry(THREE, rig, opts, lodLevel) {
   buildBackPlate(S, parts);
   buildTowel(S, parts);
 
+  // Bake the kit map BEFORE the slots are collapsed — after the remap every proxy part is
+  // called 'jersey' and the authored slot is gone.
+  if (S.proxy) for (const p of parts) p.tint = PROXY_TINT[p.slot] || [1, 0];
+
   for (const p of parts) p.slot = remapSlot(p.slot, lodLevel);
-  const order = lodLevel === 0 ? MAT_SLOTS : lodLevel === 1 ? LOD1_ORDER : ['jersey'];
-  return mergeParts(THREE, parts, order);
+  const order = lodLevel === 0 ? MAT_SLOTS
+    : lodLevel === 1 ? LOD1_ORDER
+      : lodLevel === 2 ? LOD2_ORDER : ['jersey'];
+  return mergeParts(THREE, parts, order, { tint: S.proxy });
+}
+
+/* ------------------------------------------------------- pose bake (LOD3) */
+
+/**
+ * BAKE THE SKIN. This is the difference between an imposter and a scarecrow.
+ *
+ * Every LOD builds in BIND POSE — arms straight out — and LOD0-LOD2 get out of it because
+ * they are SkinnedMeshes and the assembler runs `pose.apply(actor.skeleton, ...)` on them
+ * afterwards. An imposter has no skeleton of its own to be posed by, so without this it
+ * stands in the middle of a football field in a T-pose. Captured in
+ * shots/character-anatomy/iso_player_lod.png before this existed: three figures with
+ * their arms down and one with its arms straight out. That is the single most visible
+ * pop an LOD chain can have, and no triangle count excuses it.
+ *
+ * So the proxy is skinned ONCE, on the CPU, at build time, by exactly the maths the GPU
+ * would use — v' = sum(w_i * boneMatrix_i * v) with an identity bind matrix, which is how
+ * `buildActor` binds — and the skin attributes are then thrown away. 459 vertices, four
+ * bones each: microseconds, once per build pass, never in a frame.
+ *
+ * The pose comes from whatever piece owns `world.pose`, so the imposter is posed by the
+ * same authority as everyone else. LIMITATION, stated plainly: one shared geometry can
+ * only hold ONE pose, so every imposter in a batch stands the same way. The geometry
+ * cache in imposter.js is keyed by pose id precisely so that splitting into a batch per
+ * pose class is a change of policy, not of architecture.
+ */
+function bakePose(THREE, geo, rig, poseId, seed) {
+  const pose = REG.world && REG.world.pose;
+  if (pose && typeof pose.apply === 'function') {
+    try { pose.apply(rig.skeleton, poseId || 'idle', 0, seed || 1); } catch (e) { /* bind pose */ }
+  }
+  rig.root.updateMatrixWorld(true);
+  rig.skeleton.update();
+
+  const bm = rig.skeleton.boneMatrices;
+  const pos = geo.getAttribute('position');
+  const nrm = geo.getAttribute('normal');
+  const si = geo.getAttribute('skinIndex');
+  const sw = geo.getAttribute('skinWeight');
+  if (!bm || !si || !sw) return geo;
+
+  const M = new Float64Array(16);
+  for (let v = 0; v < pos.count; v++) {
+    for (let j = 0; j < 16; j++) M[j] = 0;
+    let wsum = 0;
+    for (let k = 0; k < 4; k++) {
+      const w = sw.getComponent(v, k);
+      if (w === 0) continue;
+      const b = si.getComponent(v, k) * 16;
+      for (let j = 0; j < 16; j++) M[j] += w * bm[b + j];
+      wsum += w;
+    }
+    if (wsum === 0) continue;
+    const x = pos.getX(v), y = pos.getY(v), z = pos.getZ(v);
+    // column-major, as THREE.Matrix4 stores it
+    pos.setXYZ(v,
+      M[0] * x + M[4] * y + M[8] * z + M[12],
+      M[1] * x + M[5] * y + M[9] * z + M[13],
+      M[2] * x + M[6] * y + M[10] * z + M[14]);
+    const nx = nrm.getX(v), ny = nrm.getY(v), nz = nrm.getZ(v);
+    let ax = M[0] * nx + M[4] * ny + M[8] * nz;
+    let ay = M[1] * nx + M[5] * ny + M[9] * nz;
+    let az = M[2] * nx + M[6] * ny + M[10] * nz;
+    const l = Math.hypot(ax, ay, az) || 1;
+    nrm.setXYZ(v, ax / l, ay / l, az / l);
+  }
+  pos.needsUpdate = true;
+  nrm.needsUpdate = true;
+  geo.deleteAttribute('skinIndex');
+  geo.deleteAttribute('skinWeight');
+  geo.computeBoundingSphere();
+  geo.computeBoundingBox();
+  return geo;
+}
+
+/**
+ * THE IMPOSTER PROXY GEOMETRY — built ONCE per build pass and shared by every LOD3 actor
+ * through an InstancedMesh. Non-skinned by construction (mergeParts is told to omit the
+ * skinIndex/skinWeight attributes), so a distant actor is not a SkinnedMesh, does not
+ * cost a bone-matrix upload, and does not count against the rung's `skinned` cap.
+ *
+ * It is built from the reference archetype at the reference height; per-actor height and
+ * mass come back as a per-instance scale (see imposter.js), which is all that survives at
+ * imposter distance anyway. `heightM` is returned so the caller can normalise.
+ */
+export const PROXY_ARCHETYPE = 'skill';
+
+export function buildProxyGeometry(THREE, opts) {
+  const o = opts || {};
+  const archetype = PROPORTIONS[o.archetype] ? o.archetype : PROXY_ARCHETYPE;
+  const seed = o.seed || 4211;
+  const rig = makeSkeleton({ archetype });
+  rig.root.updateMatrixWorld(true);
+  const built = buildActorGeometry(THREE, rig, { archetype, seed }, 3);
+  bakePose(THREE, built.geometry, rig, o.pose || 'idle', seed);
+  built.geometry.clearGroups();
+  return {
+    geometry: built.geometry,
+    triangles: built.triangles,
+    vertices: built.vertices,
+    archetype,
+    pose: o.pose || 'idle',
+    heightM: rig.heightM,
+    proportions: rig.proportions,
+  };
+}
+
+/**
+ * buildImposterActor — an actor whose body lives in the shared instanced batch.
+ *
+ * It returns the SAME shape as `buildActor` minus the mesh, because the world assembler
+ * and every consumer must not have to care which representation an actor got:
+ *   - `root` is a real, empty Object3D. The assembler positions it exactly as before, and
+ *     it is what the batch's one-shot re-sync reads its matrix from.
+ *   - `skeleton` is real (26 bones, no geometry bound to it) so `pose.apply` still has
+ *     something to write to and never throws. It is NOT parented into the scene: bone
+ *     matrices nobody samples are 26 matrix updates per actor per frame for nothing.
+ *   - `mesh` is null, which is the honest answer. Callers guard on it.
+ */
+export function buildImposterActor(THREE, ctx, opts) {
+  const archetype = PROPORTIONS[opts.archetype] ? opts.archetype : PROXY_ARCHETYPE;
+  const rig = makeSkeleton({ archetype, heightM: opts.heightM });
+  const root = new THREE.Group();
+  root.name = `actor.${archetype}.imposter`;
+  const sockets = {};
+  for (const k of Object.keys(SOCKETS)) sockets[k] = rig.boneByName[SOCKETS[k]];
+  return {
+    root, mesh: null, skeleton: rig.skeleton, sockets,
+    slotOrder: ['jersey'],
+    bones: rig.bones, boneByName: rig.boneByName, archetype,
+    heightM: rig.heightM,
+    massKg: opts.massKg || rig.proportions.massKg,
+    proportions: rig.proportions,
+    globalScale: rig.globalScale,
+    lod: 3,
+    triangles: 0,          // filled in by the caller from the shared batch
+    vertices: 0,
+  };
+}
+
+/**
+ * Diagnostics for the critic and for scripts/budget.mjs: the real per-LOD cost, counted
+ * from the geometry that actually gets built rather than read off a table.
+ */
+export function lodReport(THREE, archetype = 'skill', seed = 4211) {
+  const out = [];
+  for (let lod = 0; lod <= 3; lod++) {
+    if (lod === 3) {
+      const p = buildProxyGeometry(THREE, { archetype, seed });
+      out.push({ lod, triangles: p.triangles, vertices: p.vertices, drawCalls: 1, shared: true });
+      p.geometry.dispose();
+      continue;
+    }
+    const rig = makeSkeleton({ archetype });
+    rig.root.updateMatrixWorld(true);
+    const b = buildActorGeometry(THREE, rig, { archetype, seed }, lod);
+    out.push({
+      lod, triangles: b.triangles, vertices: b.vertices,
+      drawCalls: b.slotOrder.length, slots: b.slotOrder.slice(), shared: false,
+    });
+    b.geometry.dispose();
+  }
+  return out;
 }
 
 /**
@@ -218,4 +447,6 @@ export function buildActor(THREE, ctx, opts, lodLevel) {
   };
 }
 
-export default { buildActor, buildActorGeometry };
+export default {
+  buildActor, buildActorGeometry, buildProxyGeometry, buildImposterActor, lodReport,
+};

@@ -45,7 +45,7 @@ try {
   });
   console.log(`[alloc] ${url}`);
   await page.goto(url, { waitUntil: 'load', timeout: 300000 });
-  await page.waitForFunction('window.__BLITZ_READY__===true', { timeout: 300000 });
+  await page.waitForFunction('window.__BLITZ_READY__===true', null, { timeout: 300000 });
   await setCpuThrottle(cdp, TIER_THROTTLE[TIER]);
   await page.waitForTimeout(2500);
   await page.evaluate(() => window.__BLITZ_PERF__.reset());

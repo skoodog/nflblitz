@@ -66,34 +66,65 @@ export function buildSyntheticLoad(THREE, opts) {
   const added = { drawCalls: 0, triangles: 0, particles: 0, geometries: 0, materials: nMat };
 
   if (wantCalls > 0) {
+    // TWO BUGS LIVED HERE AND BOTH MADE THIS FILE FAIL AT ITS ONE JOB.
+    //
+    // 1. THE LOOP STOPPED AT THE TRIANGLE BUDGET, NOT THE DRAW-CALL BUDGET.
+    //    `perMesh = floor(wantTris / wantCalls)` was rounded DOWN by `segsFor` to the
+    //    nearest sx*sy*2, and the loop then broke as soon as one more mesh would have
+    //    exceeded `wantTris`. Every rounding-down compounded, so the scene ran out of
+    //    triangle budget several meshes before it ran out of draw calls and the filler
+    //    quietly stopped short of BOTH caps. The last mesh now carries the remainder in
+    //    its own geometry, so all `wantCalls` meshes are placed AND the triangle total
+    //    lands within a few hundred of the cap.
+    //
+    // 2. THE FILLER WAS FRUSTUM CULLED, SO MOST OF IT NEVER DREW.
+    //    The meshes were scattered on a golden-angle spiral out to r = 35 around the
+    //    origin, which puts most of them behind or beside a sideline camera. three.js
+    //    culls them, so `renderer.info.render.calls` — the number the report prints and
+    //    the number a reader believes — counted a fraction of what was built. Measured
+    //    at the floor tier the "cap" scene drew 30 calls against a 60 cap. A proof scene
+    //    that is half-culled proves half of nothing. `frustumCulled = false` now forces
+    //    every filler draw to be ISSUED, which is the axis under test, and the shell is
+    //    tightened to sit in front of the play so the fill is real too.
     const perMesh = Math.max(2, Math.floor(wantTris / wantCalls));
     const [sx, sy] = segsFor(perMesh);
-    // ONE geometry shared by every filler mesh. Each mesh is still its own draw call,
-    // which is the metric under test; sharing the geometry keeps the geometry count
-    // and the upload cost out of the measurement.
+    const triPer = sx * sy * 2;
+    // ONE geometry shared by every filler mesh but the last. Each mesh is still its own
+    // draw call, which is the metric under test; sharing the geometry keeps the geometry
+    // count and the upload cost out of the measurement.
     const geo = new THREE.PlaneGeometry(2.2, 2.2, sx, sy);
     geos.push(geo);
-    const triPer = sx * sy * 2;
 
-    let placed = 0, tris = 0;
+    // The last mesh absorbs everything `segsFor`'s rounding left on the table.
+    const remainder = Math.max(2, wantTris - (wantCalls - 1) * triPer);
+    const [rx, ry] = segsFor(remainder);
+    const geoLast = (rx === sx && ry === sy) ? geo : new THREE.PlaneGeometry(2.2, 2.2, rx, ry);
+    if (geoLast !== geo) geos.push(geoLast);
+    const triLast = rx * ry * 2;
+
+    let tris = 0;
     for (let i = 0; i < wantCalls; i++) {
-      if (tris + triPer > wantTris && placed > 0) break;
-      const m = new THREE.Mesh(geo, mats[i % nMat]);
-      // Spread them across the field so culling has real work and overdraw is
-      // representative rather than a single stack of coincident quads.
+      const last = i === wantCalls - 1;
+      const g = last ? geoLast : geo;
+      const m = new THREE.Mesh(g, mats[i % nMat]);
+      // A shell in FRONT of the play, not a sphere around it: the point is that these
+      // draws cost something, and a quad behind the camera costs nothing.
       const a = i * 2.399963;                       // golden angle: no visible lattice
-      const r = 3 + (i % 37) * 0.9;
-      m.position.set(Math.cos(a) * r, 0.4 + (i % 11) * 0.55, Math.sin(a) * r - 6);
+      const r = 2.5 + (i % 23) * 0.42;
+      m.position.set(Math.cos(a) * r * 0.8, 0.4 + (i % 11) * 0.42, Math.sin(a) * r * 0.5 - 6);
       m.rotation.set(-1.2 + (i % 7) * 0.11, a, 0);
       m.castShadow = false;
       m.receiveShadow = false;
+      // NEVER CULLED. See bug 2 above: this is the difference between a proof and a
+      // number that looks like one.
+      m.frustumCulled = false;
       m.userData.piece = piece;
       group.add(m);
-      placed++; tris += triPer;
+      tris += last ? triLast : triPer;
     }
-    added.drawCalls = placed;
+    added.drawCalls = wantCalls;
     added.triangles = tris;
-    added.geometries = 1;
+    added.geometries = geoLast === geo ? 1 : 2;
   }
 
   if (wantParticles > 0) {

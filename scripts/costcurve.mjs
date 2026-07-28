@@ -270,7 +270,7 @@ try {
   });
   console.log(`[cost] ${url}`);
   await page.goto(url, { waitUntil: 'load', timeout: 300000 });
-  await page.waitForFunction('window.__BLITZ_READY__===true', { timeout: 300000 });
+  await page.waitForFunction('window.__BLITZ_READY__===true', null, { timeout: 300000 });
   const boot = await page.evaluate(() => window.__BLITZ_STATS__);
   if (boot && boot.error) throw new Error(`page boot error: ${boot.error}`);
 

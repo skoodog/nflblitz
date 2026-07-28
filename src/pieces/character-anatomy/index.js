@@ -4,24 +4,33 @@
 //
 // WHAT THIS PIECE OWNS
 //   The body. Geometry only: no materials (uniform-kit), no posing (pose-animation).
-//   One merged SkinnedMesh per actor, bound to the foundation's frozen 26-bone rig,
-//   procedurally generated per archetype with seeded variation, plus a four-step LOD
-//   chain whose levels share ONE silhouette and differ only in ring density and how
-//   many material slots they expose (slots == draw calls).
+//   For LOD0-LOD2, one merged SkinnedMesh per actor, bound to the foundation's frozen
+//   26-bone rig, procedurally generated per archetype with seeded variation, differing
+//   by ring density and by how many material slots they expose (slots == draw calls).
+//   For LOD3 there is NO per-actor mesh at all: every distant actor is one instance in a
+//   shared, non-skinned InstancedMesh built by the same part builders in their coarse
+//   form (imposter.js). That is what makes the rung table's `imposter` column real —
+//   before it existed, LOD3 was another SkinnedMesh and the floor rung counted 14 skinned
+//   actors against a cap of 6.
 //
 // UV CONVENTION (uniform-kit reads this; nothing else does)
 //   Torso, pelvis: u = 0.25 front centre, 0.75 back centre, seam under the left arm.
 //   v = 0 at the jersey hem, 1 at the collar. Limbs: u wraps the tube, v runs distally.
 //
-// STRUCTURAL COST, per actor, measured by scripts/budget.mjs via userData.piece:
-//   LOD0 12 draw calls   LOD1 6   LOD2 1   LOD3 1 (instanced batch)
+// STRUCTURAL COST, measured by scripts/budget.mjs via userData.piece:
+//   LOD0 12 draw calls / 24,782 tris    LOD1 6 / 9,858    LOD2 3 / 3,450
+//   LOD3 ONE draw call and 814 triangles for ALL distant actors together — a single
+//        non-skinned InstancedMesh, so a distant actor is not a SkinnedMesh at all.
 
 import * as THREE from 'three';
 import { registerWorld, registerIsoShot } from '../../foundation/registry.js';
 import { MAT_SLOTS } from '../../foundation/contracts.js';
 import { RUNGS } from '../../foundation/quality.js';
-import { buildActor } from './actor.js';
+import { buildActor, buildImposterActor, lodReport } from './actor.js';
 import { installStudio, enforceStudio } from './studio.js';
+import {
+  addInstance, setInstanceKit, setBatchMaterial, resetBatch, currentBatch, kitColor,
+} from './imposter.js';
 
 export const PIECE = 'character-anatomy';
 
@@ -31,25 +40,82 @@ export const PIECE = 'character-anatomy';
  * Rung -> LOD mix. The structural table gives each tier a skinned/imposter split and a
  * draw-call cap; this turns that into "how many actors get which level", nearest first.
  * lod0 is reserved for the focal actor(s) — the ones a player is actually looking at.
+ *
+ * lod0 + lod1 + lod2 is the SkinnedMesh count and must equal the rung's `skinned`; lod3
+ * is the rung's `imposter` and costs ONE shared draw call however many there are. The
+ * draw-call totals per rung, counted not guessed (LOD0 12, LOD1 6, LOD2 3, LOD3 1 shared):
+ *   high  2*12 + 4*6 + 8*3      = 72   of 280
+ *   mid   3*6  + 11*3           = 51   of 180
+ *   low   10*3 + 1              = 31   of 110
+ *   floor 6*3  + 1              = 19   of 60      skinned 6 of 6
+ * The floor row is the one that used to be impossible: 14 actors x 1 SkinnedMesh each,
+ * 14 skinned against a cap of 6, whatever the `imposter` column said.
  */
 function lodPlan(rung) {
   const r = RUNGS[rung === undefined ? 15 : rung];
   if (!r) return { lod0: 1, lod1: 3, lod2: 10, lod3: 0 };
-  // Draw calls per actor: LOD0 12, LOD1 6, LOD2 1, LOD3 1. The mixes below are chosen
-  // so the total lands inside the piece's per-tier cap (8 / 16 / 42 / 64):
-  //   high 2*12 + 4*6 + 8*1 = 56    mid 3*6 + 11*1 = 29
-  //   low  0*6 + 10*1 + 4*1 = 14    floor 6*1 + 8*1 = 14  <-- OVER the floor cap of 8
-  // Floor only closes once LOD2/LOD3 actors share one instanced batch, which is the
-  // next structural task for this piece. Stated, not hidden.
   if (rung >= 12) return { lod0: 2, lod1: 4, lod2: 8, lod3: 0 };
   if (rung >= 7) return { lod0: 0, lod1: 3, lod2: r.skinned - 3, lod3: r.imposter };
-  if (rung >= 3) return { lod0: 0, lod1: 0, lod2: r.skinned, lod3: r.imposter };
   return { lod0: 0, lod1: 0, lod2: r.skinned, lod3: r.imposter };
 }
 
 let currentRung = 15;
 let actorSerial = 0;
 let lastShot = null;
+let batchOwnerAssigned = false;
+
+/**
+ * DISTANCE RANK — which actor is "nearest" for LOD purposes.
+ *
+ * This used to be raw build order, which meant the LOD ladder handed full detail to
+ * whichever actor the sim happened to emit first and an imposter to whoever was last,
+ * regardless of where they stood. Ranking by distance to the shot's own camera (which is
+ * known at build time, unlike the live camera, and is the same data the assembler places
+ * the cast from) makes "nearest first" true instead of aspirational. Ties break on index
+ * so the result is byte-identical for a given ShotSpec.
+ */
+const rankOf = [];
+const rankScratch = [];
+
+function computeRanks(shot) {
+  rankOf.length = 0;
+  rankScratch.length = 0;
+  const acts = (shot && shot.actors) || [];
+  const cam = (shot && shot.camera && shot.camera.pos) || [0, 2.2, 14];
+  for (let i = 0; i < acts.length; i++) {
+    const a = acts[i];
+    const p = a.pos || [0, 0, 0];
+    const dx = p[0] - cam[0], dy = p[1] - cam[1], dz = p[2] - cam[2];
+    // Heroes and the ball carrier are pinned to the front of the queue: the actor a shot
+    // is ABOUT never drops to an imposter, however far upfield the camera has drifted.
+    const focal = a.hero || a.role === 'carrier' ? -1e6 : 0;
+    rankScratch.push({ i, d: focal + dx * dx + dy * dy + dz * dz });
+  }
+  rankScratch.sort((x, y) => (x.d - y.d) || (x.i - y.i));
+  for (let k = 0; k < rankScratch.length; k++) rankOf[rankScratch[k].i] = k;
+}
+
+/**
+ * Start of a build pass, detected without a foundation hook.
+ *
+ * The old test was `ctx.shot !== lastShot`, and it was WRONG for the case that matters
+ * most: the runtime's `rebuildActorLod()` re-runs the actor loop against the SAME shot
+ * object, so the serial never reset, every index landed past the end of the plan, and
+ * `pickLod` returned 3 for all fourteen actors. Measured: the floor rung drew 14 x 2,256
+ * = 31,584 triangles — the LOD3 count, exactly — instead of its planned 6 x LOD2 +
+ * 8 x LOD3. The rung ladder was rebuilding the cast into a single level and calling it a
+ * mix. Length is the reliable signal: a pass is over when every actor in the shot has
+ * been built.
+ */
+function beginPassIfNeeded(ctx) {
+  const n = (ctx.shot && ctx.shot.actors && ctx.shot.actors.length) || 0;
+  if (ctx.shot === lastShot && actorSerial < Math.max(1, n)) return;
+  lastShot = ctx.shot;
+  actorSerial = 0;
+  batchOwnerAssigned = false;
+  resetBatch();
+  computeRanks(ctx.shot);
+}
 
 /**
  * Per-scene studio config. `makeShot()` normalises a ShotSpec down to its declared
@@ -72,7 +138,9 @@ function pickLod(ctx, index) {
   const spec = ctx.shot && ctx.shot.actors && ctx.shot.actors[index];
   const hero = spec && (spec.hero || spec.role === 'carrier');
   if (hero && plan.lod0 > 0) return 0;
-  let n = index;
+  // Rank, not build order — see computeRanks(). Falls back to the index if the shot has
+  // no actor list to rank (a piece may build an actor outside a ShotSpec).
+  let n = rankOf[index] !== undefined ? rankOf[index] : index;
   if (n < plan.lod0) return 0;
   n -= plan.lod0;
   if (n < plan.lod1) return 1;
@@ -120,6 +188,10 @@ function clayMaterials() {
   return clayCache;
 }
 
+// Scratch for the imposter's two kit colours. Written at build time only.
+const IMP_A = new THREE.Color();
+const IMP_B = new THREE.Color();
+
 let inkCache = null;
 function inkMaterial() {
   if (inkCache) return inkCache;
@@ -134,13 +206,33 @@ const impl = {
   piece: PIECE,
 
   build(ctx, opts = {}) {
-    if (ctx.shot !== lastShot) { lastShot = ctx.shot; actorSerial = 0; }
+    beginPassIfNeeded(ctx);
     const index = actorSerial++;
     const lod = pickLod(ctx, index);
-    const actor = buildActor(THREE, ctx, opts, lod);
+    const spec = ctx.shot && ctx.shot.actors && ctx.shot.actors[index];
+
+    let actor;
+    if (lod === 3) {
+      actor = buildImposterActor(THREE, ctx, opts);
+      const handle = addInstance(THREE, ctx, PIECE, spec, actor.root, {
+        archetype: actor.archetype, heightM: actor.heightM,
+      });
+      if (handle) {
+        actor.imposter = handle;
+        actor.triangles = handle.batch.triangles;
+        actor.vertices = handle.batch.vertices;
+      } else {
+        // Batch full. Fall back to a real LOD2 mesh rather than losing a player: a missing
+        // actor is a correctness bug, an extra draw call is a budget line.
+        actor = buildActor(THREE, ctx, opts, 2);
+      }
+    } else {
+      actor = buildActor(THREE, ctx, opts, lod);
+    }
+
     actor.index = index;
     actor.root.userData.piece = PIECE;
-    actor.mesh.userData.piece = PIECE;
+    if (actor.mesh) actor.mesh.userData.piece = PIECE;
 
     const cfg = ctx.shot && ISO[ctx.shot.id];
     if (cfg) {
@@ -151,15 +243,39 @@ const impl = {
           camAz: cfg.camAz !== undefined ? cfg.camAz : 0.5,
           exposure: cfg.studioExposure !== undefined ? cfg.studioExposure : 1.0,
           keyBoost: cfg.keyBoost || 1,
+          scale: cfg.studioScale,
+          fog: cfg.studioFog,
         });
         actor.update = function update() { enforceStudio(ctx, studio); };
       }
+    }
+    // ONE actor per pass owns the batch's one-shot re-sync. See imposter.js `sync()`:
+    // after the first frame it is a boolean test, and it exists so a root moved by
+    // something other than the assembler cannot leave an imposter behind.
+    if (actor.imposter && !batchOwnerAssigned) {
+      batchOwnerAssigned = true;
+      const prev = actor.update;
+      const b = actor.imposter.batch;
+      actor.update = function update(t, c) { b.sync(); if (prev) prev(t, c); };
     }
     return actor;
   },
 
   setMaterials(actor, matSet) {
-    if (!actor || !actor.mesh) return;
+    if (!actor) return;
+
+    // IMPOSTER. One shared material for the whole batch; identity rides on two per-instance
+    // colours, and the value structure within each is baked into the proxy's vertices.
+    if (actor.imposter) {
+      if (actor.isoLook === 'ink') { setBatchMaterial(inkMaterial()); return; }
+      const source = actor.isoLook === 'clay' ? clayMaterials() : matSet;
+      kitColor(THREE, source, 'jersey', 'jersey', CLAY.jersey.c, IMP_A);
+      kitColor(THREE, source, 'pants', 'pants', CLAY.pants.c, IMP_B);
+      setInstanceKit(actor.imposter, IMP_A, IMP_B);
+      return;
+    }
+
+    if (!actor.mesh) return;
     let source = matSet;
     if (actor.isoLook === 'ink') {
       const ink = inkMaterial();
@@ -185,7 +301,42 @@ const impl = {
 
   /** Diagnostics for scripts/budget.mjs and the critic. */
   lodPlan,
+
+  /**
+   * The LOD ladder as BUILT, not as documented — triangles and draw calls counted from
+   * real geometry. `window.__BLITZ_WORLD__`-free so a critic can call it from any page:
+   *   window.__BLITZ_ANATOMY__.lodCosts()
+   */
+  lodCosts(archetype, seed) { return lodReport(THREE, archetype, seed); },
+
+  /** What the shared imposter batch is currently carrying. */
+  imposterStats() {
+    const b = currentBatch();
+    if (!b) return { active: false, instances: 0, drawCalls: 0, triangles: 0 };
+    return {
+      active: true,
+      instances: b.mesh.count,
+      drawCalls: 1,
+      trianglesEach: b.triangles,
+      triangles: b.triangles * b.mesh.count,
+      verticesEach: b.vertices,
+      skinnedMeshes: 0,
+    };
+  },
+
+  /** The plan the current rung is actually running, with its counted cost. */
+  planStats(rung) {
+    const p = lodPlan(rung === undefined ? currentRung : rung);
+    const r = lodReport(THREE);
+    const calls = p.lod0 * r[0].drawCalls + p.lod1 * r[1].drawCalls
+      + p.lod2 * r[2].drawCalls + (p.lod3 > 0 ? 1 : 0);
+    const tris = p.lod0 * r[0].triangles + p.lod1 * r[1].triangles
+      + p.lod2 * r[2].triangles + p.lod3 * r[3].triangles;
+    return { rung: rung === undefined ? currentRung : rung, plan: p, drawCalls: calls, triangles: tris, skinned: p.lod0 + p.lod1 + p.lod2 };
+  },
 };
+
+if (typeof window !== 'undefined') window.__BLITZ_ANATOMY__ = impl;
 
 registerWorld('anatomy', impl);
 
@@ -288,6 +439,45 @@ registerIsoShot('iso_player_lod', {
   callout: { visible: false },
   ui: { screen: null },
   note: 'LOD0 / LOD1 / LOD2 / LOD3 left to right, in pure silhouette. All four must read as the SAME player — a popping silhouette is worse than a low-detail one.',
+});
+
+/**
+ * THE IMPOSTER TEST, taken at the distance imposters are actually used at.
+ *
+ * A triangle count proves nothing about whether an imposter POPS. The floor rung hands
+ * LOD3 to the eight actors farthest from the camera, which in `live_play` — camera at
+ * [3.0, 3.2, 13.0], cast spread from z -14.5 to +12.5 — puts them 18 to 32 m out. So this
+ * shot stands three PAIRS at 22 m, each pair the same archetype, same seed, same kit, one
+ * built as LOD2 and one as an instanced imposter, in real uniform-kit materials rather
+ * than clay. If the imposter reads as a different player, a flat cutout, or the wrong
+ * value, it shows here at 1920x1080 — a far harsher test than the 109x236 buffer the
+ * floor rung actually renders into.
+ *
+ * Left pair skill, centre pair lineman, right pair lb. LOD2 is always the left of a pair.
+ */
+ISO.iso_player_imposter = {
+  look: 'kit', camAz: 0.0, studioExposure: 1.06, keyBoost: 1.0,
+  studioScale: 5.5, studioFog: 0.0075,
+  lodByActor: [2, 3, 2, 3, 2, 3],
+};
+registerIsoShot('iso_player_imposter', {
+  piece: PIECE,
+  panel: 'truck',
+  camera: { pos: [0.0, 3.05, 22.0], target: [0.0, 1.10, 0], fov: 40, roll: 0 },
+  lens: { fStop: 8, focusDist: 22.0, bokehScale: 0, shutter: 0 },
+  exposure: 1.0,
+  actors: [
+    { id: 'skill_lod2', team: 'CHI', variant: 'home', number: '24', name: 'RAZE', archetype: 'skill', pose: 'idle', pos: [-3.30, 0, 0], rotY: 0.34, seed: 4211, dirt: 0.2, wet: 0.1 },
+    { id: 'skill_imp', team: 'CHI', variant: 'home', number: '24', name: 'RAZE', archetype: 'skill', pose: 'idle', pos: [-2.05, 0, 0], rotY: 0.34, seed: 4211, dirt: 0.2, wet: 0.1 },
+    { id: 'line_lod2', team: 'LA', variant: 'away', number: '77', name: 'DRAKE', archetype: 'lineman', pose: 'idle', pos: [-0.62, 0, 0], rotY: 0.34, seed: 903, dirt: 0.2, wet: 0.1 },
+    { id: 'line_imp', team: 'LA', variant: 'away', number: '77', name: 'DRAKE', archetype: 'lineman', pose: 'idle', pos: [0.68, 0, 0], rotY: 0.34, seed: 903, dirt: 0.2, wet: 0.1 },
+    { id: 'lb_lod2', team: 'SEA', variant: 'home', number: '56', name: 'CROW', archetype: 'lb', pose: 'idle', pos: [2.05, 0, 0], rotY: 0.34, seed: 77, dirt: 0.2, wet: 0.1 },
+    { id: 'lb_imp', team: 'SEA', variant: 'home', number: '56', name: 'CROW', archetype: 'lb', pose: 'idle', pos: [3.30, 0, 0], rotY: 0.34, seed: 77, dirt: 0.2, wet: 0.1 },
+  ],
+  hud: { visible: false },
+  callout: { visible: false },
+  ui: { screen: null },
+  note: 'Three PAIRS at 22 m — the distance the floor rung actually uses LOD3 at. In each pair the LEFT figure is a skinned LOD2 mesh and the RIGHT is one instance of the shared imposter batch. Judge: does the right figure pop? Same height, same shoulder shelf, same helmet profile, same value banding (dark jersey, light pants, dark boot), same team colour?',
 });
 
 export default impl;

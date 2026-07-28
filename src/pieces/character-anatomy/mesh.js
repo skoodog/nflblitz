@@ -72,6 +72,13 @@ export function newPart(slot, opts) {
     pos: [], uv: [], si: [], sw: [], idx: [],
     flat: !!(opts && opts.flat),
     nrm: null,
+    // [value, mask], used ONLY by the LOD3 imposter proxy, which collapses every slot
+    // into one draw call. `mask` picks which of the instance's TWO kit colours this part
+    // wears (0 = jersey family, 1 = pants family) and `value` is the shade within it. That
+    // pair is what lets a single instanced draw call reproduce the thing that actually
+    // makes a distant football player legible — a dark jersey over light pants over a dark
+    // boot — instead of a one-colour lozenge. See imposter.js.
+    tint: null,
   };
 }
 
@@ -378,12 +385,15 @@ function capTube(part, c, row, inv, weights) {
 
 /* ------------------------------------------------------------------- merge */
 
+const FLAT_TINT = [1, 0];
+
 /**
  * Merge parts into one indexed BufferGeometry, one group per material slot in
  * `slotOrder`. Group count == draw calls for the actor, which is the number the
  * structural budget counts.
  */
-export function mergeParts(THREE, parts, slotOrder) {
+export function mergeParts(THREE, parts, slotOrder, opts) {
+  const o = opts || {};
   const bySlot = new Map();
   for (const p of parts) {
     if (!p || !p.idx.length) continue;
@@ -399,6 +409,7 @@ export function mergeParts(THREE, parts, slotOrder) {
   const uv = new Float32Array(vCount * 2);
   const si = new Uint16Array(vCount * 4);
   const sw = new Float32Array(vCount * 4);
+  const col = o.tint ? new Float32Array(vCount * 2) : null;
   const idx = vCount > 65535 ? new Uint32Array(iCount) : new Uint16Array(iCount);
 
   let vo = 0, io = 0;
@@ -412,6 +423,10 @@ export function mergeParts(THREE, parts, slotOrder) {
       uv.set(p.uv, vo * 2);
       si.set(p.si, vo * 4);
       sw.set(p.sw, vo * 4);
+      if (col) {
+        const t = p.tint || FLAT_TINT;
+        for (let i = 0; i < nv; i++) { col[(vo + i) * 2] = t[0]; col[(vo + i) * 2 + 1] = t[1]; }
+      }
       for (let i = 0; i < p.idx.length; i++) idx[io + i] = p.idx[i] + vo;
       io += p.idx.length;
       vo += nv;
@@ -425,6 +440,7 @@ export function mergeParts(THREE, parts, slotOrder) {
   geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
   geo.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4));
   geo.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
+  if (col) geo.setAttribute('aTint', new THREE.BufferAttribute(col, 2));
   geo.setIndex(new THREE.BufferAttribute(idx, 1));
   const outOrder = [];
   for (let i = 0; i < groups.length; i++) {

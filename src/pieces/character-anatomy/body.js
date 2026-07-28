@@ -61,6 +61,10 @@ export function buildTorso(S, parts) {
   }
   loft(jersey, rings, seg, { capEnd: false, uFn: (x) => (x + 0.25) % 1 });
 
+  // The imposter proxy stops here: at its viewing distance the untucked hem is under one
+  // pixel, and its three extra rings are 32 triangles it cannot afford.
+  if (S.proxy) { computeNormals(jersey); parts.push(jersey); return jersey; }
+
   // untucked hem: a short flared skirt below the last ring so the jersey ends in cloth,
   // not in a hard ring
   const hemRings = [];
@@ -239,21 +243,29 @@ export function buildArm(S, parts, side) {
   const N = S.rows.arm;
   const rings = [];
   const tMax = 1.97;
+  const sleeveEnd = 0.46 + 0.06 * (S.gir - 1);
   for (let i = 0; i < N; i++) {
     const t = (i / (N - 1)) * tMax;
     const c = chainPoint(ch, t);
     const d = chainDir(ch, t);
     const f = frame(d, UP);
-    const r = curve(ARM_R, t) * S.gs * S.gir * S.armGirth;
+    let r = curve(ARM_R, t) * S.gs * S.gir * S.armGirth;
+    // PROXY: the sleeve is not built as its own tube, so the arm carries the sleeve's
+    // BULK instead. Dropping the sleeve without this makes the imposter's upper arm
+    // visibly thinner than LOD2's at the same distance, which is exactly the silhouette
+    // pop an imposter is not allowed to have.
+    if (S.proxy) r *= mix(1.17, 1.0, smooth01(t / (sleeveEnd * 1.15)));
     rings.push({
       c, u: f.u, v: f.v, rx: r, ry: r,
       w: chainWeights(ch, t, 0.30), vc: t / tMax,
       prof: armProf(S, t, side),
     });
   }
-  loft(skin, rings, S.seg.arm, { capStart: true });
+  loft(skin, rings, S.seg.arm, { capStart: true, capEnd: !!S.proxy });
   computeNormals(skin);
   parts.push(skin);
+  // PROXY: one tube per arm, closed at the wrist because the glove is not built either.
+  if (S.proxy) return;
 
   // JERSEY SLEEVE. Without it the arm reads as a bare limb bolted to a torso; with it
   // the eye gets the fabric-to-skin break at mid-bicep that every bar panel has.
@@ -361,7 +373,7 @@ export function buildPelvis(S, parts) {
   const { gs, BI } = S;
   const pants = newPart('pants');
   const rings = [];
-  const N = Math.max(6, S.rows.pad - 3);
+  const N = Math.max(S.proxy ? 3 : 6, S.rows.pad - 3);
   const yTopP = S.yHem + 0.055 * gs;
   const yBot = S.yHip - 0.100 * gs;
   for (let i = 0; i < N; i++) {
@@ -467,7 +479,11 @@ export function buildNeck(S, parts) {
   const rings = [];
   const yA = S.yNeck - 0.120 * gs;
   const yB = S.yNeck + 0.085 * gs;
-  const N = 7;
+  // The neck was the one part with a HARD-CODED ring/segment count (7 x 14), so it cost
+  // the same 168 triangles at LOD3 as at LOD0 — 7.4% of the whole LOD3 actor for a part
+  // that is mostly behind the jaw flap. It now rides the LOD like everything else.
+  const N = S.proxy ? 3 : S.lod >= 1 ? 7 : 5;
+  const seg = S.proxy ? 6 : S.lod >= 1 ? 14 : 10;
   for (let i = 0; i < N; i++) {
     const a = i / (N - 1);
     const y = mix(yA, yB, a);
@@ -480,7 +496,7 @@ export function buildNeck(S, parts) {
       prof: (rad) => 1 + 0.10 * lobe(rad, BACK, 1.6) * (1 - a) - 0.03 * lobe(rad, FRONT, 3.0),
     });
   }
-  loft(skin, rings, 14, {});
+  loft(skin, rings, seg, {});
   computeNormals(skin);
   parts.push(skin);
 
@@ -508,6 +524,9 @@ export function buildNeck(S, parts) {
  * the eye port so the mask reads as bars over a face rather than bars over a hole.
  */
 export function buildHead(S, parts) {
+  // PROXY: the imposter's helmet is a closed shell with no face port, so the head is
+  // geometry nobody can see. 80 triangles saved by not building the invisible.
+  if (S.proxy) return;
   const { gs, BI } = S;
   const skin = newPart('skin');
   const c0 = [0, S.yHeadC - 0.004 * gs, 0.016 * gs];

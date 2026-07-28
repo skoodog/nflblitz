@@ -7,7 +7,7 @@
 // extruded rim so the cut edge round the face port catches a highlight.
 
 import {
-  V, clamp01, mix, smooth01, newPart, addVert, addQuad, computeNormals,
+  V, clamp01, mix, smooth01, newPart, addVert, addTri, addQuad, computeNormals,
   shellFromMask, tube, loft,
 } from './mesh.js';
 
@@ -63,6 +63,8 @@ export function buildHelmet(S, parts) {
   const A = 0.134 * gs * hs, B = 0.153 * gs * hs, C = 0.156 * gs * hs;
   const cx = 0, cy = S.yHeadC + 0.010 * gs, cz = 0.004 * gs;
   const W = [[BI.head, 1]];
+
+  if (S.proxy) { buildProxyHelmet(S, parts, { A, B, C, cx, cy, cz, W }); return; }
 
   const shell = newPart('helmetShell');
   const rim = newPart('helmetShell', { flat: true });
@@ -120,6 +122,86 @@ export function buildHelmet(S, parts) {
   buildChinStrap(S, parts, { A, B, C, cx, cy, cz, W });
   if (S.visor) buildVisor(S, parts, { A, B, C, cx, cy, cz, W });
   buildHelmetBumper(S, parts, { A, B, C, cx, cy, cz, W });
+}
+
+/* ---------------------------------------------------- proxy (LOD3) helmet */
+
+/**
+ * THE IMPOSTER HELMET. The real helmet is a masked grid + an extruded rim + seven swept
+ * tubes + a chin strap + a chin cup, and it cost 718 of the old LOD3 actor's 2,256
+ * triangles — 32% of the whole figure. None of that survives at imposter distance except
+ * two things, and both of them are SILHOUETTE:
+ *
+ *   1. the dome, which is wider at the jaw than at the crown and hangs low at the back;
+ *   2. the forward jut of the facemask, which is what stops a helmeted head reading as a
+ *      bald head. Without it the imposter's profile is a ball on a neck and it POPS
+ *      against LOD2 the moment an actor crosses the boundary.
+ *
+ * So: one closed shell sampled from the SAME `shellPoint()` the real helmet uses (so the
+ * profiles agree by construction, not by eye), plus one small swept wedge for the cage.
+ * ~104 triangles, no face port, no rim, no tubes.
+ */
+function buildProxyHelmet(S, parts, H) {
+  const shell = newPart('helmetShell');
+  // Azimuth count is the whole game here: at 8 the dome reads as a visible OCTAGON
+  // against LOD2's 20-segment shell, which is a pop even in pure silhouette. 12 is the
+  // point where the facets stop being readable at imposter distance.
+  const NU = S.helmU || 12;   // azimuths
+  const EL_TOP = 1.20;        // just below the crown pole
+  const EL_BOT = -1.02;       // bottom of the jaw flap
+  const NV = S.helmV || 5;    // rings between the poles
+
+  // crown pole
+  const crownP = shellPoint(0, 1, 0, H.A, H.B, H.C);
+  const crown = addVert(shell, [H.cx + crownP[0], H.cy + crownP[1], H.cz + crownP[2]], 0.5, 1, H.W);
+
+  const rows = [];
+  let bx = 0, by = 0, bz = 0;
+  for (let iv = 0; iv < NV; iv++) {
+    const el = mix(EL_TOP, EL_BOT, iv / (NV - 1));
+    const sy = Math.sin(el), sh = Math.cos(el);
+    const row = new Array(NU);
+    for (let iu = 0; iu < NU; iu++) {
+      const th = (iu / NU) * Math.PI * 2 - Math.PI;
+      const p = shellPoint(sh * Math.sin(th), sy, sh * Math.cos(th), H.A, H.B, H.C);
+      const x = H.cx + p[0], y = H.cy + p[1], z = H.cz + p[2];
+      row[iu] = addVert(shell, [x, y, z], iu / NU, 1 - iv / (NV - 1), H.W);
+      if (iv === NV - 1) { bx += x; by += y; bz += z; }
+    }
+    rows.push(row);
+  }
+
+  for (let iu = 0; iu < NU; iu++) addTri(shell, crown, rows[0][iu], rows[0][(iu + 1) % NU]);
+  for (let iv = 0; iv < NV - 1; iv++) {
+    for (let iu = 0; iu < NU; iu++) {
+      const iu2 = (iu + 1) % NU;
+      addQuad(shell, rows[iv][iu], rows[iv + 1][iu], rows[iv + 1][iu2], rows[iv][iu2]);
+    }
+  }
+  // close the underside so the shell is a solid, not a bowl seen from below
+  const base = addVert(shell, [bx / NU, by / NU, bz / NU], 0.5, 0, H.W);
+  for (let iu = 0; iu < NU; iu++) addTri(shell, base, rows[NV - 1][(iu + 1) % NU], rows[NV - 1][iu]);
+
+  computeNormals(shell);
+  parts.push(shell);
+
+  // the cage, as one 4-sided swept wedge from brow to jaw
+  const cage = newPart('facemask');
+  const rings = [];
+  const M = 4;
+  for (let i = 0; i < M; i++) {
+    const f = i / (M - 1);
+    const row = maskRowAt(f);
+    rings.push({
+      c: [H.cx, H.cy + row.y * H.B, H.cz + row.z * H.C * 0.86],
+      u: [1, 0, 0], v: [0, 0, 1],
+      rx: row.w * H.A * 0.92, ry: 0.115 * H.C,
+      w: H.W, vc: f,
+    });
+  }
+  loft(cage, rings, 5, { capStart: true, capEnd: true });
+  computeNormals(cage);
+  parts.push(cage);
 }
 
 /* -------------------------------------------------------------- facemask */

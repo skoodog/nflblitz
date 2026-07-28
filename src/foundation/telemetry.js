@@ -25,7 +25,18 @@ export const SPANS = ['input', 'sim', 'anim', 'fx', 'camera', 'renderJS', 'overl
 export const S_INPUT = 0, S_SIM = 1, S_ANIM = 2, S_FX = 3, S_CAMERA = 4,
   S_RENDERJS = 5, S_OVERLAY = 6, S_AUDIO = 7, S_SCALER = 8;
 
-/** p95 ms budget per subsystem AT 60 Hz, measured at the tier's own emulated CPU rate. */
+/**
+ * p95 ms budget per subsystem AT 60 Hz, measured at the tier's own emulated CPU rate.
+ *
+ * TWO OF THESE SIT BELOW THE INSTRUMENT'S RESOLUTION, and that is recorded rather than
+ * fixed by widening them. `performance.now()` is coarsened to 100 us in this Chromium
+ * build, so `input` (0.20) is two clock quanta and `scaler` (0.10) is one. Measured with
+ * the input replay switched off entirely — ZERO events for a 30 s run at the floor tier —
+ * the `input` span still read p95 0.10 ms and worst 1.40 ms. A span that does nothing
+ * records a 1.4 ms frame, because the OS can preempt a span whose body is microseconds
+ * long. Read those two rows as "at or below what can be resolved here"; the rows that
+ * carry real signal on this box are TOTAL and CALLBACK. See README section 11.9.
+ */
 export const BUDGET_MS_60 = Object.freeze({
   input: 0.20, sim: 2.60, anim: 3.20, fx: 1.20, camera: 0.60,
   renderJS: 2.40, overlay: 1.80, audio: 0.30, scaler: 0.10,
@@ -56,10 +67,64 @@ export function budgetTable(rate) {
 /** Pacing targets for a rate. Re-exported from clock.js so readers need one import. */
 export { pacingTargets };
 
-const NCH = SPANS.length + 3;          // + interval + total + rate
+/* ------------------------------------------------- THE WHOLE-FRAME ACCOUNTING
+ *
+ * Round 2 measured nine named spans and nothing else, so a 50 ms frame with 1 ms of
+ * span time was a mystery: "the time is going somewhere the telemetry does not
+ * instrument". These channels close that hole. Between two PRESENTED frames, every
+ * millisecond of wall clock now lands in exactly one bucket:
+ *
+ *   wallInterval[i] = cb[i-1] + gap[i]
+ *   cb              = pre + (sum of the nine spans) + post      (our rAF callback)
+ *   gap             = skip + postTask + idle                    (everything else)
+ *
+ *   pre       rAF callback entry -> the first span's begin()      (pacer, bookkeeping)
+ *   post      the last span's end() -> the end of the callback    (frameEnd, hooks)
+ *   skip      time burned inside rAF callbacks the PACER declined to present. At 30 Hz
+ *             on a 60 Hz panel half of all callbacks are skipped; they are cheap, but
+ *             "cheap" is a claim that has to be measured, not assumed.
+ *   postTask  callback return -> the browser is willing to run a fresh macrotask again.
+ *             This is style/layout/paint/layer-upload/commit and any GC that V8 chose to
+ *             run right after our frame. It is the single biggest thing round 2 could
+ *             not see. Measured with a MessageChannel port (`enableTailProbe`), which is
+ *             the earliest macrotask the HTML spec lets you schedule.
+ *   idle      gap - skip - postTask. The main thread was not running ANY of our code and
+ *             was not busy in the browser's post-frame work either: it was waiting for
+ *             the next vsync, or the OS had descheduled the renderer process. On a
+ *             4-core box shared with other agents that second case is real and it is
+ *             NOT attributable to this loop. `vsyncs` disambiguates: if the browser
+ *             delivered rAF on schedule the whole time, `vsyncs` counts them.
+ *
+ *   vsyncs    how many rAF callbacks were consumed to produce this presented frame.
+ *             1 = the pacer presented the very next vsync. n > divisor = either the
+ *             pacer's time gate rejected a vsync or the browser never fired one, and
+ *             `skew` says which.
+ *   skew      rAF entry wall time minus the rAF TIMESTAMP argument. The timestamp is the
+ *             vsync the browser attributes the callback to; the wall time is when our JS
+ *             actually started. A large skew means the callback was queued behind
+ *             something else on the main thread.
+ */
 const CH_INTERVAL = SPANS.length;
 const CH_TOTAL = SPANS.length + 1;
 const CH_RATE = SPANS.length + 2;
+const CH_WALL = SPANS.length + 3;
+const CH_CB = SPANS.length + 4;
+const CH_GAP = SPANS.length + 5;
+const CH_SKIP = SPANS.length + 6;
+const CH_POSTTASK = SPANS.length + 7;
+const CH_IDLE = SPANS.length + 8;
+const CH_PRE = SPANS.length + 9;
+const CH_POST = SPANS.length + 10;
+const CH_SKEW = SPANS.length + 11;
+const CH_VSYNC = SPANS.length + 12;
+const NCH = SPANS.length + 13;
+
+/** Non-span channels a reader may ask for by name. */
+export const TAIL_CHANNELS = Object.freeze({
+  interval: CH_INTERVAL, total: CH_TOTAL, rate: CH_RATE, wall: CH_WALL,
+  cb: CH_CB, gap: CH_GAP, skip: CH_SKIP, postTask: CH_POSTTASK, idle: CH_IDLE,
+  pre: CH_PRE, post: CH_POST, skew: CH_SKEW, vsyncs: CH_VSYNC,
+});
 
 /* ----------------------------------------------------------------- telemetry */
 
@@ -84,6 +149,26 @@ export function createTelemetry(opts) {
   const spanAcc = new Float64Array(SPANS.length);
   let lastFrameStamp = -1;
   let inFrame = false;
+
+  // --- whole-frame accounting scratch ---------------------------------------
+  const frameEntry = new Float64Array(capacity);     // wall time at rAF entry
+  let entryNow = -1;              // wall time this callback started
+  let firstSpanAt = -1;           // wall time the first span of this frame began
+  let lastSpanAt = -1;            // wall time the last span of this frame ended
+  let lastPresentCbEnd = -1;      // wall time the last PRESENTED callback returned
+  let skipAcc = 0;                // ms burned in skipped callbacks since last present
+  let postTaskAcc = 0;            // ms of post-callback browser work since last present
+  let vsyncAcc = 0;               // rAF callbacks consumed since the last present
+  let presenting = false;         // is the callback currently running a presented frame?
+
+  // MessageChannel tail probe. OFF by default: it posts one message per frame, and a
+  // measurement instrument that changes the thing it measures is worse than no
+  // instrument. `perf.mjs --tailprobe` turns it on and prints both runs.
+  let probeOn = false;
+  let probeChan = null;
+  let probeSlot = -1;
+  let probePostedAt = -1;
+  let probeLate = 0;      // port messages that arrived after their gap had closed
 
   // --- percentile scratch ---------------------------------------------------
   const scratch = new Float64Array(capacity);
@@ -128,18 +213,82 @@ export function createTelemetry(opts) {
     setRate(r) { activeRate = r === 30 ? 30 : 60; },
 
     /* ---------------------------------------------------------- frame timing */
+
+    /**
+     * THE VERY FIRST LINE OF THE rAF CALLBACK, before the pacer is consulted.
+     * Every callback calls this, presented or not — a skipped callback is still main
+     * thread time between two presents and must be billed somewhere.
+     */
+    rafEnter(stampMs) {
+      entryNow = now();
+      vsyncAcc++;
+      firstSpanAt = -1;
+      lastSpanAt = -1;
+      presenting = false;
+      return entryNow;
+    },
+
+    /**
+     * THE VERY LAST LINE OF THE rAF CALLBACK, on BOTH paths. Closes the callback's own
+     * duration and starts the clock on the gap that follows it.
+     */
+    rafExit() {
+      const t = now();
+      if (presenting) {
+        const slot = (head + capacity - 1 + capacity) % capacity;
+        // `post` and `cb` are only final here: frameEnd runs before the loop's own
+        // onFrameEnd hook, and that hook is main-thread time inside our callback too.
+        if (lastSpanAt >= 0) ring[slot * NCH + CH_POST] = t - lastSpanAt;
+        ring[slot * NCH + CH_CB] = t - entryNow;
+        lastPresentCbEnd = t;
+        skipAcc = 0;
+        postTaskAcc = 0;
+        if (probeOn && probeChan) {
+          probeSlot = 1;
+          probePostedAt = t;
+          probeChan.port2.postMessage(0);
+        }
+        presenting = false;
+      } else if (entryNow >= 0) {
+        skipAcc += t - entryNow;
+      }
+      return t;
+    },
+
     frameStart(stampMs) {
       lastFrameStamp = frameStamp[(head + capacity - 1) % capacity];
       frameStamp[head] = stampMs;
+      frameEntry[head] = entryNow;
       inFrame = true;
+      presenting = true;
       pendingRespN = 0;
       for (let i = 0; i < SPANS.length; i++) spanAcc[i] = 0;
+      const base = head * NCH;
+      ring[base + CH_SKEW] = entryNow >= 0 ? entryNow - stampMs : 0;
+      ring[base + CH_VSYNC] = vsyncAcc;
+      ring[base + CH_SKIP] = skipAcc;
+      ring[base + CH_POSTTASK] = postTaskAcc;
+      const gap = (lastPresentCbEnd >= 0 && entryNow >= 0) ? entryNow - lastPresentCbEnd : 0;
+      ring[base + CH_GAP] = gap;
+      // idle is the RESIDUAL and is allowed to be reported as-is, including tiny
+      // negatives from clock coarsening. It is never clamped: a bucket that cannot go
+      // negative is a bucket that can hide a bookkeeping error.
+      ring[base + CH_IDLE] = gap - skipAcc - postTaskAcc;
+      vsyncAcc = 0;
+      probeSlot = -1;          // this gap is now closed; a late port message is noise
       return head;
     },
 
     /** begin(S_SIM) / end(S_SIM). Nesting is not allowed; spans are siblings. */
-    begin(ch) { spanStart[ch] = now(); },
-    end(ch) { spanAcc[ch] += now() - spanStart[ch]; },
+    begin(ch) {
+      const t = now();
+      spanStart[ch] = t;
+      if (firstSpanAt < 0) {
+        firstSpanAt = t;
+        if (entryNow >= 0) ring[head * NCH + CH_PRE] = t - entryNow;
+      }
+    },
+    end(ch) { const t = now(); spanAcc[ch] += t - spanStart[ch]; lastSpanAt = t; },
     /** Add an externally measured cost to a channel (e.g. from a worker). */
     add(ch, ms) { spanAcc[ch] += ms; },
     /** Total CPU accumulated so far in the frame being built. Allocation-free. */
@@ -155,10 +304,15 @@ export function createTelemetry(opts) {
       const interval = (count === 0 || lastFrameStamp <= 0) ? 0 : frameStamp[head] - lastFrameStamp;
       ring[base + CH_INTERVAL] = interval;
       ring[base + CH_RATE] = activeRate;
+      // Wall interval — rAF ENTRY to rAF ENTRY, not vsync stamp to vsync stamp. The two
+      // differ by the skew, and only the wall one is the sum of the accounting buckets.
+      const prevEntry = frameEntry[(head + capacity - 1) % capacity];
+      ring[base + CH_WALL] = (count === 0 || prevEntry <= 0 || entryNow < 0) ? 0 : entryNow - prevEntry;
       frameTick[head] = tick | 0;
 
-      // Stamp input->render-dispatch latency for anything that responded this frame.
-      // This is the number a player feels, minus the compositor leg (ASSUMPTION C).
+      // Backstop for anything `stampRenderDispatch` did not already close — e.g. a
+      // response marked after the render span (an overlay-only reaction). The primary
+      // stamp happens at render dispatch; see stampRenderDispatch below.
       const t = nowMs === undefined ? now() : nowMs;
       for (let i = 0; i < pendingRespN; i++) {
         const e = pendingResp[i];
@@ -172,6 +326,25 @@ export function createTelemetry(opts) {
       return total;
     },
 
+    /**
+     * CLOSE THE LATENCY MEASUREMENT AT RENDER DISPATCH — which is what the metric is
+     * called, and what it now measures.
+     *
+     * It used to be stamped at `frameEnd`, i.e. AFTER the overlay, audio and scaler
+     * spans had run. Those come after the frame's draw call has been issued and cannot
+     * affect when the player sees the response, so billing them to input latency
+     * overstated it by the whole tail of the frame — up to 3.3 ms at the floor tier's
+     * 6x CPU emulation. Called by the loop immediately after the renderJS span ends.
+     */
+    stampRenderDispatch() {
+      if (!inFrame || pendingRespN === 0) return;
+      const t = now();
+      for (let i = 0; i < pendingRespN; i++) {
+        const e = pendingResp[i];
+        if (e && e.renderMs === 0) { e.renderMs = t - e.eventMs; e.respondFrame = count; e.rate = activeRate; }
+      }
+    },
+
     get currentFrameIndex() { return count; },
     markWarmupEnd() { warmupEnd = count; },
 
@@ -182,7 +355,7 @@ export function createTelemetry(opts) {
      * Only ever called by a READER (the harness or the debug overlay).
      */
     stats(channel, out) {
-      const ch = channel === 'interval' ? CH_INTERVAL : channel === 'total' ? CH_TOTAL : channel;
+      const ch = typeof channel === 'string' ? TAIL_CHANNELS[channel] : channel;
       const first = Math.max(warmupEnd, count - capacity);
       let n = 0;
       for (let f = first; f < count; f++) {
@@ -212,7 +385,7 @@ export function createTelemetry(opts) {
      * percentiles describe neither mode.
      */
     statsAtRate(channel, rate, out) {
-      const ch = channel === 'interval' ? CH_INTERVAL : channel === 'total' ? CH_TOTAL : channel;
+      const ch = typeof channel === 'string' ? TAIL_CHANNELS[channel] : channel;
       const first = Math.max(warmupEnd, count - capacity);
       let n = 0;
       for (let f = first; f < count; f++) {
@@ -274,21 +447,132 @@ export function createTelemetry(opts) {
       return best;
     },
 
-    /** True if every `windowSec` window after `afterSec` has zero drops. */
+    /**
+     * True if every `windowSec` window after `afterSec` has zero drops.
+     *
+     * WINDOWS ARE CUT IN WALL TIME, NOT IN FRAMES. This used to convert seconds to a
+     * frame count using `activeRate` — the rate in force when the SNAPSHOT was READ. In
+     * a run where the scaler changed rate, or in `--thermal-ramp` where changing rate is
+     * the whole point, that number describes the end of the run and mis-sizes every
+     * window before it: at 30 Hz it cut 3 s windows 90 frames wide over stretches that
+     * were running 60 Hz, i.e. 1.5 s windows counted as 3 s ones. The frame timestamps
+     * are already recorded, so the window boundaries are now read off them directly and
+     * the answer is right at any rate and across any rate change.
+     */
     cleanWindows(afterSec, windowSec, dropMs) {
       const first = Math.max(warmupEnd, count - capacity);
-      const fps = activeRate;
-      const wf = Math.round(windowSec * fps);
-      const skip = Math.round(afterSec * fps);
-      let bad = 0, windows = 0, cur = 0, run = 0;
-      for (let f = first + skip; f < count; f++) {
-        const v = ring[(f % capacity) * NCH + CH_INTERVAL];
-        if (v <= 0) continue;
-        if (v > dropMs) cur++;
-        run++;
-        if (run >= wf) { windows++; if (cur > 0) bad++; cur = 0; run = 0; }
+      if (count - first < 2) return { windows: 0, bad: 0 };
+      const t0 = frameStamp[first % capacity] + afterSec * 1000;
+      let bad = 0, windows = 0, cur = 0, inWin = 0;
+      let windowEnd = -1;
+      for (let f = first; f < count; f++) {
+        const slot = f % capacity;
+        const ts = frameStamp[slot];
+        if (ts < t0) continue;
+        if (windowEnd < 0) windowEnd = ts + windowSec * 1000;
+        while (ts > windowEnd) {
+          // A window with NO FRAMES IN IT is not a clean window, it is a window in which
+          // the game did not present at all — the worst outcome there is. It is counted
+          // as bad rather than skipped, because skipping it would let a total stall
+          // improve the score.
+          windows++; if (cur > 0 || inWin === 0) bad++;
+          cur = 0; inWin = 0;
+          windowEnd += windowSec * 1000;
+        }
+        inWin++;
+        const v = ring[slot * NCH + CH_INTERVAL];
+        if (v > 0 && v > dropMs) cur++;
       }
+      // A trailing partial window is NOT counted: a 0.4 s tail that happens to be clean
+      // is not evidence of a clean 3 s window, and counting it would flatter the run.
       return { windows, bad };
+    },
+
+    /**
+     * THE TAIL, ACCOUNTED FOR. The `n` worst frames by interval, each decomposed into
+     * every bucket the frame accounting knows about, plus whether a `longtask` entry
+     * overlapped the gap that preceded it. This is the table that answers "what was the
+     * hitch", as opposed to "how big was the hitch".
+     *
+     * `unattributed` is the residual after every named bucket is subtracted. If it is
+     * near zero the frame is fully explained; if it is not, say so in the report rather
+     * than rounding it away.
+     */
+    tailFrames(n, sortBy) {
+      // `sortBy` is 'interval' (default) or 'wall'. BOTH matter and they are not the
+      // same list. Chromium snaps the rAF TIMESTAMP to the BeginFrame grid, so a
+      // callback that was delivered 15 ms late still carries an on-grid timestamp and
+      // the interval channel reads a clean 16.7 ms. The WALL channel does not lie about
+      // that, so the report ranks the tail both ways and says when they disagree.
+      const key = sortBy === 'wall' ? CH_WALL : CH_INTERVAL;
+      const first = Math.max(warmupEnd, count - capacity);
+      const idx = [];
+      for (let f = first; f < count; f++) {
+        if (ring[(f % capacity) * NCH + CH_INTERVAL] > 0) idx.push(f);
+      }
+      idx.sort((a, b) => ring[(b % capacity) * NCH + key] - ring[(a % capacity) * NCH + key]);
+      const lim = Math.min(idx.length, n || 8);
+      const out = [];
+      for (let i = 0; i < lim; i++) {
+        const f = idx[i];
+        const base = (f % capacity) * NCH;
+        const spans = {};
+        let spanSum = 0;
+        for (let s = 0; s < SPANS.length; s++) { spans[SPANS[s]] = ring[base + s]; spanSum += ring[base + s]; }
+        const entry = frameEntry[f % capacity];
+        const gap = ring[base + CH_GAP];
+        // Any longtask that overlapped the window between the previous presented
+        // callback's end and this callback's entry.
+        let ltMs = 0;
+        const gapStart = entry - gap;
+        for (let k = 0; k < ltN; k++) {
+          const a = ltAt[k], b = ltAt[k] + ltDur[k];
+          if (b > gapStart && a < entry) ltMs += Math.min(b, entry) - Math.max(a, gapStart);
+        }
+        const prevCb = ring[(((f - 1 + capacity) % capacity)) * NCH + CH_CB];
+        const wall = ring[base + CH_WALL];
+        out.push({
+          index: f, tick: frameTick[f % capacity],
+          interval: ring[base + CH_INTERVAL], wall,
+          rate: ring[base + CH_RATE], vsyncs: ring[base + CH_VSYNC],
+          skew: ring[base + CH_SKEW],
+          prevCb, pre: ring[base + CH_PRE], post: ring[base + CH_POST],
+          spanTotal: spanSum, gap,
+          skip: ring[base + CH_SKIP], postTask: ring[base + CH_POSTTASK],
+          idle: ring[base + CH_IDLE], longtaskInGap: ltMs,
+          unattributed: wall > 0 ? wall - prevCb - gap : 0,
+          spans,
+        });
+      }
+      return out;
+    },
+
+    /**
+     * HOW MUCH OF THE FRAME THE ACCOUNTING CANNOT PLACE, over the whole window.
+     *
+     * `wall = cb(previous) + gap` and `cb = pre + spans + post` are identities by
+     * construction, so the residual should be zero up to the clock's 100 us coarsening.
+     * Reporting it is the difference between an accounting scheme and a claim: if this
+     * number is not small, the decomposition above it is wrong and the report says so
+     * instead of quietly summing to whatever it summed to.
+     */
+    accountingResidual() {
+      const first = Math.max(warmupEnd, count - capacity);
+      let worstWall = 0, worstCb = 0, n = 0, sum = 0;
+      for (let f = first + 1; f < count; f++) {
+        const base = (f % capacity) * NCH;
+        const wall = ring[base + CH_WALL];
+        if (!(wall > 0)) continue;
+        const prevCb = ring[(((f - 1 + capacity) % capacity)) * NCH + CH_CB];
+        const rw = Math.abs(wall - prevCb - ring[base + CH_GAP]);
+        if (rw > worstWall) worstWall = rw;
+        let spanSum = 0;
+        for (let s = 0; s < SPANS.length; s++) spanSum += ring[base + s];
+        const rc = Math.abs(ring[base + CH_CB] - ring[base + CH_PRE] - spanSum - ring[base + CH_POST]);
+        if (rc > worstCb) worstCb = rc;
+        sum += rw; n++;
+      }
+      return { n, meanWallMs: n ? sum / n : 0, worstWallMs: worstWall, worstCbMs: worstCb };
     },
 
     /** The single worst frame after warmup, with its full span breakdown. */
@@ -312,8 +596,7 @@ export function createTelemetry(opts) {
 
     /** Raw per-frame series for a channel — the harness prints these on failure. */
     series(channel, limit) {
-      const ch = channel === 'interval' ? CH_INTERVAL : channel === 'total' ? CH_TOTAL
-        : channel === 'rate' ? CH_RATE : channel;
+      const ch = typeof channel === 'string' ? TAIL_CHANNELS[channel] : channel;
       const first = Math.max(warmupEnd, count - capacity, count - (limit || capacity));
       const out = [];
       for (let f = first; f < count; f++) out.push(ring[(f % capacity) * NCH + ch]);
@@ -476,9 +759,40 @@ export function createTelemetry(opts) {
      */
     resetHeap() { heapN = 0; },
 
+    /**
+     * Turn on the MessageChannel post-frame probe. OFF by default and deliberately so:
+     * it posts one message per presented frame, which is itself a task the browser has
+     * to schedule. `perf.mjs --tailprobe` enables it and the report prints the run with
+     * and without, so the instrument's own cost is visible instead of assumed.
+     */
+    enableTailProbe(on) {
+      if (!on) { probeOn = false; return false; }
+      if (!probeChan) {
+        if (typeof MessageChannel === 'undefined') return false;
+        probeChan = new MessageChannel();
+        probeChan.port1.onmessage = () => {
+          // The sample only means anything if it lands inside the gap it was posted in.
+          // If rAF beat the port message to the main thread the measurement belongs to a
+          // window that has already been closed and reported: count it, discard it.
+          if (probeSlot < 0) { probeLate++; return; }
+          postTaskAcc += now() - probePostedAt;
+          probeSlot = -1;
+        };
+        probeChan.port1.start();
+      }
+      probeOn = true;
+      return true;
+    },
+    get tailProbe() { return probeOn; },
+    get tailProbeLate() { return probeLate; },
+
     reset() {
       head = 0; count = 0; warmupEnd = 0; ltN = 0; heapN = 0; rlN = 0;
       lastFrameStamp = -1; inFrame = false;
+      entryNow = -1; firstSpanAt = -1; lastSpanAt = -1;
+      lastPresentCbEnd = -1;
+      skipAcc = 0; postTaskAcc = 0; vsyncAcc = 0; presenting = false;
+      probeSlot = -1; probeLate = 0;
       T.resetInputLog();
     },
   };

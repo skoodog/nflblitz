@@ -52,8 +52,8 @@ roughened edges and grain the bar's UI needs.
 
 ```
 src/
-  main.js                      boot; imports src/pieces/index.js
-  foundation/                  FROZEN. Nobody but foundation ever edits these.
+  main.js                      boot + the runtime read API (__BLITZ_PERF__).  perf-core
+  foundation/                  NOBODY BUT FOUNDATION EDITS THESE. See the note below.
     engine.js                  renderer, accumulation capture, readiness flag
     registry.js                the plug board + PIECE_IDS + PIECE_HEROES + SCENE_PANELS
     contracts.js               ShotSpec schema, FIELD coords, MAT_SLOTS
@@ -65,12 +65,28 @@ src/
     overlay.js                 the 1920x1080 Canvas2D layer + draw order
     world.js                   buildFromShot(shot, ctx) — the fixed assembly order
     scenes.js                  scene resolution: isoShots FIRST, then cinema.shots
-    input.js                   keyboard/gamepad (live mode only)
+    input.js                   keyboard/gamepad (DEBUG only; the game is thumbs-only)
     fallbacks/*.js             one deliberately-plain fallback per contract
+    --- THE RUNTIME SPINE (added after t=0; owned by perf-core) ---
+    clock.js                   fixed-timestep sim clock + the present pacer
+    loop.js                    the frame loop and its fixed span order
+    telemetry.js               the measurement instrument + whole-frame accounting
+    quality.js                 device tiers, the 16-rung ladder, the scaler
+    budget.js                  countScene / measureOverdraw — the structural counters
+    touch.js                   the raw timestamped pointer bus
+    synthetic.js               the load generator behind the `perf_synthetic` proof scene
   pieces/
     index.js                   FROZEN. static import of all 16 pieces, alphabetical.
     <piece-id>/index.js        YOURS.
 ```
+
+**"FROZEN" means frozen to PIECE agents, not frozen forever.** The original hand-off
+described a finished 16-file foundation; it has since grown a runtime spine, because the
+performance contract needs a clock, a pacer, a quality ladder and an instrument, and none
+of those existed at t=0. The rule a piece builder cares about is unchanged and absolute:
+**a piece edits `src/pieces/<its-own-id>/` and nothing else.** The files above are edited
+only by the agent that owns them, and every change to one is recorded in
+`progress/events.jsonl` with the measurement that forced it.
 
 ---
 
@@ -552,3 +568,208 @@ requests every 3 s and re-renders only what changed.
    falls back to a relative URL, which still resolves when the page is served.
 10. **`shadowMap.type = PCFShadowMap`** — `PCFSoftShadowMap` is deprecated in r0.185 and
     silently downgrades anyway.
+
+---
+
+## 11. Performance: the four axes, and ASSUMPTIONS A–D
+
+`perf.mjs` and `budget.mjs` both print "see README ASSUMPTION A–D". This is that section.
+It exists because **this container has four cores and no GPU**, and a performance report
+written on a box like this is worthless unless it says, line by line, which numbers were
+measured, which were bounded by construction, and which are projections about hardware
+that is not present. Nothing below is a claim about a phone unless it says so.
+
+### 11.0 The commands
+
+```bash
+node scripts/perf.mjs   --tier=auto --raster=auto      # the SHIPPED config, end to end
+node scripts/perf.mjs   --tier=floor --raster=none     # AXIS 2 only: the loop, GL removed
+node scripts/perf.mjs   --tier=floor --raster=none --tailprobe   # + post-frame attribution
+node scripts/perf.mjs   --scene=perf_synthetic --tier=floor      # pacing AT the tier cap
+node scripts/budget.mjs --tier=all                     # AXIS 3: the structural caps
+node scripts/budget.mjs --tier=mid --canary            # ...and proof the gate bites
+node scripts/touch.mjs  --tier=mid                     # AXIS 4
+node scripts/touchprobe.mjs                            # AXIS 4: raw DOM event forensics
+node scripts/simtest.mjs                               # the clock, headless, no browser
+node scripts/costcurve.mjs                             # what a frame costs, as a function
+```
+
+### 11.1 THE FOUR AXES
+
+| | axis | how it is established | does it transfer to a phone? |
+|---|---|---|---|
+| **1** | **CPU & memory** — per-subsystem ms, GC amplitude, allocation rate | **MEASURED.** Real V8, real GC, real event loop, under real CDP CPU throttling that the harness re-verifies on every run (`measureThrottle`). | **Yes**, as a CPU number. Subject to ASSUMPTION A. |
+| **2** | **PACING** — does the frame land on its period, evenly, forever | **MEASURED**, but only cleanly with `--raster=none`, because on this box software rasterisation dominates the frame at every resolution. | The **loop machinery** transfers. The pacing of the shipped config on this box does **not** — see ASSUMPTION B. |
+| **3** | **GPU / raster** — draw calls, triangles, programs, texture MB, overdraw, render targets | **NOT MEASURED. GOVERNED.** Hard per-tier caps, counted structurally by `budget.mjs` and attributed to a piece by `userData.piece`. | The caps are a **design contract**, not a measurement. See ASSUMPTION B. |
+| **4** | **INPUT & touch** — latency, gesture classification, robustness, thumb reach | **MEASURED** for the input→render-dispatch leg. The render-dispatch→photon leg is **not observable here**; see ASSUMPTION C. | Mostly. Reach is physical geometry and transfers exactly. |
+
+### 11.2 ASSUMPTION A — CPU throttling is a fair proxy for a slower CPU
+
+**What is measured.** `Emulation.setCPUThrottlingRate` slows real V8 executing real
+JavaScript. It is verified on the live page before every measured window against a fixed
+integer workload, and the measured factor is printed on the `TIER` line of every report
+(e.g. `cpu-throttle 6.0x (measured 6.09x)`). Every millisecond in the CPU table is a
+millisecond of actual JS execution.
+
+**What is assumed.** That a 6x-slowed x86 V8 is a reasonable stand-in for a low-end ARM
+core. It is not the same machine: cache hierarchy, memory bandwidth, SIMD width and
+branch prediction all differ, and CDP throttling models none of them — it inserts idle,
+it does not shrink the cache. Treat the CPU table as **the right order of magnitude and
+the right ranking between subsystems**, not as a phone benchmark.
+
+**Not verified here, and cannot be:** the absolute ms a given subsystem costs on any
+named device.
+
+### 11.3 ASSUMPTION B — GPU cost does not transfer, so it is governed instead of measured
+
+**What is measured.** `scripts/costcurve.mjs` fits the frame cost on this box near the
+floor tier:
+
+```
+frame_ms  ~  20.8  +  838 * megapixels
+```
+
+So resolution matters, but roughly 20.8 ms of a floor frame is **resolution-independent**
+per-triangle and per-draw-call work that no render scale can remove. That number is real
+and it is about SwiftShader. (An earlier version of this document claimed frame time was
+flat in resolution. That claim was wrong, was retired by this measurement, and the retired
+version is recorded in `progress/cost-curve.md`.)
+
+Round 3 added the attribution that number was missing. With whole-frame accounting on
+(`--tailprobe`), the shipped config (`--tier=auto --raster=auto`, which detects floor /
+rung 0 / 30 Hz) spends **7.8 ms p50 and 13.5 ms p95 inside our rAF callback, against a
+30 ms wall** — and **27.4 ms p50 / 54.3 ms p95 OUTSIDE it**, of which `idle` is 23.9 p50
+and 51.1 p95. Every one of the six worst frames decomposes the same way: the previous
+callback took 6-19 ms, the pacer consumed exactly its divisor of 2 vsyncs, no longtask
+fired, and 60-90 ms of wall clock passed with the main thread running nothing of ours.
+
+So the software raster cost is **not on the main thread at all**. It gates the next
+BeginFrame. The main thread is comfortably inside its wall while the frame is 83 ms long.
+That is a fact about SwiftShader's pipeline and it is exactly the thing a real GPU does
+differently — and it is why no pacing number from `--raster=auto` on this box is evidence
+about a phone in either direction.
+
+**What is assumed.** That a real mobile GPU, given a scene inside its tier's caps, renders
+it inside the frame period. This is a **design contract, not a measurement**: it is why
+the caps exist, why they are per-tier, why they are counted structurally rather than
+timed, and why `budget.mjs` exits 1 naming the piece, the metric, the count and the cap.
+The `--canary` flag exists so the gate can be **shown failing** — a gate that has never
+been seen to bite is not a gate.
+
+**Not verified here, and cannot be:** any frame time, fill rate, bandwidth or shader cost
+on any real GPU. No number produced on this box is a phone GPU number, and any report
+that renders through SwiftShader prints that in a banner before its first table.
+
+### 11.4 ASSUMPTION C — the compositor-to-photon leg is invisible from inside the page
+
+**What is measured.** `touch.mjs` reports **touch event timestamp → render dispatch**:
+from the DOMHighResTimeStamp the browser put on the pointer event, to the moment the
+frame's draw call has been issued (the end of the `renderJS` span). Both ends are real
+timestamps on the same clock.
+
+**What is assumed.** That a real device adds approximately **one present period** on top:
+the compositor picks the frame up, the panel scans it out. So a p50 of 1.8 frames measured
+here should be read as **~2.8 frames on glass at 60 Hz**, and the `<= 3 frames worst`
+budget in the report is a budget on the measured leg only.
+
+**Not verified here, and cannot be:** anything past `renderJS`. Headless Chromium with no
+display has no scan-out, and its BeginFrame source is synthesised.
+
+### 11.5 ASSUMPTION D — shader program link/validate stalls are not observable here
+
+**What is measured.** `renderer.info.programs.length` at the end of the loading screen and
+again at the end of the measured window. The delta is gated at **zero**: nothing may
+compile during play. `prewarmPrograms()` walks all 16 rungs and both shadow states,
+compiling every program the ladder can ever ask for, and then issues one real draw so the
+driver actually uses them rather than merely linking them.
+
+**What is assumed.** That the reason to do this is real. On a mobile driver a program link
+costs **5–50 ms** and will stall a frame; SwiftShader links fast enough that this box would
+never show the problem. So the mitigation is verified (the count does not grow) while the
+hazard it mitigates is not reproducible here.
+
+**Not verified here, and cannot be:** the actual cost of a program link on any real driver.
+
+### 11.6 THE LEDGER — what round 3 can and cannot say
+
+**MEASURED ON THIS BOX** (numbers exist, they were produced by the harness, they are
+reproducible):
+- The fixed-timestep clock and the present pacer. `simtest.mjs`: 66 assertions, no
+  browser, ~1.3 s, and the sim state hash is bit-identical at 60 / 45 / 30 / jittered
+  present rates.
+- The 60 Hz **cap**: `p01 >= period * 0.96` is gated at both rates and holds.
+- CPU per subsystem, GC amplitude, allocation rate (259 bytes per presented frame,
+  measured with V8's sampling allocation profiler via `allocprobe.mjs`).
+- Whole-frame accounting: every millisecond between two presents is billed to `pre`,
+  the nine spans, `post`, `skip`, `postTask` or `idle`, with the residual printed.
+- Loop pacing with GL submission removed.
+- Touch latency, gesture classification, multitouch, stuck-pointer robustness, and thumb
+  reach in millimetres at both orientations.
+
+**BOUNDED STRUCTURALLY, NOT MEASURED** (a contract with a counter behind it):
+- Everything on AXIS 3. Draw calls, triangles, programs, texture MB, render targets,
+  particles, overdraw, shadow-caster draws, skinned actors, imposters, post passes —
+  per tier, counted by `budget.mjs`, attributed by piece.
+
+**UNVERIFIED PROJECTION ABOUT HARDWARE THIS BOX DOES NOT HAVE** (say "projection", never
+"result"):
+- That a device in a given tier renders a scene inside that tier's caps at 60 Hz (or at
+  30 Hz for the floor tier's boot rate).
+- That the CPU table's absolute milliseconds resemble any named phone.
+- That the panel adds exactly one period of latency.
+- That program pre-warm removes a stall that this box cannot produce.
+
+**NOT PROVEN AND NOT PROJECTED — SIMPLY OPEN:**
+- The shipped config (`--tier=auto --raster=auto`) does not pin on this box, and the
+  reason is on AXIS 3, which this box governs rather than measures. It is not evidence
+  that the loop is wrong, and it is not evidence that a phone would be fine either.
+
+### 11.7 The two emulations this box stacks, and why `--throttle` exists
+
+`--tier=floor` applies a **6x CPU slowdown on top of a software rasteriser**. Together
+those describe a device that does not exist. `--throttle=1` leaves SwiftShader as the only
+thing in the way and answers "what does the loop do when only the GPU is slow";
+`--raster=none` removes the rasteriser and answers "what does the loop do when only the
+CPU is slow". Both are honest, neither is a phone, and the value in force is printed on
+every run.
+
+### 11.8 How to read the TAIL ACCOUNTING table
+
+```
+wall = cb(previous callback) + gap        cb  = pre + spans + post
+                                          gap = skip + postTask + idle
+```
+
+- `pre` / `post` near zero means the loop's own scaffolding is not the hitch.
+- a large **`spans`** value names the subsystem in the `dominant span` column: **ours, fix it**.
+- a large **`skip`** means the pacer's declined callbacks are expensive: **ours, fix it**.
+- a large **`postTask`** means the browser's post-frame work — style, paint, layer upload,
+  composite, or a GC V8 chose to run right then. Usually **ours indirectly**: a Canvas2D
+  layer that was touched, a texture that was uploaded.
+- a large **`idle`** with `vsyncs = 1` and no longtask means **the renderer main thread
+  was not scheduled**. On a 4-core box shared with other agents that is the host, not the
+  loop, and the report's `HOST` line prints loadavg so a reader can tell.
+- `int` is vsync-timestamp to vsync-timestamp; `wall` is rAF-entry to rAF-entry. **Chromium
+  snaps the rAF timestamp to the BeginFrame grid**, so a callback delivered 30 ms late can
+  still report a clean 16.7 ms interval. `skew` is that lateness, and the report ranks the
+  tail by both channels because they disagree.
+
+### 11.9 THE INSTRUMENT'S OWN NOISE FLOOR
+
+`performance.now()` is coarsened to **100 microseconds** in this Chromium build, so every
+span reading is a multiple of 0.1 ms and the two smallest budgets in the table — `input`
+at 0.20 ms and `scaler` at 0.10 ms — are two quanta and one quantum wide respectively.
+
+That is not a theoretical worry, it is measured. With the input replay switched OFF
+entirely (`--no-input`, **zero events for the whole run**), the `input` span still reads
+p95 0.10 ms and **worst 1.40 ms** at the floor tier. A span that does nothing at all still
+records a 1.4 ms frame, because the OS can preempt a span whose body is a few
+microseconds long. So for the two smallest budgets:
+
+- a `p95` reading of 0.10 or 0.20 ms means "at or below what this instrument can resolve";
+- a `worst` reading of 1-10 ms means "this span was interrupted", not "this span is slow";
+- the numbers to trust for those spans are `TOTAL` and `CALLBACK`, which are large enough
+  that a quantum is noise rather than signal.
+
+This is stated here rather than used to widen a budget. A budget re-cut to sit above the
+noise would pass every run and mean nothing.

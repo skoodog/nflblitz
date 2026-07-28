@@ -92,7 +92,7 @@ async function main() {
     const page = await ctx.newPage();
     page.on('pageerror', (e) => console.error('[compare:page]', e.message));
     await page.goto(url, { waitUntil: 'load', timeout: 60000 });
-    await page.waitForFunction('window.__CMP_READY__===true', { timeout: 60000 });
+    await page.waitForFunction('window.__CMP_READY__===true', null, { timeout: 60000 });
 
     const outPath = path.resolve(REPO, OUT);
     fs.mkdirSync(path.dirname(outPath), { recursive: true });

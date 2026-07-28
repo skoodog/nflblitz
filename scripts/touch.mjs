@@ -11,7 +11,7 @@
 // that rendered the result.
 //
 // LATENCY IS input -> RENDER DISPATCH. The compositor-to-photon leg is not measurable
-// on this box; ASSUMPTION C in the README adds one frame for a real panel. The report
+// on this box; README section 11, ASSUMPTION C adds one frame for a real panel. The report
 // says so on the line itself rather than in a footnote nobody reads.
 
 import path from 'node:path';
@@ -58,7 +58,7 @@ try {
   const url = playUrl(srv.url, { scene: SCENE, tier: TIER, raster: 'none', seed: 7, rate: RATE, probe: false });
   L(`[touch] ${url}`);
   await page.goto(url, { waitUntil: 'load', timeout: 300000 });
-  await page.waitForFunction('window.__BLITZ_READY__===true', { timeout: 300000 });
+  await page.waitForFunction('window.__BLITZ_READY__===true', null, { timeout: 300000 });
   await setCpuThrottle(cdp, TIER_THROTTLE[TIER]);
   await page.waitForTimeout(1200);
 
@@ -66,6 +66,7 @@ try {
     rate: window.__BLITZ_PERF__.rate,
     period: window.__BLITZ_PERF__.periodMs,
     zones: window.__BLITZ_PERF__.zones,
+    zoneHomes: window.__BLITZ_PERF__.zoneHomes,
     tuning: window.__BLITZ_PERF__.tuning,
     css: window.__BLITZ_PERF__.cssSize,
   }));
@@ -122,13 +123,14 @@ try {
     const lat = entries.filter((e) => e.renderMs > 0).map((e) => e.renderMs).sort((a, b) => a - b);
     const q = (p) => (lat.length ? lat[Math.min(lat.length - 1, Math.round(p * (lat.length - 1)))] : 0);
     latency[g] = {
-      n: lat.length, p50: q(0.5), p95: q(0.95), worst: lat.length ? lat[lat.length - 1] : 0,
+      n: lat.length, p50: q(0.5), p95: q(0.95), p99: q(0.99),
+      worst: lat.length ? lat[lat.length - 1] : 0,
     };
   }
 
   L('');
   L('LATENCY  touch timestamp -> render dispatch   (add 1 frame for the panel: ASSUMPTION C)');
-  L(`  gesture         n    p50 ms  p50 f   p95 ms   worst ms  worst f  budget  `);
+  L(`  gesture         n    p50 ms  p50 f   p95 ms    p99 ms   worst ms  worst f  budget`);
   let latOk = true;
   for (const g of runList) {
     const d = latency[g];
@@ -136,7 +138,7 @@ try {
     const worstF = d.worst / info.period;
     const good = p50f <= 2.0 + 1e-9 && worstF <= 3.0 + 1e-9;
     latOk = latOk && good;
-    L(`  ${g.padEnd(12)} ${String(d.n).padStart(4)} ${fmt(d.p50, 8, 1)} ${fmt(p50f, 6, 1)} ${fmt(d.p95, 9, 1)} ${fmt(d.worst, 10, 1)} ${fmt(worstF, 8, 1)}     <=3f  ${pass(good)}`);
+    L(`  ${g.padEnd(12)} ${String(d.n).padStart(4)} ${fmt(d.p50, 8, 1)} ${fmt(p50f, 6, 1)} ${fmt(d.p95, 9, 1)} ${fmt(d.p99, 9, 1)} ${fmt(d.worst, 10, 1)} ${fmt(worstF, 8, 1)}     <=3f  ${pass(good)}`);
   }
   ok(latOk, 'latency budget');
 
@@ -223,13 +225,26 @@ try {
   const stuckAfter = async () => page.evaluate(() => ({
     active: window.__BLITZ_PERF__.touch.activeCount,
     stuck: window.__BLITZ_PERF__.touch.stuck,
+    stale: window.__BLITZ_PERF__.touch.stale,
   }));
 
-  // 50 injected cancels
+  // 50 injected cancels.
+  //
+  // `touchPoints` IS THE LIST OF POINTS THAT ARE STILL ACTIVE, not the list of points
+  // being acted on. This loop used to pass `[{id:1}]` to touchCancel, which tells
+  // Chromium the point is unchanged, so it dispatched NOTHING: no pointercancel, no
+  // touchcancel. The first touchStart landed, all 49 that followed were rejected as a
+  // duplicate id, and the run ended with exactly one pointer down that the page had
+  // never been told about. That is where "1 stuck touch in 50" came from — the cancel
+  // test had never once delivered a cancel. Measured with `scripts/touchprobe.mjs`:
+  // BEFORE the fix, 60 cancel cycles produced 1 DOM event in total and the modal
+  // per-cycle sequence was "(no events at all)". AFTER it, every cycle produces
+  // `pointerdown touchstart gotpointercapture pointercancel lostpointercapture
+  // touchcancel` and the bus ends with 0 active and 0 stuck.
   for (let i = 0; i < 50; i++) {
     await T('touchStart', [{ x: STICK.x, y: STICK.y, id: 1 }]);
     await wait(16);
-    await T('touchCancel', [{ x: STICK.x, y: STICK.y, id: 1 }]);
+    await T('touchCancel', []);
     await wait(16);
   }
   await wait(300);
@@ -268,9 +283,13 @@ try {
   const spiral = await page.evaluate(() => window.__BLITZ_PERF__.clock.dropEvents);
 
   L('');
-  L(`ROBUSTNESS   50 pointercancel injected -> ${s1.active} active, ${s1.stuck} stuck touches   ${pass(s1.active === 0 && s1.stuck === 0)}`);
-  L(`             50 slide-off-edge         -> ${s2.active} active, ${s2.stuck} stuck touches   ${pass(s2.active === 0 && s2.stuck === 0)}`);
-  L(`             visibilitychange x10      -> ${s3.active} active, ${s3.stuck} stuck touches   ${pass(s3.active === 0 && s3.stuck === 0)}`);
+  const rob = (label, s) => L(`             ${label.padEnd(26)}-> ${s.active} active, ${s.stuck} stuck, ${s.stale} watchdog-released   ${pass(s.active === 0 && s.stuck === 0)}`);
+  L('ROBUSTNESS   a pointer left ACTIVE with no finger on the glass is the same defect as');
+  L('             a `stuck` counter: both are gated. `watchdog-released` is the 20 s');
+  L('             lost-pointer safety net firing, and should be 0 in a healthy run.');
+  rob('50 pointercancel injected', s1);
+  rob('50 slide-off-edge', s2);
+  rob('visibilitychange x10', s3);
   ok(s1.active === 0 && s1.stuck === 0, 'no stuck touches after cancel');
   ok(s2.active === 0 && s2.stuck === 0, 'no stuck touches after slide-off-edge');
   ok(s3.active === 0 && s3.stuck === 0, 'no stuck touches after visibilitychange');
@@ -285,17 +304,33 @@ try {
   ];
   const zoneName = { 1: 'STICK', 2: 'ACTION_A', 3: 'ACTION_B', 4: 'TURBO' };
   let reachOk = true;
-  L(`REACH        thumb pivots at the bottom corners; 1 CSS px = ${MM_PER_CSSPX.toFixed(3)} mm at ${VW}x${VH}`);
-  for (const r of info.zones) {
-    const c = { x: ((r[1] + r[3]) / 2) * VW, y: ((r[2] + r[4]) / 2) * VH };
+  const nearest = (x, y) => {
     let best = Infinity, bestP = '';
     for (const p of pivots) {
-      const d = Math.hypot(c.x - p.x, c.y - p.y) * MM_PER_CSSPX;
+      const d = Math.hypot(x - p.x, y - p.y) * MM_PER_CSSPX;
       if (d < best) { best = d; bestP = p.name; }
     }
-    const good = best <= THUMB_REACH_MM;
+    return { mm: best, pivot: bestP };
+  };
+  // TWO POINTS PER CONTROL, BOTH GATED.
+  //   HOME   where the control is DRAWN. This is where a thumb actually goes, and it is
+  //          the point the controller's own comments always said was the right test.
+  //   CENTRE the centre of the HIT rectangle. Testing only the home would let a hit
+  //          region drift away from its artwork unnoticed; testing only the centre is
+  //          what this report did before, and it tested a point nothing is drawn at.
+  // Reporting one and gating on the other is how a reach budget quietly stops meaning
+  // anything, so both are printed and both are gated.
+  L(`REACH        thumb pivots at the bottom corners; 1 CSS px = ${MM_PER_CSSPX.toFixed(3)} mm at ${VW}x${VH}`);
+  L(`             zone        home mm   hit-centre mm   nearest pivot   (both <= ${THUMB_REACH_MM} mm)`);
+  const homes = info.zoneHomes || [];
+  for (const r of info.zones) {
+    const c = nearest(((r[1] + r[3]) / 2) * VW, ((r[2] + r[4]) / 2) * VH);
+    const hRow = homes.find((h) => h[0] === r[0]);
+    const hm = hRow ? nearest(hRow[1] * VW, hRow[2] * VH) : null;
+    const good = c.mm <= THUMB_REACH_MM && (!hm || hm.mm <= THUMB_REACH_MM);
     reachOk = reachOk && good;
-    L(`             ${(zoneName[r[0]] || String(r[0])).padEnd(10)} centre ${fmt(best, 6, 1)} mm from ${bestP.padEnd(12)} (<= ${THUMB_REACH_MM} mm)  ${pass(good)}`);
+    L(`             ${(zoneName[r[0]] || String(r[0])).padEnd(10)} ${hm ? fmt(hm.mm, 8, 1) : '       -'}`
+      + `   ${fmt(c.mm, 13, 1)}   ${c.pivot.padEnd(14)}  ${pass(good)}`);
   }
   ok(reachOk, 'all control zones within thumb reach');
 

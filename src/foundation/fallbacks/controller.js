@@ -42,39 +42,135 @@ export const TUNING = Object.freeze({
   stickDeadPct: 0.16,   // dead zone as a fraction of the radius
 });
 
-/**
- * Zone rectangles as fractions of the VISIBLE surface. Bottom corners: thumb country.
- * Exported so `touch.mjs` can check REACH against the real zones instead of keeping a
- * second copy that silently drifts out of step with the controller.
+/* ------------------------------------------------------- THE REACH-FIRST LAYOUT
+ *
+ * REACH IS A PHYSICAL QUESTION AND A FRACTIONAL LAYOUT CANNOT ANSWER IT.
+ *
+ * The old layout was a table of constants in 0..1 of each axis independently. That
+ * silently makes every control's distance from the thumb pivot a function of the
+ * ASPECT RATIO, because the same fraction is a different number of millimetres on the
+ * long axis than on the short one. Measured by `touch.mjs`:
+ *
+ *     390x844 portrait   TURBO centre  44.4 mm from the right thumb pivot   (cap 40)
+ *     844x390 landscape  TURBO centre  55.3 mm from the right thumb pivot   (cap 40)
+ *
+ * One layout, one budget, two failures, and the landscape one is 38% over. The fix is
+ * not to nudge the fractions — no set of fractions satisfies both orientations. The
+ * layout is now anchored in CSS PIXELS to the two bottom-corner thumb pivots and
+ * converted to fractions for whatever surface is actually in front of the player, so
+ * the same physical geometry is produced at every aspect ratio.
+ *
+ * THE BUDGET, IN PIXELS. A 390-pt-wide phone panel is 71.5 mm across, so one CSS px is
+ * 0.18333 mm and the 40 mm thumb-reach cap is 218.2 CSS px. Every control centre below
+ * sits inside 190 px (34.8 mm) of its pivot, which leaves ~5 mm of margin for a panel
+ * whose CSS pixel is slightly larger than an iPhone's.
+ *
+ * Offsets are (dx, dy) from the pivot, dx positive INWARD from the near edge and dy
+ * positive UPWARD from the bottom. Half-sizes are the hit rectangle, not the artwork.
  */
-export const ZONE_RECTS = [
-  // [zone, x0, y0, x1, y1] in 0..1 of the visible css rect
-  [ZONE.STICK, 0.00, 0.52, 0.45, 1.00],
-  [ZONE.TURBO, 0.52, 0.64, 0.76, 0.86],
-  [ZONE.ACTION_B, 0.76, 0.64, 1.00, 0.86],
-  [ZONE.ACTION_A, 0.52, 0.86, 1.00, 1.00],
+
+/** 40 mm at 0.18333 mm per CSS px. The number the layout below is built to satisfy. */
+export const REACH_PX = 218;
+
+/** Drawn button radius in CSS px. 48 px across = 8.8 mm: the platform minimum target. */
+export const BUTTON_R_PX = 24;
+
+const LAYOUT = [
+  // zone,            side,     dx,   dy,   halfW, halfH        centre distance
+  [ZONE.STICK, 'L', 82, 128, 88, 128],   // 152 px = 27.9 mm
+  [ZONE.TURBO, 'R', 150, 116, 52, 46],   // 190 px = 34.8 mm
+  [ZONE.ACTION_B, 'R', 44, 164, 54, 58],   // 170 px = 31.1 mm
+  [ZONE.ACTION_A, 'R', 88, 46, 78, 40],   // 99 px = 18.2 mm
 ];
 
 /**
  * HOME POINTS — where each control is DRAWN, and therefore where a thumb actually goes.
- * `touch.mjs` checks REACH against these, not against the zone-rectangle centres: a
- * zone is a large hit region whose centre may be nowhere near the visible control, so
- * testing the centre tests the wrong point. Drawing and reach must read the same table
- * or the two drift apart silently.
- *
- * All four sit inside 40 mm of a bottom-corner thumb pivot on a 390x844 panel, where
- * one CSS px is 0.183 mm. That constraint is what forces everything below y ~= 0.73:
- * 40 mm is 219 CSS px, and the pivot is at the bottom edge. The first version of this
- * layout put TURBO and ACTION_B at y = 0.60 and `touch.mjs` measured them at 69.9 mm
- * and 66.8 mm — comfortably unreachable, which is exactly the kind of thing that is
- * obvious in a measurement and invisible in a screenshot.
+ * Derived from the same table as the hit rectangles, so drawing and reach cannot drift
+ * apart. `touch.mjs` checks BOTH the home point and the rectangle centre against the
+ * 40 mm cap; they are the same point here by construction.
  */
 export const ZONE_HOMES = [
-  [ZONE.STICK, 0.12, 0.80],
-  [ZONE.TURBO, 0.66, 0.79],
-  [ZONE.ACTION_B, 0.88, 0.78],
-  [ZONE.ACTION_A, 0.84, 0.93],
+  [ZONE.STICK, 0, 0],
+  [ZONE.TURBO, 0, 0],
+  [ZONE.ACTION_B, 0, 0],
+  [ZONE.ACTION_A, 0, 0],
 ];
+
+/**
+ * Zone rectangles as fractions of the VISIBLE surface, RECOMPUTED for the live surface
+ * by `setSurface`. Exported (and mutated in place) so `touch.mjs` reads the real zones
+ * instead of a second copy that drifts. Declared with zeros and filled by the
+ * `layoutZones(390, 844)` call below, so anything that reads the table before the first
+ * `setSurface` still gets the portrait solution.
+ */
+export const ZONE_RECTS = [
+  [ZONE.STICK, 0, 0, 0, 0],
+  [ZONE.TURBO, 0, 0, 0, 0],
+  [ZONE.ACTION_B, 0, 0, 0, 0],
+  [ZONE.ACTION_A, 0, 0, 0, 0],
+];
+
+/**
+ * WHERE THE ARTWORK GOES: [zone, centreXfrac, centreYfrac, radiusFracOfSurfaceWidth].
+ *
+ * `draw()` used to carry its OWN hardcoded fractions — the turbo pad was drawn at
+ * (0.685, 0.60) while its hit rectangle was somewhere else entirely — so the player
+ * could see a control and press a different one. There is now exactly one table, this
+ * one, derived from the same LAYOUT as the hit rectangles.
+ */
+export const ZONE_ART = [
+  [ZONE.STICK, 0, 0, 0],
+  [ZONE.TURBO, 0, 0, 0],
+  [ZONE.ACTION_B, 0, 0, 0],
+  [ZONE.ACTION_A, 0, 0, 0],
+];
+
+/**
+ * Rebuild ZONE_RECTS, ZONE_HOMES and ZONE_ART for a w x h CSS surface. Allocation-free:
+ * all three tables are mutated in place and the rows are read by index rather than
+ * destructured (array destructuring allocates an iterator). `setSurface` is called on
+ * every orientation change, which can happen mid-play.
+ *
+ * The three tables above are declared with zeros and filled by the call immediately
+ * below this function, so there is exactly one place any of these numbers is computed.
+ */
+export function layoutZones(w, h) {
+  const W = Math.max(16, w), H = Math.max(16, h);
+  const pivotLX = 0.02 * W, pivotRX = 0.98 * W, pivotY = 0.99 * H;
+  for (let i = 0; i < LAYOUT.length; i++) {
+    const row = LAYOUT[i];
+    const zone = row[0], side = row[1], dx = row[2], dy = row[3], halfW = row[4], halfH = row[5];
+    const cx = side === 'L' ? pivotLX + dx : pivotRX - dx;
+    const cy = pivotY - dy;
+    // Clamp the RECTANGLE to the surface. The centre can shift by at most the amount
+    // that was hanging off the edge, which is small, and the reach check is run against
+    // the clamped centre so the number in the report is the one the player gets.
+    const x0 = Math.max(0, cx - halfW), x1 = Math.min(W, cx + halfW);
+    const y0 = Math.max(0, cy - halfH), y1 = Math.min(H, cy + halfH);
+    const r = ZONE_RECTS[i];
+    r[0] = zone; r[1] = x0 / W; r[2] = y0 / H; r[3] = x1 / W; r[4] = y1 / H;
+    const hm = ZONE_HOMES[i];
+    hm[0] = zone; hm[1] = cx / W; hm[2] = cy / H;
+    const art = ZONE_ART[i];
+    // THE ARTWORK IS SMALLER THAN THE HIT RECTANGLE, AND THAT IS DELIBERATE.
+    //
+    // A button that looks bigger than it is, is a button that misses; a button that
+    // looks smaller than it is, is a button that forgives. The hit rectangles above are
+    // generous on purpose. The DRAWN radius is a fixed 24 CSS px — a 48 px, 8.8 mm
+    // target, which is the platform minimum — and it is fixed in PIXELS for the same
+    // reason the layout is: a control's size is a physical question.
+    //
+    // It is also a performance number. Sizing the artwork to the hit rectangle instead
+    // made the three buttons 1.4x their previous total fill area, and Canvas2D fill is
+    // what the `overlay` span costs on this box: the span went from p95 1.80 ms to
+    // p95 2.40 ms at the floor tier's 6x CPU emulation for no visual gain. 24 px puts
+    // the total drawn area back where it was.
+    const rCss = zone === ZONE.STICK ? TUNING.stickRadiusPx : BUTTON_R_PX;
+    art[0] = zone; art[1] = cx / W; art[2] = cy / H; art[3] = rCss / W;
+  }
+  return ZONE_RECTS;
+}
+layoutZones(390, 844);
 
 function zoneAt(x, y, w, h) {
   const fx = x / Math.max(1, w), fy = y / Math.max(1, h);
@@ -91,7 +187,7 @@ const EV_DOWN = 0, EV_MOVE = 1, EV_UP = 2, EV_CANCEL = 3;
 
 const impl = {
   piece: 'foundation-fallback',
-  ZONE, GESTURE, GESTURE_NAME, DIR, TUNING, ZONE_RECTS,
+  ZONE, GESTURE, GESTURE_NAME, DIR, TUNING, ZONE_RECTS, ZONE_HOMES, ZONE_ART, REACH_PX,
 
   /**
    * create() -> controller state. Pooled and preallocated: the frame path never
@@ -132,7 +228,10 @@ const impl = {
     return st;
   },
 
-  setSurface(st, w, h) { st.w = w; st.h = h; },
+  // The layout is PHYSICAL, so it is rebuilt whenever the surface changes shape. This
+  // is the only place ZONE_RECTS is written, and main.js calls it at boot, on resize,
+  // on orientationchange and on a present-rate change.
+  setSurface(st, w, h) { st.w = w; st.h = h; layoutZones(w, h); },
 
   /**
    * resolve(st, tick, touch, tel) — called ONCE PER SIM TICK from inside the fixed-step
@@ -292,10 +391,19 @@ const impl = {
     c2d.save();
     c2d.lineWidth = 3;
 
+    // EVERY position below comes from ZONE_ART, which layoutZones() derives from the
+    // same LAYOUT table as the hit rectangles. Drawn position and hit position are the
+    // same number by construction; they used to be two hardcoded tables that disagreed.
+    const art = (zone) => {
+      for (let i = 0; i < ZONE_ART.length; i++) if (ZONE_ART[i][0] === zone) return ZONE_ART[i];
+      return null;
+    };
+
     // stick well
-    L(0.11, 0.80);
+    const sa = art(ZONE.STICK);
+    L(sa[1], sa[2]);
     const wellX = TMP.x, wellY = TMP.y;
-    const wellR = v.w * 0.085;
+    const wellR = v.w * sa[3];
     c2d.strokeStyle = 'rgba(220,228,240,0.22)';
     c2d.beginPath(); c2d.arc(wellX, wellY, wellR, 0, 6.28318); c2d.stroke();
 
@@ -309,20 +417,23 @@ const impl = {
     c2d.beginPath(); c2d.arc(hx, hy, wellR * 0.42, 0, 6.28318); c2d.fill();
 
     // buttons
-    const btn = (fx, fy, r, on, label) => {
-      L(fx, fy);
+    const btn = (zone, on, label) => {
+      const a = art(zone);
+      if (!a) return;
+      L(a[1], a[2]);
+      const r = v.w * a[3];
       c2d.fillStyle = on ? 'rgba(255,214,64,0.85)' : 'rgba(220,228,240,0.16)';
-      c2d.beginPath(); c2d.arc(TMP.x, TMP.y, v.w * r, 0, 6.28318); c2d.fill();
+      c2d.beginPath(); c2d.arc(TMP.x, TMP.y, r, 0, 6.28318); c2d.fill();
       c2d.strokeStyle = 'rgba(220,228,240,0.30)';
-      c2d.beginPath(); c2d.arc(TMP.x, TMP.y, v.w * r, 0, 6.28318); c2d.stroke();
+      c2d.beginPath(); c2d.arc(TMP.x, TMP.y, r, 0, 6.28318); c2d.stroke();
       c2d.fillStyle = on ? '#101014' : 'rgba(230,230,236,0.72)';
       c2d.font = '700 34px "Liberation Sans",Arial,sans-serif';
       c2d.textAlign = 'center'; c2d.textBaseline = 'middle';
       c2d.fillText(label, TMP.x, TMP.y);
     };
-    btn(0.86, 0.84, 0.075, st.btnA, 'A');
-    btn(0.895, 0.60, 0.052, st.btnB, 'B');
-    btn(0.685, 0.60, 0.052, st.turbo, 'T');
+    btn(ZONE.ACTION_A, st.btnA, 'A');
+    btn(ZONE.ACTION_B, st.btnB, 'B');
+    btn(ZONE.TURBO, st.turbo, 'T');
 
     c2d.restore();
   },

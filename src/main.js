@@ -103,7 +103,12 @@ function bootPlay(glCanvas, uiCanvas) {
   const tier = params.rung !== null ? tierOfRung(startRung) : detected.tier;
 
   /* ---- 2. build the scene ------------------------------------------------- */
-  rt.buildScene(params.scene);
+  // THE RUNG AND THE TIER ARE PASSED IN. `createRuntime` defaults its rung to 8, and
+  // building the world at rung 8 and correcting it at step 6 is invisible everywhere
+  // except in `perf_synthetic`, whose headroom calculation happens once, inside
+  // buildScene, against a scene that had not yet been put on the right rung. See the
+  // note on `buildScene` in engine.js.
+  rt.buildScene(params.scene, startRung, tier);
   publishSceneIndex();
   const shot = rt.ctx.shot;
 
@@ -208,6 +213,16 @@ function bootPlay(glCanvas, uiCanvas) {
    * more calls `ui.markDirty()` and pays for it in its own budget line.
    */
   const OVERLAY_KEEPALIVE_TICKS = 6;      // >= 10 Hz
+  /**
+   * THE REDRAW CEILING, off the quality ladder. Sim ticks between two HUD redraws:
+   * floor rungs 0-2 -> 3 ticks (20 Hz), low 3-6 -> 2 (30 Hz), mid and high -> 1 (60 Hz).
+   * Read per frame because the scaler moves the rung during play. See the long note on
+   * `shouldDraw` in overlay.js for the measurement that forced it.
+   */
+  function overlayMinTicks() {
+    const r = rt.rung;
+    return r <= 2 ? 3 : r <= 6 ? 2 : 1;
+  }
   function onOverlay(alpha, simTime) {
     if (lastFlowState !== flowState.state) {
       lastFlowState = flowState.state;
@@ -218,7 +233,7 @@ function bootPlay(glCanvas, uiCanvas) {
       ^ (ctrlState.gestureTick * 7)
       ^ (flowState.state << 3)
       ^ (ctrlState.btnA ? 1 : 0) ^ (ctrlState.btnB ? 2 : 0) ^ (ctrlState.turbo ? 4 : 0);
-    if (!rt.overlay.shouldDraw(epoch, clock.tick, OVERLAY_KEEPALIVE_TICKS)) return;
+    if (!rt.overlay.shouldDraw(epoch, clock.tick, OVERLAY_KEEPALIVE_TICKS, overlayMinTicks())) return;
     REG.controller._draw = ctrlState;
     rt.overlay.draw(simTime, shot, rt.ctx);
     rt.overlay.noteDrawn(epoch, clock.tick);
@@ -235,6 +250,54 @@ function bootPlay(glCanvas, uiCanvas) {
   /* ---- 6. PROGRAM PRE-WARM (ASSUMPTION D mitigation) ---------------------- */
   const warm = rt.prewarmPrograms();
   rt.applyRung(startRung, true);
+
+  /**
+   * OVERLAY PRE-WARM — the same idea as the program pre-warm, for the Canvas2D layer.
+   *
+   * Canvas2D has its own lazy costs: the first time a font size is used the renderer
+   * resolves and caches the face, the first time a glyph outline is drawn the vector type
+   * engine compiles and caches it, a team crest is rastered into an offscreen canvas on
+   * first request. All of that is paid on whichever frame happens to draw the thing first,
+   * and that frame is inside the game. Measured at the floor tier's 6x CPU emulation, one
+   * such frame billed 50.8 ms to the `overlay` span and showed up as a 54 ms longtask and
+   * a 50.1 ms interval in an otherwise flat 25 s run — a single visible hitch, from lazy
+   * work, on a layer whose steady-state p95 is 1.9 ms.
+   *
+   * So every layer is drawn once here, on the loading screen, with the controller in both
+   * its pressed and unpressed states, before the loop starts. Nothing is rendered to the
+   * screen that the first real frame will not immediately overwrite: the surface is marked
+   * fully dirty afterwards.
+   */
+  const warmOverlay = (() => {
+    const t0 = performance.now();
+    const saveHud = rt.ctx.forceHud, saveUI = rt.ctx.forceUI;
+    const saveCallout = shot && shot.callout ? shot.callout.visible : null;
+    let draws = 0;
+    REG.controller._draw = ctrlState;
+    try {
+      if (shot && shot.callout) shot.callout.visible = true;
+      for (const on of [false, true]) {
+        ctrlState.btnA = on; ctrlState.btnB = on; ctrlState.turbo = on;
+        ctrlState.stickActive = on; ctrlState.stickX = on ? 0.7 : 0; ctrlState.stickY = on ? -0.5 : 0;
+        for (const layers of [[true, true], [true, false], [false, true]]) {
+          rt.ctx.forceHud = layers[0];
+          rt.ctx.forceUI = layers[1];
+          rt.overlay.markFullDirty();
+          rt.overlay.draw(0, shot, rt.ctx);
+          draws++;
+        }
+      }
+    } catch (e) {
+      (window.__BLITZ_ERRORS__ = window.__BLITZ_ERRORS__ || []).push(`[overlay prewarm] ${e && e.message}`);
+    }
+    ctrlState.btnA = false; ctrlState.btnB = false; ctrlState.turbo = false;
+    ctrlState.stickActive = false; ctrlState.stickX = 0; ctrlState.stickY = 0;
+    rt.ctx.forceHud = saveHud;
+    rt.ctx.forceUI = saveUI;
+    if (shot && shot.callout && saveCallout !== null) shot.callout.visible = saveCallout;
+    rt.overlay.markFullDirty();
+    return { draws, ms: performance.now() - t0 };
+  })();
 
   /* ---- 7. viewport --------------------------------------------------------*/
   function onResize() {
@@ -257,6 +320,7 @@ function bootPlay(glCanvas, uiCanvas) {
     get wallMs() { return rateSpec(loop.rate).wallMs; },
     detected, sig, cpuProbe: cpu, gpuProbe: gpu,
     programsAtWarm: warm,
+    overlayWarm: warmOverlay,
     SPANS,
     budget: () => budgetTable(loop.rate),
     targets: () => pacingTargets(loop.rate),
@@ -266,6 +330,12 @@ function bootPlay(glCanvas, uiCanvas) {
     longestCleanRun: (ms) => tel.longestCleanRun(ms),
     cleanWindows: (a, w, d) => tel.cleanWindows(a, w, d),
     worstFrame: () => tel.worstFrame(),
+    /** The n worst frames, each fully decomposed. See TAIL ACCOUNTING in telemetry.js. */
+    tailFrames: (n, sortBy) => tel.tailFrames(n, sortBy),
+    accountingResidual: () => tel.accountingResidual(),
+    enableTailProbe: (on) => tel.enableTailProbe(on),
+    get tailProbe() { return tel.tailProbe; },
+    get tailProbeLate() { return tel.tailProbeLate; },
     series: (ch, n) => tel.series(ch, n),
     longTasks: (ms, after) => tel.longTasks(ms, after),
     longTaskList: () => tel.longTaskList(),
@@ -317,10 +387,12 @@ function bootPlay(glCanvas, uiCanvas) {
     },
     /** Zone rectangles, read from the LIVE controller so REACH cannot test a stale copy. */
     get zones() { return REG.controller.ZONE_RECTS || null; },
+    /** Where each control is DRAWN. Reach is checked against these AND the rect centres. */
+    get zoneHomes() { return REG.controller.ZONE_HOMES || null; },
     get tuning() { return REG.controller.TUNING || null; },
     get touch() {
       return {
-        activeCount: touch.activeCount, stuck: touch.stuck,
+        activeCount: touch.activeCount, stuck: touch.stuck, stale: touch.stale,
         totalEvents: touch.totalEvents, droppedEvents: touch.droppedEvents,
         rect: touch.rect, safe: touch.safe,
       };

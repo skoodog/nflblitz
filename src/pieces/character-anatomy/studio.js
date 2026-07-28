@@ -89,7 +89,15 @@ function glowTexture(THREE) {
 
 /**
  * install(ctx, opts) -> studio handle. Idempotent per shot.
- * opts: { silhouette, camAz, exposure, keyBoost }
+ * opts: { silhouette, camAz, exposure, keyBoost, scale, fog }
+ *
+ * `scale` exists for ONE reason: the LOD/imposter comparison shot has to be taken at the
+ * distance the LOD is actually used at (~22 m), and a studio rigged for a 4 m subject
+ * does not reach — the spots fall off, the shadow camera misses, and the exponential fog
+ * eats 73% of the figure. Rather than judge an imposter under lighting that never
+ * touches it, the whole rig scales: positions and ranges by `scale`, punctual intensity
+ * by `scale^2` (inverse-square, so the subject receives the same illuminance), fog by
+ * `fog`. Nothing about the close shots changes — they pass scale 1.
  */
 export function installStudio(ctx, opts) {
   const THREE = ctx.THREE;
@@ -102,9 +110,11 @@ export function installStudio(ctx, opts) {
   g.userData.piece = 'character-anatomy';
   const sil = !!opts.silhouette;
   const az = opts.camAz !== undefined ? opts.camAz : 0.5;
+  const SC = opts.scale !== undefined && opts.scale > 0 ? opts.scale : 1;
+  const SC2 = SC * SC;
 
   /* ---- cyclorama ------------------------------------------------------- */
-  const cycGeo = new THREE.CylinderGeometry(16, 16, 26, 48, 1, true);
+  const cycGeo = new THREE.CylinderGeometry(16 * SC, 16 * SC, 26 * SC, 48, 1, true);
   const cycMat = new THREE.MeshBasicMaterial({
     map: gradientTexture(THREE, sil),
     side: THREE.BackSide,
@@ -113,12 +123,12 @@ export function installStudio(ctx, opts) {
   });
   if (sil) cycMat.color.setRGB(7, 7, 7);
   const cyc = new THREE.Mesh(cycGeo, cycMat);
-  cyc.position.y = 8;
+  cyc.position.y = 8 * SC;
   cyc.userData.wantShadow = false;
   g.add(cyc);
 
   /* ---- floor ----------------------------------------------------------- */
-  const floorGeo = new THREE.PlaneGeometry(34, 34, 1, 1);
+  const floorGeo = new THREE.PlaneGeometry(34 * SC, 34 * SC, 1, 1);
   floorGeo.rotateX(-Math.PI / 2);
   const floorMat = sil
     ? new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false, fog: false })
@@ -137,7 +147,7 @@ export function installStudio(ctx, opts) {
 
   /* ---- separation glow behind the subject ------------------------------ */
   if (!sil) {
-    const glowGeo = new THREE.PlaneGeometry(8.5, 6.2, 1, 1);
+    const glowGeo = new THREE.PlaneGeometry(8.5 * SC, 6.2 * SC, 1, 1);
     const glowMat = new THREE.MeshBasicMaterial({
       map: glowTexture(THREE),
       transparent: true,
@@ -147,7 +157,7 @@ export function installStudio(ctx, opts) {
       fog: false,
     });
     const glow = new THREE.Mesh(glowGeo, glowMat);
-    glow.position.set(-Math.sin(az) * 5.4, 1.9, -Math.cos(az) * 5.4);
+    glow.position.set(-Math.sin(az) * 5.4 * SC, 1.9 * SC, -Math.cos(az) * 5.4 * SC);
     glow.rotation.y = az;
     glow.userData.wantShadow = false;
     g.add(glow);
@@ -162,45 +172,45 @@ export function installStudio(ctx, opts) {
     const lx = -cz, lz = cx;           // camera-left
 
     const key = new THREE.DirectionalLight(0xfff2e4, 2.95 * boost);
-    key.position.set(lx * 3.9 + cx * 3.8, 5.0, lz * 3.9 + cz * 3.8);
+    key.position.set((lx * 3.9 + cx * 3.8) * SC, 5.0 * SC, (lz * 3.9 + cz * 3.8) * SC);
     key.target.position.set(0, 1.0, 0);
     key.castShadow = true;
     const S = (ctx.profile && ctx.profile.shadowSize) || 2048;
     key.shadow.mapSize.set(S, S);
     key.shadow.camera.near = 0.5;
-    key.shadow.camera.far = 24;
-    key.shadow.camera.left = -3.2;
-    key.shadow.camera.right = 3.2;
-    key.shadow.camera.top = 3.6;
-    key.shadow.camera.bottom = -1.2;
+    key.shadow.camera.far = 24 * SC;
+    key.shadow.camera.left = -3.2 * SC;
+    key.shadow.camera.right = 3.2 * SC;
+    key.shadow.camera.top = 3.6 * SC;
+    key.shadow.camera.bottom = -1.2 * SC;
     key.shadow.bias = -0.0004;
     key.shadow.normalBias = 0.014;
     g.add(key, key.target);
     lights.push(key);
 
     // the two rims that draw the silhouette — this is the bar's lighting language
-    const rimA = new THREE.SpotLight(0xd6e6ff, 330 * boost, 9.5, 0.34, 0.45, 1.30);
-    rimA.position.set(-lx * 2.4 - cx * 3.4, 5.6, -lz * 2.4 - cz * 3.4);
+    const rimA = new THREE.SpotLight(0xd6e6ff, 330 * boost * SC2, 9.5 * SC, 0.34, 0.45, 1.30);
+    rimA.position.set((-lx * 2.4 - cx * 3.4) * SC, 5.6 * SC, (-lz * 2.4 - cz * 3.4) * SC);
     rimA.target.position.set(0, 1.25, 0);
     g.add(rimA, rimA.target);
     lights.push(rimA);
 
-    const rimB = new THREE.SpotLight(0xffb070, 300 * boost, 9.0, 0.32, 0.48, 1.30);
-    rimB.position.set(lx * 2.0 - cx * 3.6, 5.2, lz * 2.0 - cz * 3.6);
+    const rimB = new THREE.SpotLight(0xffb070, 300 * boost * SC2, 9.0 * SC, 0.32, 0.48, 1.30);
+    rimB.position.set((lx * 2.0 - cx * 3.6) * SC, 5.2 * SC, (lz * 2.0 - cz * 3.6) * SC);
     rimB.target.position.set(0, 1.20, 0);
     g.add(rimB, rimB.target);
     lights.push(rimB);
 
     // a low warm bounce off the floor so the underside of the pads is not dead black
-    const bounce = new THREE.PointLight(0xffb27e, 0.8 * boost, 3.0, 2.0);
-    bounce.position.set(cx * 0.55, 0.20, cz * 0.55);
+    const bounce = new THREE.PointLight(0xffb27e, 0.8 * boost * SC2, 3.0 * SC, 2.0);
+    bounce.position.set(cx * 0.55 * SC, 0.20 * SC, cz * 0.55 * SC);
     g.add(bounce);
     lights.push(bounce);
 
     // soft frontal book light — just enough that the near side of the jersey holds
     // detail instead of going to mud. Kept dim: the rims still draw the silhouette.
     const book = new THREE.DirectionalLight(0xbcd0f0, 0.55 * boost);
-    book.position.set(cx * 5.0 - lx * 1.2, 2.0, cz * 5.0 - lz * 1.2);
+    book.position.set((cx * 5.0 - lx * 1.2) * SC, 2.0 * SC, (cz * 5.0 - lz * 1.2) * SC);
     book.target.position.set(0, 1.1, 0);
     g.add(book, book.target);
     lights.push(book);
@@ -213,7 +223,7 @@ export function installStudio(ctx, opts) {
   // Aerial perspective. The floor is fogged toward the cyclorama's horizon value, which
   // is what dissolves the floor/backdrop seam into a cove instead of a table edge, and
   // it costs the figure a deliberate ~6% wash at 4 m that reads as studio haze.
-  if (!sil) scene.fog = new THREE.FogExp2(0x141922, 0.052);
+  if (!sil) scene.fog = new THREE.FogExp2(0x141922, opts.fog !== undefined ? opts.fog : 0.052);
   else scene.fog = null;
 
   g.userData.studio = {

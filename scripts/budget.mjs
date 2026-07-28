@@ -52,7 +52,7 @@ try {
       canary: CANARY, autostart: false,   // no loop: we only need the built scene
     });
     await page.goto(url, { waitUntil: 'load', timeout: 300000 });
-    await page.waitForFunction('window.__BLITZ_READY__===true', { timeout: 300000 });
+    await page.waitForFunction('window.__BLITZ_READY__===true', null, { timeout: 300000 });
 
     const R = await page.evaluate(() => {
       const P = window.__BLITZ_PERF__;
@@ -164,7 +164,8 @@ try {
     }
     L('');
     L('NOTE: these are COUNTS, not GPU timings. This box cannot measure GPU cost.');
-    L('      The counts are the whole gate on the GPU axis. See README ASSUMPTION A-D.');
+    L('      The counts are the whole gate on the GPU axis: this box cannot MEASURE');
+    L('      GPU cost, so it GOVERNS it. README section 11, ASSUMPTION B.');
   }
 } catch (e) {
   console.error('[budget] FAILED:', e && (e.stack || e.message || e));

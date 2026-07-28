@@ -57,13 +57,56 @@ export function createTouch(element, opts) {
       dx: 0, dy: 0, totalDx: 0, totalDy: 0,
       startMs: 0, lastMs: 0, downTick: -1,
       moved: false, maxDist: 0,
+      /**
+       * A release (UP or CANCEL) for this pointer was processed in the CURRENT drain.
+       * The slot stays readable for the rest of the frame so the controller can resolve
+       * a tap, and is retired at the end of drain. See the retirement note below.
+       */
+      released: false,
       /** Free for the controller to stamp: which zone claimed this pointer. */
       claim: 0, claimData: 0,
       /** The telemetry log entry for the DOWN of this pointer (latency correlation). */
       logEntry: null,
     };
   }
-  const byId = new Map();          // pointerId -> slot. Map ops do not allocate per call.
+
+  /**
+   * THE POINTER TABLE IS THE ONLY SOURCE OF TRUTH FOR pointerId -> slot.
+   *
+   * This used to be a `Map` kept alongside the table, and the two could disagree. That
+   * is the stuck-touch bug `touch.mjs` caught at 1 in 50 pointercancels, and it had
+   * three separate ways to happen:
+   *
+   *   1. `pointercancel` is followed immediately by `lostpointercapture`, and BOTH were
+   *      bound to the same handler, so every cancel enqueued TWO cancel records for the
+   *      same id. If a DOWN for that id arrived between the two drains, the second
+   *      cancel retired a pointer that had already been re-acquired.
+   *   2. Retirement iterated `frameEvents`, a fixed 256-entry window. An UP or CANCEL
+   *      that fell past entry 256 in a burst was applied to the pointer but never
+   *      retired it: the slot stayed `active` forever with no finger on the glass.
+   *   3. DOWN, UP, DOWN for the same id inside ONE drain retired the pointer AFTER the
+   *      second DOWN had re-armed it, so a live finger was silently dropped.
+   *
+   * A ten-entry linear scan is faster than a Map lookup at this size, allocates nothing,
+   * and cannot desynchronise from the table because it IS the table.
+   */
+  function slotOf(id) {
+    for (let i = 0; i < MAX_POINTERS; i++) if (pointers[i].active && pointers[i].id === id) return i;
+    return -1;
+  }
+  function freeSlot() {
+    for (let i = 0; i < MAX_POINTERS; i++) if (!pointers[i].active) return i;
+    return -1;
+  }
+
+  /**
+   * WATCHDOG. A pointer that has produced no event at all for this long has been lost by
+   * the OS or the WebView — the classic Android "the pointerup never arrived" bug. It is
+   * released rather than left holding a control down forever. The window is deliberately
+   * far longer than any real hold: a player holding TURBO stationary generates no move
+   * events, and cancelling that would be a worse bug than the one being fixed.
+   */
+  const STALE_MS = 20000;
 
   // ---- per-frame event view: pooled records the controller iterates ----
   const frameEvents = new Array(256);
@@ -80,7 +123,14 @@ export function createTouch(element, opts) {
     activeCount: 0,
     droppedEvents: 0,
     totalEvents: 0,
+    /**
+     * Pointers still marked active even though a release for them was processed. The
+     * retirement invariant makes this structurally zero; it is still counted, because a
+     * gate whose value is only ever asserted is not a gate.
+     */
     stuck: 0,
+    /** Pointers released by the STALE_MS watchdog over the life of the bus. */
+    stale: 0,
     /** Rect of the surface in CSS px; refreshed on resize/orientation. */
     rect: { x: 0, y: 0, w: 1, h: 1 },
     safe: { top: 0, right: 0, bottom: 0, left: 0 },
@@ -160,7 +210,7 @@ export function createTouch(element, opts) {
   }
 
   function onMove(e) {
-    if (!byId.has(e.pointerId) && !hasQueuedDown(e.pointerId)) return;   // not ours
+    if (slotOf(e.pointerId) < 0 && !hasQueuedDown(e.pointerId)) return;   // not ours
     // Sub-frame accuracy: the OS captured samples between vsyncs; use all of them.
     const co = e.getCoalescedEvents ? e.getCoalescedEvents() : null;
     if (co && co.length > 1) {
@@ -185,6 +235,28 @@ export function createTouch(element, opts) {
     try { element.releasePointerCapture(e.pointerId); } catch (err) { /* gone */ }
   }
 
+  /**
+   * `lostpointercapture` USED TO BE BOUND STRAIGHT TO onCancel, AND THAT WAS A BUG.
+   *
+   * The spec fires lostpointercapture after pointerup AND after pointercancel, because
+   * capture is implicitly released by both. Binding it to the cancel handler therefore
+   * enqueued a SECOND release record for every single touch that ever ended — a spurious
+   * EV_CANCEL trailing every normal EV_UP. Usually harmless (the pointer is already
+   * retired, so the record is discarded), but if the trailing cancel was drained in a
+   * later frame than the up, and a new DOWN for the same pointerId arrived in between,
+   * the cancel retired the pointer that had just been re-acquired and the finger went
+   * dead. That is the 1-in-50 stuck touch, and this is where it came from.
+   *
+   * lostpointercapture is still handled — losing capture without a pointerup IS a real
+   * loss and the controller has to know — but only when no release is already in flight.
+   */
+  function onLostCapture(e) {
+    const last = lastQueuedType(e.pointerId);
+    if (last === EV_UP || last === EV_CANCEL) return;      // release already queued
+    if (last < 0 && slotOf(e.pointerId) < 0) return;       // pointer is not ours at all
+    push(EV_CANCEL, e.pointerId, e.clientX, e.clientY, stampOf(e));
+  }
+
   // A queued-but-not-yet-drained DOWN must be recognised, or the first MOVE of a fast
   // flick is discarded and the swipe direction is wrong.
   function hasQueuedDown(id) {
@@ -194,12 +266,26 @@ export function createTouch(element, opts) {
     return false;
   }
 
+  /** The type of the most recent QUEUED (not yet drained) event for `id`, or -1. */
+  function lastQueuedType(id) {
+    let t = -1;
+    for (let i = qTail; i !== qHead; i = (i + 1) % QCAP) if (qId[i] === id) t = qType[i];
+    return t;
+  }
+
   /** Release every pointer. The ONLY correct response to losing the surface. */
   function releaseAll(reason) {
     const t = nowFn();
     for (let i = 0; i < MAX_POINTERS; i++) {
       const p = pointers[i];
-      if (p.active) push(EV_CANCEL, p.id, p.x + state.rect.x, p.y + state.rect.y, t);
+      if (!p.active) continue;
+      // A release already in the queue is a release. `touchcancel` arrives immediately
+      // after `pointercancel` on the same gesture, so without this every cancelled touch
+      // enqueued two identical cancel records and the second one was live ammunition for
+      // whatever pointer happened to own that id by the time it drained.
+      const last = lastQueuedType(p.id);
+      if (last === EV_UP || last === EV_CANCEL) continue;
+      push(EV_CANCEL, p.id, p.x + state.rect.x, p.y + state.rect.y, t);
     }
     void reason;
   }
@@ -217,7 +303,7 @@ export function createTouch(element, opts) {
   element.addEventListener('pointermove', onMove, passiveFalse);
   element.addEventListener('pointerup', onUp, passiveFalse);
   element.addEventListener('pointercancel', onCancel, passiveFalse);
-  element.addEventListener('lostpointercapture', onCancel, passiveFalse);
+  element.addEventListener('lostpointercapture', onLostCapture, passiveFalse);
   element.addEventListener('touchcancel', onTouchCancel, passiveFalse);
   element.addEventListener('contextmenu', onCtxMenu, passiveFalse);
   document.addEventListener('visibilitychange', onVisibility);
@@ -226,13 +312,6 @@ export function createTouch(element, opts) {
   window.addEventListener('resize', onResize);
 
   /* ----------------------------------------------------------------- drain */
-
-  function slotFor(id) {
-    const s = byId.get(id);
-    if (s !== undefined) return s;
-    for (let i = 0; i < MAX_POINTERS; i++) if (!pointers[i].active) return i;
-    return -1;
-  }
 
   /**
    * drain(nowMs, clock, telemetry) — call at the TOP of the frame, AFTER
@@ -264,13 +343,12 @@ export function createTouch(element, opts) {
 
       qTail = (qTail + 1) % QCAP;
 
-      let slot = byId.get(id);
+      let slot = slotOf(id);
       let entry = null;
       if (type === EV_DOWN) {
-        if (slot === undefined) {
-          slot = slotFor(id);
+        if (slot < 0) {
+          slot = freeSlot();
           if (slot < 0) continue;                 // >10 fingers: ignore, never grow
-          byId.set(id, slot);
         }
         const p = pointers[slot];
         p.active = true; p.id = id;
@@ -279,9 +357,13 @@ export function createTouch(element, opts) {
         p.dx = 0; p.dy = 0; p.totalDx = 0; p.totalDy = 0;
         p.startMs = ms; p.lastMs = ms; p.downTick = tick;
         p.moved = false; p.maxDist = 0; p.claim = 0; p.claimData = 0;
+        // A DOWN RE-ARMS the slot. If this drain already saw an UP for the same id, the
+        // finger came back before the frame ended and the pending retirement must be
+        // cancelled, or a live finger is dropped at the end of drain.
+        p.released = false;
         entry = telemetry ? telemetry.logInput(id, EV_DOWN, x, y, ms, nowMs, tick) : null;
         p.logEntry = entry;
-      } else if (slot !== undefined) {
+      } else if (slot >= 0) {
         const p = pointers[slot];
         if (type === EV_MOVE) {
           p.px = p.x; p.py = p.y;
@@ -297,6 +379,7 @@ export function createTouch(element, opts) {
           // UP or CANCEL: the slot stays readable for THIS frame so the controller can
           // resolve a tap, then is freed at the end of drain.
           p.x = x; p.y = y; p.lastMs = ms;
+          p.released = true;
           entry = telemetry ? telemetry.logInput(id, type, x, y, ms, nowMs, tick) : null;
         }
       } else {
@@ -315,21 +398,38 @@ export function createTouch(element, opts) {
       applied++;
     }
 
-    // Retire pointers whose UP/CANCEL was seen this frame.
-    for (let i = 0; i < frameEventN; i++) {
-      const fe = frameEvents[i];
-      if (fe.type !== EV_UP && fe.type !== EV_CANCEL) continue;
-      const s = byId.get(fe.id);
-      if (s === undefined) continue;
-      const p = pointers[s];
-      p.active = false; p.id = -1; p.claim = 0; p.logEntry = null;
-      byId.delete(fe.id);
+    // RETIREMENT WALKS THE POINTER TABLE, NOT THE EVENT WINDOW.
+    //
+    // The old version iterated `frameEvents`, which is a fixed 256-entry buffer that a
+    // burst can overflow — and an UP that fell off the end left its pointer `active`
+    // with no finger on the glass, forever. Ten slots is the whole population, the scan
+    // is O(10) and allocation-free, and it cannot miss a release no matter how many
+    // events arrived. A DOWN later in the same drain clears `released`, so a finger that
+    // came back inside one frame survives.
+    let n = 0, stuck = 0;
+    for (let i = 0; i < MAX_POINTERS; i++) {
+      const p = pointers[i];
+      if (!p.active) continue;
+      if (p.released) {
+        p.active = false; p.id = -1; p.claim = 0; p.claimData = 0;
+        p.logEntry = null; p.released = false;
+        continue;
+      }
+      // WATCHDOG: a pointer that has produced no event at all for STALE_MS has been lost
+      // by the OS. Release it rather than leave a control held down forever.
+      if (nowMs > 0 && p.lastMs > 0 && (nowMs - p.lastMs) > STALE_MS) {
+        p.active = false; p.id = -1; p.claim = 0; p.claimData = 0;
+        p.logEntry = null; p.released = false;
+        state.stale++;
+        continue;
+      }
+      n++;
     }
-
-    let n = 0;
-    for (let i = 0; i < MAX_POINTERS; i++) if (pointers[i].active) n++;
+    // Structurally zero: nothing above can leave `released` set on an active slot. It is
+    // still recomputed and reported, because an invariant nobody measures is a comment.
+    for (let i = 0; i < MAX_POINTERS; i++) if (pointers[i].active && pointers[i].released) stuck++;
     state.activeCount = n;
-    state.stuck = byId.size !== n ? byId.size - n : 0;
+    state.stuck = stuck;
     return applied;
   }
 
@@ -360,7 +460,7 @@ export function createTouch(element, opts) {
     element.removeEventListener('pointermove', onMove);
     element.removeEventListener('pointerup', onUp);
     element.removeEventListener('pointercancel', onCancel);
-    element.removeEventListener('lostpointercapture', onCancel);
+    element.removeEventListener('lostpointercapture', onLostCapture);
     element.removeEventListener('touchcancel', onTouchCancel);
     element.removeEventListener('contextmenu', onCtxMenu);
     document.removeEventListener('visibilitychange', onVisibility);

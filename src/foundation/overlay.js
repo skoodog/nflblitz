@@ -234,8 +234,29 @@ export function createRuntimeOverlay(canvas, params) {
      * animated elements still move. A piece that genuinely needs per-frame animation
      * calls `ui.markDirty()` and is billed for it in the `overlay` budget line.
      */
-    shouldDraw(epoch, tick, maxStaleTicks) {
-      if (fullDirty || drN > 0) return true;
+    /**
+     * `minTicks` is the REDRAW CEILING, and it comes off the quality ladder.
+     *
+     * The epoch gate above answers "did anything change". During a thumbstick drag the
+     * answer is yes on EVERY frame, so without a ceiling a floor device recomposites the
+     * whole HUD layer 60 times a second to move a circle a few pixels. A floor device now
+     * redraws at 20 Hz, a low device at 30, mid and high at 60.
+     *
+     * WHAT THIS DID AND DID NOT DO, measured. It cuts the NUMBER of layer composites per
+     * second during a drag by 3x at the floor tier, which is real work not done on a
+     * battery-powered device. It did NOT move the `overlay` span's p95, which stayed at
+     * 2.00 ms: the cost is per-redraw, not per-second, and p95 sits inside the population
+     * of frames that do redraw. Recorded here rather than quietly dropped, because a
+     * change justified by a number it did not move is a change justified by nothing. The
+     * ceiling is kept on its own merits; the p95 overrun is dealt with elsewhere.
+     *
+     * `fullDirty` — a flow-state change, a resize, an orientation change — always
+     * bypasses the ceiling, because those are the redraws a player notices being late.
+     */
+    shouldDraw(epoch, tick, maxStaleTicks, minTicks) {
+      if (fullDirty) return true;
+      if (minTicks > 1 && (tick - lastDrawTick) < minTicks) return false;
+      if (drN > 0) return true;
       if (epoch !== lastEpoch) return true;
       if (maxStaleTicks > 0 && (tick - lastDrawTick) >= maxStaleTicks) return true;
       return false;

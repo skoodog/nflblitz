@@ -583,7 +583,32 @@ export function createRuntime(opts) {
     return world.actors.length;
   }
 
-  function buildScene(sceneId) {
+  /**
+   * buildScene(sceneId, startRung, tierName)
+   *
+   * `startRung` MUST be passed by any caller that knows it, and the runtime path does.
+   * Round 2 fixed the ordering INSIDE this function (applyRung before buildFromShot);
+   * this fixes the ordering OUTSIDE it. `createRuntime` defaults `rung` to 8 — a MID
+   * rung — and `main.js` only applied the detected/forced rung at step 6, well after
+   * `buildScene` had already run. Everything downstream was corrected later by that
+   * forced `applyRung`, with ONE exception, and it was the one that mattered:
+   *
+   *   `perf_synthetic` measures the base scene ONCE, right here, to work out how much
+   *   headroom is left under the tier's caps. Measuring a rung-8 scene against the FLOOR
+   *   tier's caps of 60 draws / 90,000 triangles leaves zero headroom, so the filler
+   *   added NOTHING and the proof scene was the live scene wearing a different name.
+   *   Measured before this fix: `--scene=perf_synthetic --tier=floor` reported
+   *   "synthetic added 0 calls / 0 tris, draw calls 26 of 60 cap (43%)". A scene at 43%
+   *   of the cap proves nothing about behaviour at the cap.
+   *
+   * `tierName` is the tier whose caps to fill to, for the same reason: `tierOfRung(8)`
+   * is `mid`, so an unforced call would have filled a floor device to mid's caps.
+   */
+  function buildScene(sceneId, startRung, tierName) {
+    if (startRung !== undefined && startRung !== null) {
+      rung = startRung < 0 ? 0 : startRung > 15 ? 15 : startRung | 0;
+      ctx.rung = rung;
+    }
     if (world) world.dispose();
     if (synth) { synth.dispose(); synth = null; }
     if (canary) { canary.dispose(); canary = null; }
@@ -618,7 +643,7 @@ export function createRuntime(opts) {
     actorLodKey = lodKeyFor(rung);      // the cast now matches this rung, by construction
 
     if (isSynth) {
-      const tier = params.tier || tierOfRung(rung);
+      const tier = tierName || params.tier || tierOfRung(rung);
       let base = null;
       try { base = countScene(scene, { shadowsEnabled: false }); } catch (e) { base = null; }
       synth = fillToTierCap(THREE, tier, base, rung);

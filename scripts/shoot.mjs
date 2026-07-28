@@ -1,9 +1,42 @@
 #!/usr/bin/env node
-// FOUNDATION — FROZEN after t=0. Do not edit.
+// FOUNDATION — the capture command. Frozen to PIECE agents; owned by perf-core.
 //
 // ONE command produces a PNG. Self-healing: npm ci if node_modules is missing,
 // vite build if dist/ is stale, static server on 127.0.0.1:5178, Playwright drive,
 // teardown.
+//
+// WHY `waitUntil: 'commit'` AND NOT `'load'` (round 3).
+//   `bootCapture()` renders the whole accumulation still SYNCHRONOUSLY inside the module
+//   script: warmup passes, then `accum` jittered passes, then the resolve and the overlay.
+//   A module script that never yields holds the main thread, and the `load` event cannot
+//   fire until it returns. So `page.goto(..., {waitUntil:'load'})` was waiting for the
+//   capture it had not started measuring yet, on a 120 s navigation budget, while the
+//   real readiness gate — `__BLITZ_READY__`, on a 240 s budget — sat unused behind it.
+//   Any scene whose capture takes longer than the NAVIGATION timeout failed with
+//   "page.goto: Timeout exceeded" and no other information.
+//   Measured: `--piece=typeface-lettering` at the default accum=32 renders six 1920x1080
+//   scenes and blew the 120 s navigation budget on the first one, so a fidelity critic
+//   could not capture that piece at all.
+//   `'commit'` resolves as soon as the navigation is committed, which is what this file's
+//   own header has always said the contract was: readiness is engine-driven, never
+//   timer-driven. Nothing about the rendered pixels changes.
+//
+// AND A SECOND BUG UNDERNEATH IT, which the first one was hiding.
+//   `page.waitForFunction(pred, {timeout: TIMEOUT})` is a THREE-argument call in
+//   Playwright: `(pageFunction, arg, options)`. Passing the options object second makes
+//   it the ARGUMENT to the page function, not the options, so the readiness gate silently
+//   ran on Playwright's 30 s default instead of the 240 s this file configures — and the
+//   same mistake was in perf.mjs, budget.mjs, touch.mjs, compare.mjs, costcurve.mjs and
+//   allocprobe.mjs, all of which "worked" only because play mode boots in under 30 s.
+//   Fixed everywhere to `waitForFunction(pred, null, {timeout})`.
+//
+// AND A THIRD: `page.screenshot({timeout: 120000})` was a hardcoded constant that
+//   disagreed with --timeout. Now it follows TIMEOUT too.
+//
+// With all three fixed, `node scripts/shoot.mjs --piece=typeface-lettering` with NO FLAGS
+// captures 6/6. Per scene on this box: 70-152 s to __BLITZ_READY__ (the accumulation
+// render itself is 68-139 s of that) and a further 106-161 s for the screenshot, because
+// SwiftShader's readback of a 1920x1080 layer pair is not fast. ~4 minutes per scene.
 //
 //   node scripts/shoot.mjs --scene=truck --out=shots/foundation.png
 //   node scripts/shoot.mjs --all
@@ -222,7 +255,7 @@ async function newPage(browser, w, h) {
 }
 
 async function readyStats(page) {
-  await page.waitForFunction('window.__BLITZ_READY__===true', { timeout: TIMEOUT });
+  await page.waitForFunction('window.__BLITZ_READY__===true', null, { timeout: TIMEOUT });
   return page.evaluate(() => ({
     stats: window.__BLITZ_STATS__ || null,
     error: window.__BLITZ_ERROR__ || null,
@@ -232,8 +265,8 @@ async function readyStats(page) {
 
 async function listScenes(browser, base) {
   const { page, context } = await newPage(browser, 400, 300);
-  await page.goto(`${base}/?list=1&scene=truck`, { waitUntil: 'load', timeout: TIMEOUT });
-  await page.waitForFunction('window.__BLITZ_READY__===true', { timeout: TIMEOUT });
+  await page.goto(`${base}/?list=1&scene=truck`, { waitUntil: 'commit', timeout: TIMEOUT });
+  await page.waitForFunction('window.__BLITZ_READY__===true', null, { timeout: TIMEOUT });
   const data = await page.evaluate(() => ({
     scenes: window.__BLITZ_SCENES__ || [],
     pieces: window.__BLITZ_PIECES__ || [],
@@ -249,20 +282,30 @@ async function shootOne(browser, base, o) {
   const { page, context } = await newPage(browser, o.w || Wpx, o.h || Hpx);
   let info = null;
   try {
-    await page.goto(url, { waitUntil: 'load', timeout: TIMEOUT });
+    const tNav = Date.now();
+    await page.goto(url, { waitUntil: 'commit', timeout: TIMEOUT });
     info = await readyStats(page);
+    const tReady = Date.now();
     const outPath = path.resolve(REPO, o.out);
     fs.mkdirSync(path.dirname(outPath), { recursive: true });
     // clip-based page screenshot: no scroll-into-view, no stability wait, exact pixels
+    // The screenshot budget follows --timeout instead of being pinned at 120 s. Under
+    // SwiftShader the compositor's readback of a 1920x1080 layer pair is itself slow, and
+    // for the heaviest scenes it exceeded the old constant. A capture command whose two
+    // internal deadlines disagree with its own --timeout flag fails for reasons that have
+    // nothing to do with the scene.
     await page.screenshot({
       path: outPath,
       animations: 'disabled',
-      timeout: 120000,
+      timeout: TIMEOUT,
       clip: { x: 0, y: 0, width: o.w || Wpx, height: o.h || Hpx },
     });
     const size = fs.statSync(outPath).size;
     const st = info.stats || {};
-    log(`${o.scene} -> ${o.out}  (${size} B, ${st.ms || '?'}ms, ${st.tris || '?'} tris, ${st.drawCalls || '?'} calls${info.error ? ', PAGE ERROR' : ''})`);
+    // Ready time is printed per scene so a slow capture is visible as a slow capture
+    // rather than as a mysterious navigation timeout later.
+    log(`${o.scene} -> ${o.out}  (${size} B, ${st.ms || '?'}ms render, ${((tReady - tNav) / 1000).toFixed(1)}s to ready, `
+      + `${((Date.now() - tReady) / 1000).toFixed(1)}s to png, ${st.tris || '?'} tris, ${st.drawCalls || '?'} calls${info.error ? ', PAGE ERROR' : ''})`);
     if (info.error) console.error('[shoot] page error:', info.error);
     if (info.errors && info.errors.length) {
       for (const e of info.errors.slice(0, 8)) console.error('[shoot] runtime:', e);
