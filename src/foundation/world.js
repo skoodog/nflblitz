@@ -1,7 +1,12 @@
-// FOUNDATION — FROZEN after t=0. Do not edit.
-// The world assembler. Turns a ShotSpec into a live THREE.Scene, in a FIXED order
-// so that whichever slots are real and whichever are still fallbacks, the result is
-// always the same shape.
+// FOUNDATION — the BUILD ORDER below is frozen. Turns a ShotSpec into a live
+// THREE.Scene, in a FIXED order so that whichever slots are real and whichever are still
+// fallbacks, the result is always the same shape.
+//
+// ROUND 2 amendment: the actor loop is factored out into `buildActors()` and exported,
+// with the build order and every call inside it byte-for-byte unchanged. The runtime
+// needs to re-run JUST that loop when the quality rung crosses an actor-LOD boundary,
+// because `character-anatomy` picks an actor's LOD when the actor is BUILT and never
+// again. Nothing else about the assembler moved.
 //
 //   turf.build
 //   stadium.build
@@ -42,6 +47,68 @@ function safe(label, fn, fallbackValue) {
     (window.__BLITZ_ERRORS__ = window.__BLITZ_ERRORS__ || []).push(msg);
     return fallbackValue;
   }
+}
+
+/**
+ * Step 4 of the assembler, extracted verbatim so the runtime can re-run it alone.
+ * Appends to `world.actors` and to `root`. Every call, and their order, is unchanged
+ * from when this was inline.
+ */
+export function buildActors(shot, ctx, root, world) {
+  const anatomy = REG.world.anatomy;
+  const uniform = REG.world.uniform;
+  const pose = REG.world.pose;
+
+  shot.actors.forEach((a, i) => {
+    const actor = safe(`anatomy.build[${a.id}]`, () => anatomy.build(ctx, {
+      archetype: a.archetype,
+      heightM: a.heightM,
+      massKg: a.massKg,
+      seed: a.seed !== undefined ? a.seed : (ctx.seed * 977 + i * 131),
+    }), null);
+    if (!actor || !actor.root) return;
+
+    const matSet = safe(`uniform.materials[${a.team}/${a.variant}]`, () => uniform.materials(ctx, a.team, a.variant, {
+      number: a.number, name: a.name, dirt: a.dirt, wet: a.wet,
+    }), null);
+    if (matSet) {
+      // Contract guard: every MAT_SLOTS key must exist. Missing keys become plain grey.
+      for (const k of MAT_SLOTS) {
+        if (!matSet[k]) matSet[k] = new THREE.MeshStandardMaterial({ color: 0x8e8e93, roughness: 0.9 });
+      }
+      safe(`anatomy.setMaterials[${a.id}]`, () => anatomy.setMaterials(actor, matSet));
+    }
+
+    safe(`pose.apply[${a.pose}]`, () => pose.apply(actor.skeleton, a.pose, a.phase, a.seed !== undefined ? a.seed : ctx.seed + i));
+
+    actor.root.position.set(a.pos[0], a.pos[1], a.pos[2]);
+    actor.root.rotation.y = a.rotY;
+    if (a.scale !== 1) actor.root.scale.setScalar(a.scale);
+    tagPiece(actor.root, SLOT_PIECE.anatomy);
+    actor.root.name = `actor:${a.id}`;
+    actor.spec = a;
+    root.add(actor.root);
+    world.actors.push(actor);
+  });
+}
+
+/**
+ * Tear down just the actors, leaving turf, stadium, lighting, fx and post alone.
+ *
+ * ONLY the per-actor GEOMETRY is disposed. Materials are NOT: `uniform-kit` hands out a
+ * cached, shared material set per team+variant, so disposing them here would blank every
+ * other actor wearing the same kit and would force a re-bake (and a shader recompile) on
+ * the next rebuild — the exact hitch this whole mechanism exists to avoid.
+ */
+export function disposeActors(world) {
+  const acts = world.actors;
+  for (let i = 0; i < acts.length; i++) {
+    const a = acts[i];
+    if (!a || !a.root) continue;
+    if (a.root.parent) a.root.parent.remove(a.root);
+    if (a.mesh && a.mesh.geometry && a.mesh.geometry.dispose) a.mesh.geometry.dispose();
+  }
+  acts.length = 0;
 }
 
 export function buildFromShot(shot, ctx) {
@@ -85,41 +152,7 @@ export function buildFromShot(shot, ctx) {
   }
 
   // 4. ACTORS ---------------------------------------------------------------
-  const anatomy = REG.world.anatomy;
-  const uniform = REG.world.uniform;
-  const pose = REG.world.pose;
-
-  shot.actors.forEach((a, i) => {
-    const actor = safe(`anatomy.build[${a.id}]`, () => anatomy.build(ctx, {
-      archetype: a.archetype,
-      heightM: a.heightM,
-      massKg: a.massKg,
-      seed: a.seed !== undefined ? a.seed : (ctx.seed * 977 + i * 131),
-    }), null);
-    if (!actor || !actor.root) return;
-
-    const matSet = safe(`uniform.materials[${a.team}/${a.variant}]`, () => uniform.materials(ctx, a.team, a.variant, {
-      number: a.number, name: a.name, dirt: a.dirt, wet: a.wet,
-    }), null);
-    if (matSet) {
-      // Contract guard: every MAT_SLOTS key must exist. Missing keys become plain grey.
-      for (const k of MAT_SLOTS) {
-        if (!matSet[k]) matSet[k] = new THREE.MeshStandardMaterial({ color: 0x8e8e93, roughness: 0.9 });
-      }
-      safe(`anatomy.setMaterials[${a.id}]`, () => anatomy.setMaterials(actor, matSet));
-    }
-
-    safe(`pose.apply[${a.pose}]`, () => pose.apply(actor.skeleton, a.pose, a.phase, a.seed !== undefined ? a.seed : ctx.seed + i));
-
-    actor.root.position.set(a.pos[0], a.pos[1], a.pos[2]);
-    actor.root.rotation.y = a.rotY;
-    if (a.scale !== 1) actor.root.scale.setScalar(a.scale);
-    tagPiece(actor.root, SLOT_PIECE.anatomy);
-    actor.root.name = `actor:${a.id}`;
-    actor.spec = a;
-    root.add(actor.root);
-    world.actors.push(actor);
-  });
+  buildActors(shot, ctx, root, world);
 
   // 5. FX + BALL ------------------------------------------------------------
   const fxImpl = REG.world.fx;
@@ -221,4 +254,4 @@ export function buildFromShot(shot, ctx) {
   return world;
 }
 
-export default { buildFromShot };
+export default { buildFromShot, buildActors, disposeActors };

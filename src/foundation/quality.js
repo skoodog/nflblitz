@@ -16,9 +16,11 @@
 //   1 STATIC   (<2 ms)   renderer string, cores, DPR, screen area, GL limits.
 //   2 PROBE    (<=250 ms) a real CPU workload shaped like our skinning, and a real
 //                        fill-rate slope measured on the actual GPU. No device database.
-//   3 SCALER   (forever) rolling 30-frame windows; DOWN fast, UP slow, 8:2 hysteresis,
-//                        one rung change per 3 s, one rate change per 10 s, never
-//                        allocates, never compiles a shader.
+//   3 SCALER   (forever) rolling windows of 30 frames OR 1 s, whichever comes first;
+//                        DOWN fast, UP slow, 8:2 hysteresis; one rung change per 3 s and
+//                        one rate change per 10 s when coping, MULTI-RUNG after a single
+//                        window when the miss is severe; never allocates, never compiles
+//                        a shader. A short (time-closed) window may only move DOWN.
 //
 // WHAT NEVER SCALES: colour grade + LUT, value structure, key/rim direction, silhouette
 // and proportion, camera staging, ALL typography, HUD layout, team colour, and THE SIM
@@ -68,6 +70,57 @@ export function tierOfRung(r) {
  * 16 rungs. Tier boundaries land EXACTLY on the tier's structural cap so
  * `budget.mjs --tier=X` and `rungForTier(X)` agree by construction.
  *
+ * THE FLOOR ROWS (0-2) ARE SET FROM A MEASUREMENT, NOT FROM A PREFERENCE.
+ * See `progress/cost-curve.md`, produced by `node scripts/costcurve.mjs`. Two things
+ * that table forced:
+ *
+ *  1. Rung 2 used to be renderScale 0.60, and rung 1 was 0.55 — both ABOVE the floor
+ *     tier's own structural cap of 0.50 in the contract. The header above claims tier
+ *     boundaries land exactly on the tier's cap; for floor it did not. Rung 2 is now
+ *     0.50, which is the cap, so `budget.mjs --tier=floor` and `rungForTier('floor')`
+ *     finally agree the way the other three tiers already did.
+ *
+ *  2. Rung 0 used to be 0.50 — the SAME cost as the top of the tier, give or take.
+ *     A floor tier whose bottom rung costs what its top rung costs cannot rescue a
+ *     device that is drowning. Measured on this container at rung 0's own content
+ *     (48,342 triangles, 22 draw calls), serialised frame cost against render scale was:
+ *         0.50 -> 93.8 ms   0.40 -> 68.2   0.32 -> 51.5   0.26 -> 40.3
+ *         0.22 -> 33.8      0.18 -> 31.1   0.14 -> 26.9
+ *     The 30 Hz period is 33.3 ms, so the whole curve above is over the wall, and the
+ *     choice was then made from REAL HARNESS RUNS rather than from that extrapolation
+ *     (`scripts/perf.mjs --tier=floor --rung=0 --rate=30 --throttle=1 --rung-scale=X`,
+ *     20 s each, pacing gates only):
+ *         0.15 (59x127)  p50 33.30  p95 33.40  worst 50.0   drops 3/595 (0.50%)  FAIL
+ *         0.11 (43x 93)  p50 33.30  p95 33.40  worst 33.5   drops 0/602 (0.00%)  PASS
+ *         0.08 (31x 68)  p50 33.30  p95 33.40  worst 50.0   drops 1/598 (0.17%)  PASS
+ *     0.11 is the highest scale that pins 30 Hz CLEANLY here — zero dropped frames in
+ *     602, zero bad 3 s windows. 0.08 buys nothing and costs picture, so the ladder
+ *     stops at 0.11. It is deliberately a rung that no phone would ever select; a floor
+ *     rung that no real device reaches is not a compromise, it is the ladder working.
+ *
+ *     What is actually being paid for at rung 0, measured at its own 59x127 buffer by
+ *     hiding one owner at a time (frame p50, render + readPixels):
+ *         everything                26.5 ms
+ *         minus the 14 actors       13.4 ms   <- the actors alone are 13.1 ms
+ *         minus stadium             21.4 ms
+ *         minus turf                22.3 ms
+ *         empty scene                5.0 ms
+ *     Half the floor frame is 14 SkinnedMeshes at 31,584 triangles. The rung's own
+ *     `imposter` column is supposed to be the lever for exactly that and currently is
+ *     not — see the note below.
+ *
+ * THE `imposter` COLUMN IS CURRENTLY INERT, and that is the single biggest thing standing
+ * between the floor rung and real headroom. Measured: `character-anatomy` builds LOD2 and
+ * LOD3 identically — both merge to a single 'jersey' slot — so rung 0 at 6 skinned + 8
+ * imposter and rung 0 at 0 skinned + 14 imposter draw the SAME 48,342 triangles and cost
+ * the same (93.8 vs 85.9 ms at scale 0.50, inside run-to-run noise). Its own header says
+ * LOD3 should be "1 draw call (instanced batch)". If LOD3 were a real imposter, rung 0's
+ * 8 imposter actors would shed roughly 18,000 triangles and — at the measured 0.41 us per
+ * triangle here — about 7.5 ms of a 26.5 ms frame. That is the difference between needing
+ * a 43x93 buffer and comfortably holding 30 Hz at 59x127 or better.
+ * Recorded here rather than quietly relied on. Foundation cannot fix it; it can only
+ * refuse to pretend the column is doing work.
+ *
  * Columns: renderScale, dprCap, shadowSize (0=off, blob decals), shadowCasters,
  *          postPasses, particles, skinned actors, imposter actors, bones evaluated,
  *          volumetric (0 off,1 baked haze,2 billboard shafts,3 raymarched),
@@ -78,9 +131,9 @@ const R = (renderScale, dprCap, shadowSize, shadowCasters, postPasses, particles
   ({ renderScale, dprCap, shadowSize, shadowCasters, postPasses, particles, skinned, imposter, bones, volumetric, turf, crowd });
 
 export const RUNGS = Object.freeze([
-  /* 0  floor */ R(0.50, 1.0, 0, 0, 0, 0, 6, 8, 14, 0, 0, 0),
-  /* 1  floor */ R(0.55, 1.0, 0, 0, 0, 0, 6, 8, 14, 1, 0, 0),
-  /* 2  floor */ R(0.60, 1.0, 0, 0, 0, 0, 6, 8, 14, 1, 0, 0),
+  /* 0  floor */ R(0.11, 1.0, 0, 0, 0, 0, 6, 8, 14, 0, 0, 0),
+  /* 1  floor */ R(0.28, 1.0, 0, 0, 0, 0, 6, 8, 14, 1, 0, 0),
+  /* 2  floor */ R(0.50, 1.0, 0, 0, 0, 0, 6, 8, 14, 1, 0, 0),
   /* 3  low   */ R(0.62, 1.25, 512, 8, 1, 150, 8, 6, 18, 1, 1, 1),
   /* 4  low   */ R(0.64, 1.25, 512, 10, 1, 250, 9, 5, 18, 1, 1, 1),
   /* 5  low   */ R(0.65, 1.5, 512, 12, 1, 320, 10, 4, 20, 1, 1, 1),
@@ -288,17 +341,31 @@ void main(){
     gl.blendFunc(gl.ONE, gl.ONE);
     gl.viewport(0, 0, w, h);
 
+    // THE SYNC HAS TO BE A READBACK, NOT `gl.finish()`.
+    //
+    // `renderer.render()` and `drawArrays` only WRITE COMMANDS into Chrome's command
+    // buffer; the GPU process rasterises them later. `gl.finish()` does not wait for
+    // that. Measured on this container, this probe reported ms: 0 for all four of its
+    // points while taking 1.21 SECONDS of wall time — so `slope` came out 0, `ok` stayed
+    // false, and `classify()` silently skipped the whole GPU branch. The probe was
+    // running, costing a second of boot, and telling nobody anything.
+    //
+    // A 1x1 `readPixels` cannot return before the frame's pixels actually exist, so it
+    // is the only sync here that measures the rasteriser instead of the queue.
+    const px = new Uint8Array(4);
+    const sync = () => gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+
     // warm the pipeline (first draw pays compile + first-use costs)
     gl.uniform1f(uLoc, 0.0); gl.drawArrays(gl.TRIANGLES, 0, 3);
-    gl.finish();
+    sync();
 
     for (const n of [1, 2, 4, 8]) {
       if (now() - t0 > budget) { res.aborted = true; break; }
       const a0 = now();
       for (let f = 0; f < 2; f++) {
         for (let i = 0; i < n; i++) { gl.uniform1f(uLoc, i * 0.1 + f); gl.drawArrays(gl.TRIANGLES, 0, 3); }
+        sync();
       }
-      gl.finish();
       const ms = (now() - a0) / 2;
       res.points.push({ n, ms });
       if (ms > budget) { res.aborted = true; break; }
@@ -363,6 +430,12 @@ export function classify(sig, cpu, gpu) {
   } else if (gpu && gpu.aborted) {
     tier = 'floor';
     notes.push('gpu probe blew its deadline -> floor');
+  } else if (gpu && !gpu.ok) {
+    // The probe RAN and produced no usable slope. That used to fall through in silence,
+    // which is how a broken probe (see the `gl.finish()` note in gpuProbe) went unnoticed
+    // for a whole round. It is now stated in the notes, so a probe that stops working
+    // shows up in `__BLITZ_PERF__.detected` instead of quietly disabling a whole axis.
+    notes.push(`gpu probe inconclusive (${gpu.note || 'no slope'}) -> tier from static signals only`);
   }
 
   // Start at the MIDDLE of the tier, never the top: the scaler climbs quickly when it
@@ -383,6 +456,36 @@ export const SCALER = Object.freeze({
   upWindows: 8,
   rungRateLimitMs: 3000,
   crossFadeMs: 250,
+
+  /* ---- ESCAPE VELOCITY ---------------------------------------------------
+   * A window measured purely in FRAMES gets LONGER exactly when the device is in
+   * trouble, so the ladder descends slowest at the moment it most needs to descend
+   * fastest. Measured on this container: at 116.7 ms per frame a 30-frame window is
+   * 3.5 SECONDS, and with `downWindows: 2` plus the 3 s rung rate limit, walking from
+   * rung 9 to rung 0 would have taken over eighty seconds — longer than the whole
+   * 60 s measured run. The scaler was not stuck; it was crawling.
+   *
+   * Two changes, both DOWN-ONLY so the up path keeps its full hysteresis:
+   *
+   *  windowMaxMs   close a window early once it has run this long, provided it has at
+   *                least `windowMinFrames` samples. Set well above a full window at any
+   *                healthy rate (30 frames of 33.3 ms is 1000 ms, of 16.7 ms is 500 ms)
+   *                so a device that is COPING never sees an early close and the strict
+   *                "exactly W samples per window" property — which `simtest --suite=
+   *                scaler` exists to protect — is untouched for it. A short window may
+   *                only move the ladder DOWN; every UP move still requires a full one.
+   *
+   *  panic*        when the miss is severe, drop MORE THAN ONE rung and drop it after a
+   *                single window. One rung at a time is right for a device that is
+   *                slightly over; it is useless for a device running at 3.5x its period.
+   */
+  windowMaxMs: 1000,
+  windowMinFrames: 8,
+  /** p95 interval / target period at which a single rung step stops being enough. */
+  panicSeverity: 2.0,
+  panicWindows: 1,
+  panicRateLimitMs: 600,
+  panicMaxStep: 4,
   /**
    * RATE moves. A rate change is VISIBLE, so it is much rarer and much more
    * hysteretic than a rung change, exactly as the amendment requires.
@@ -461,11 +564,22 @@ export function createScaler(opts) {
   let promotedAtMs = -1e9;
 
   let targets = pacingTargets(rate);
+  let windowStartMs = -1;      // wall time the current window opened
+  let lastWindowFrames = 0;    // how many samples the last evaluated window held
 
-  function p95(src) {
-    for (let k = 0; k < W; k++) sortBuf[k] = src[k];
+  /**
+   * p95 over the first `n` slots — `n` is the window's real length, which is W for a
+   * full window and less for an early-closed one.
+   *
+   * The dead tail is filled with +Infinity rather than sorting a `subarray` view,
+   * because a subarray ALLOCATES a TypedArray object and this runs in the frame path.
+   * Infinity sorts to the end, so the live prefix keeps its ordering and its indices.
+   */
+  function p95(src, n) {
+    for (let k = 0; k < n; k++) sortBuf[k] = src[k];
+    for (let k = n; k < W; k++) sortBuf[k] = Infinity;
     sortBuf.sort();
-    return sortBuf[Math.min(W - 1, Math.round(0.95 * (W - 1)))];
+    return sortBuf[Math.min(n - 1, Math.round(0.95 * (n - 1)))];
   }
 
   const scaler = {
@@ -481,6 +595,7 @@ export function createScaler(opts) {
     get wallMs() { return rateSpec(rate).wallMs; },
     lastP95Interval: 0,
     lastP95Cpu: 0,
+    lastWindowFrames: 0,
     downStreak: 0,
     upStreak: 0,
     rateDownStreak: 0,
@@ -518,17 +633,38 @@ export function createScaler(opts) {
       // good/bad input reads as uniformly bad. `simtest.mjs --suite=scaler` caught
       // exactly that: 60 alternating windows produced 9 rung changes and walked the
       // ladder to the floor when the correct answer is zero changes.
+      if (i === 0) windowStartMs = nowMs;
       iv[i] = intervalMs; cp[i] = cpuMs;
       i++;
-      if (i < W) return false;
-      i = 0; n = W;
 
-      const pi = p95(iv), pc = p95(cp);
+      // Close the window at W samples, OR early once it has run for `windowMaxMs` and
+      // holds enough samples for a percentile to mean anything. A device that is coping
+      // never reaches windowMaxMs inside W frames, so for it this is exactly the old
+      // "precisely W samples per window" behaviour and the drift hazard the comment
+      // below describes stays closed.
+      const elapsed = nowMs - windowStartMs;
+      const full = i >= W;
+      const early = i >= SCALER.windowMinFrames && elapsed >= SCALER.windowMaxMs;
+      if (!full && !early) return false;
+
+      const len = i;
+      i = 0; n = W;
+      lastWindowFrames = len;
+      scaler.lastWindowFrames = len;
+      // A SHORT window may only move the ladder DOWN. Every UP move — rung or rate —
+      // still demands a full W-sample window, so "down fast, up slow" survives intact.
+      const shortWindow = !full;
+
+      const pi = p95(iv, len), pc = p95(cp, len);
       scaler.lastP95Interval = pi; scaler.lastP95Cpu = pc;
 
       // Health of the window, judged against the ACTIVE period.
       const paceBad = pi > targets.p95;
-      const paceGood = pi <= targets.p95 && pc < rateSpec(rate).wallMs * 0.70;
+      const paceGood = !shortWindow && pi <= targets.p95 && pc < rateSpec(rate).wallMs * 0.70;
+      // How badly are we missing? 1.0 is exactly on period. A device at 3.5 does not
+      // need one rung, it needs several, and it needs them now.
+      const severity = pi / targets.periodMs;
+      const panic = paceBad && severity >= SCALER.panicSeverity;
 
       if (paceBad) { downStreak++; upStreak = 0; rateDownStreak++; rateUpStreak = 0; }
       else if (paceGood) { upStreak++; downStreak = 0; rateUpStreak++; rateDownStreak = 0; }
@@ -549,11 +685,24 @@ export function createScaler(opts) {
 
       if (locked && rateLocked) return false;
 
-      /* ---- 1. DOWN a rung. Fast, invisible, always first. -------------------- */
-      if (!locked && downStreak >= SCALER.downWindows && rung > minRung
-        && (nowMs - lastRungChangeMs) >= SCALER.rungRateLimitMs) {
+      /* ---- 1. DOWN a rung. Fast, invisible, always first. --------------------
+         In PANIC the ladder moves several rungs after a single window and on a much
+         shorter rate limit. A rung change is invisible; a device running at 3.5x its
+         period is not, and making it wait 3 s per rung is how a scaler watches a game
+         stutter politely. */
+      const needDownWindows = panic ? SCALER.panicWindows : SCALER.downWindows;
+      const downLimitMs = panic ? SCALER.panicRateLimitMs : SCALER.rungRateLimitMs;
+      if (!locked && downStreak >= needDownWindows && rung > minRung
+        && (nowMs - lastRungChangeMs) >= downLimitMs) {
+        // severity 2.0 -> 1 rung, 3.0 -> 2, 4.0 -> 3, capped at panicMaxStep.
+        let step = 1;
+        if (panic) {
+          step = Math.floor(severity) - 1;
+          if (step < 1) step = 1;
+          if (step > SCALER.panicMaxStep) step = SCALER.panicMaxStep;
+        }
         downStreak = 0; lastRungChangeMs = nowMs;
-        return scaler.setRung(rung - 1, RUNG_REASON.DOWN_PACING);
+        return scaler.setRung(rung - step, RUNG_REASON.DOWN_PACING);
       }
 
       /* ---- 2. DOWN the rate, but ONLY with the ladder exhausted. ------------- */
@@ -566,7 +715,7 @@ export function createScaler(opts) {
 
       /* ---- 3. UP the rate before UP the rung. Frames beat looks. ------------- */
       const promotionPlausible = !rate60Latched && !rateLocked;
-      if (rate === 30 && promotionPlausible
+      if (!shortWindow && rate === 30 && promotionPlausible
         && rateUpStreak >= SCALER.rateUpWindows
         && pc < SCALER.rateUpCpuMs
         && (nowMs - lastRateChangeMs) >= SCALER.rateLimitMs) {
@@ -578,7 +727,7 @@ export function createScaler(opts) {
                 and the measured CPU says 60 might be reachable — headroom must be
                 offered to the rate axis first. Once 60 is latched off, or once the
                 cost is clearly past what 60 could carry, quality gets the headroom. */
-      if (!locked && upStreak >= SCALER.upWindows && rung < maxRung
+      if (!shortWindow && !locked && upStreak >= SCALER.upWindows && rung < maxRung
         && (nowMs - lastRungChangeMs) >= SCALER.rungRateLimitMs) {
         const rateWantsIt = rate === 30 && promotionPlausible && pc < SCALER.rateUpCpuMs;
         if (!rateWantsIt) {
@@ -594,6 +743,7 @@ export function createScaler(opts) {
 
     reset(r, rt) {
       n = 0; i = 0;
+      windowStartMs = -1; lastWindowFrames = 0;
       for (let k = 0; k < W; k++) { iv[k] = 0; cp[k] = 0; }
       downStreak = 0; upStreak = 0; rateDownStreak = 0; rateUpStreak = 0;
       lastRungChangeMs = -1e9; lastRateChangeMs = -1e9; promotedAtMs = -1e9;

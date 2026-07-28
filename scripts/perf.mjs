@@ -42,8 +42,29 @@ const JSON_OUT = !!args.json;
 const NO_INPUT = !!args['no-input'];
 const PORT = Number(args.port || 5182);
 
-if (!TIER_THROTTLE[TIER]) {
-  console.error(`unknown tier "${TIER}". Use floor|low|mid|high.`);
+// `--tier=auto` runs the REAL boot detector (static signals + micro-probes) instead of
+// pinning a tier. It exists because a pinned tier also CLAMPS THE RUNG LADDER to that
+// tier's range — `--tier=mid` means the scaler may never go below rung 7 — and a report
+// that does not say so invites the reader to mistake "the scaler stopped at rung 7" for
+// "the scaler gave up" when the truth is "the scaler hit the floor of the range the
+// command gave it". Throttle and DPR for an auto run are taken from the tier the
+// detector actually picks.
+// `--throttle=N` overrides the tier's CPU emulation rate. It exists so the two
+// emulations this box stacks can be separated in the report instead of being argued
+// about: `--tier=floor` runs a 6x CPU slowdown ON TOP of a software rasteriser, which
+// together describe a device that does not exist. `--throttle=1` leaves SwiftShader as
+// the only thing in the way and answers "what does the LOOP do when only the GPU is
+// slow". Both are honest; neither is a phone. The value used is always printed.
+const THROTTLE = args.throttle !== undefined ? Number(args.throttle) : null;
+// `--rung-scale=X` overwrites the ACTIVE rung's internal render scale in the live RUNGS
+// table before the measured window, so the rung ladder's floor can be chosen from real
+// harness runs instead of from an extrapolation. It is a diagnostic, it is announced in
+// the output, and it changes nothing about the shipped table — it is how the shipped
+// table gets decided. Pair it with `--rung=N` so it is unambiguous which row moved.
+const RUNG_SCALE = args['rung-scale'] !== undefined ? Number(args['rung-scale']) : null;
+const AUTO = TIER === 'auto';
+if (!AUTO && !TIER_THROTTLE[TIER]) {
+  console.error(`unknown tier "${TIER}". Use floor|low|mid|high|auto.`);
   process.exit(2);
 }
 
@@ -92,28 +113,48 @@ const browser = await chromium.launch({ headless: true, args: LAUNCH_ARGS });
 
 let exitCode = 0;
 try {
-  const dpr = TIER_DPR[TIER];
+  // For a PINNED tier the harness overrides DPR from its tier table, so the run is
+  // repeatable. For `--tier=auto` the emulated device keeps its own DPR of 2.0 and the
+  // active rung's `dprCap` clamps it — which is exactly what happens on a real phone.
+  const dpr = AUTO ? 2.0 : TIER_DPR[TIER];
   const { page, cdp, context, errors } = await newMobilePage(browser, { width: 390, height: 844, dpr });
 
   const url = playUrl(srv.url, {
-    scene: SCENE, tier: TIER, raster: RASTER, seed: 7, rate: RATE, rung: RUNG,
-    probe: false,      // pinned tier: the probe would be measuring this box, not a phone
+    scene: SCENE, tier: AUTO ? null : TIER, raster: RASTER, seed: 7, rate: RATE, rung: RUNG,
+    // A pinned tier skips the probe: it would be measuring this box, not a phone.
+    // `--tier=auto` is the opposite request — run the detector and report what it says.
+    probe: AUTO,
   });
   L(`[perf] ${url}`);
-
-  // Verify the throttle is real BEFORE the run, on this exact page.
-  await page.goto(`${srv.url}/?list=1`, { waitUntil: 'load', timeout: 240000 });
-  const thr = await measureThrottle(page, cdp, TIER_THROTTLE[TIER]);
-  await setCpuThrottle(cdp, 1);
 
   await page.goto(url, { waitUntil: 'load', timeout: 300000 });
   await page.waitForFunction('window.__BLITZ_READY__===true', { timeout: 300000 });
   const boot = await page.evaluate(() => window.__BLITZ_STATS__);
   if (boot && boot.error) throw new Error(`page boot error: ${boot.error}`);
+  const detected = await page.evaluate(() => window.__BLITZ_PERF__.detected);
+  const effTier = AUTO ? (detected && detected.tier) || 'mid' : TIER;
+
+  // Verify the throttle is real BEFORE the measured run, on this exact page, with the
+  // loop PAUSED so the rAF frame does not contend with the calibration workload.
+  await page.evaluate(() => window.__BLITZ_PERF__.pause(true));
+  const throttleRate = THROTTLE !== null ? THROTTLE : TIER_THROTTLE[effTier];
+  const thr = await measureThrottle(page, cdp, throttleRate);
+  await setCpuThrottle(cdp, 1);
+  await page.evaluate(() => window.__BLITZ_PERF__.pause(false));
+
+  // Diagnostic render-scale override, applied BEFORE warmup so the measured window sees
+  // only the overridden buffer. `Object.freeze(RUNGS)` freezes the array, not the rows.
+  if (RUNG_SCALE !== null) {
+    await page.evaluate(([s]) => {
+      const P = window.__BLITZ_PERF__;
+      window.__BLITZ_QUALITY__.RUNGS[P.rung].renderScale = s;
+      P.prewarm();          // ends with a forced applyRung, which re-sizes the buffer
+    }, [RUNG_SCALE]);
+  }
 
   // Throttle AFTER load so shader compile / texture bake is not throttled into a
   // multi-minute boot. The contract is about the steady-state loop.
-  await setCpuThrottle(cdp, TIER_THROTTLE[TIER]);
+  await setCpuThrottle(cdp, throttleRate);
 
   // WARMUP, explicitly. The contract excludes warmup from every verdict and requires
   // zero dropped frames only in 3 s windows AFTER the first 2 s. So: settle, zero the
@@ -131,20 +172,41 @@ try {
     : driveInput(cdp, 390, 844, (DUR + WARMUP_S) * 1000, stopFlag);
 
   await page.waitForTimeout(WARMUP_S * 1000);
-  const warm = await page.evaluate(() => {
+
+  // FORCE A COLLECTION AT WARMUP END, then drop every heap sample taken before it.
+  //
+  // Boot allocates tens of MB that are garbage by the time the loop is steady:
+  // procedural actor geometry, texture bakes, and the 16-rung program prewarm. Whichever
+  // frame V8 chooses to collect that on lands inside the measured window and shows up as
+  // a heap "sawtooth" that has nothing to do with the frame loop. Measured at
+  // floor/rung 0 it read 29.15 MB against an 8 MB cap while V8's own sampling allocation
+  // profiler put the loop at 259 BYTES per presented frame.
+  //
+  // Warmup is excluded from every other verdict in this report. This is what excluding
+  // it from the heap verdict has to mean. It is announced in the output, not silent.
+  let gcOk = false;
+  try {
+    await cdp.send('HeapProfiler.enable');
+    await cdp.send('HeapProfiler.collectGarbage');
+    await cdp.send('HeapProfiler.disable');
+    gcOk = true;
+  } catch { /* no HeapProfiler domain: report the heap uncollected and say so */ }
+
+  const warm = await page.evaluate(([didGc]) => {
     const P = window.__BLITZ_PERF__;
     const iv = P.stats('interval');
     P.markWarmupEnd();
+    if (didGc) P.resetHeap();
     return { frames: P.frames, p50: iv.p50, worst: iv.worst };
-  });
+  }, [gcOk]);
 
   let rampNote = '';
   if (THERMAL) {
     // Ramp the CPU throttle mid-run and assert the scaler reacts and pacing recovers.
     await page.waitForTimeout((DUR / 3) * 1000);
     const t = await page.evaluate(() => performance.now());
-    await setCpuThrottle(cdp, Math.max(4, TIER_THROTTLE[TIER] * 2));
-    rampNote = `throttle ramped ${TIER_THROTTLE[TIER]}x -> ${Math.max(4, TIER_THROTTLE[TIER] * 2)}x at t=${(DUR / 3).toFixed(1)}s (page t=${t.toFixed(0)}ms)`;
+    await setCpuThrottle(cdp, Math.max(4, throttleRate * 2));
+    rampNote = `throttle ramped ${throttleRate}x -> ${Math.max(4, throttleRate * 2)}x at t=${(DUR / 3).toFixed(1)}s (page t=${t.toFixed(0)}ms)`;
     await page.waitForTimeout((DUR * 2 / 3) * 1000);
   } else {
     await page.waitForTimeout(DUR * 1000);
@@ -185,6 +247,8 @@ try {
       rungChanges: P.rungChanges(),
       scaler: P.scaler, clock: P.clock, pacer: P.pacer,
       programs: P.programCount, programsAtWarm: P.programsAtWarm,
+      quality: window.__BLITZ_QUALITY__ ? window.__BLITZ_QUALITY__.TIERS : null,
+      actorLod: window.__BLITZ_ENGINE__.actorLod,
       buffer: P.bufferSize, css: P.cssSize,
       renderInfo: P.renderInfo,
       inputCount: P.inputLog.length,
@@ -200,14 +264,20 @@ try {
   } else {
     const T = R.targets;
     const period = R.period;
+    const QT = R.quality || {
+      floor: { rungLo: 0, rungHi: 2 }, low: { rungLo: 3, rungHi: 6 },
+      mid: { rungLo: 7, rungHi: 11 }, high: { rungLo: 12, rungHi: 15 },
+    };
     L('');
     if (RASTER === 'auto' || RASTER === 'min') {
       L('!'.repeat(74));
       L('!! SWIFTSHADER NUMBERS - NOT A PHONE - GPU AXIS NOT PROVEN');
       L('!! Every INTERVAL below includes software rasterisation of the real scene.');
-      L('!! Measured here: interval is 66-150 ms at ANY internal resolution, because');
-      L('!! SwiftShader cost is dominated by per-triangle and per-draw-call work, which');
-      L('!! does not shrink with the framebuffer. --raster=min removes FILL cost only.');
+      L('!! Measured (progress/cost-curve.md): near the floor, frame cost on this box is');
+      L('!!    frame_ms ~ 20.8 + 838 * megapixels');
+      L('!! so resolution DOES matter — but ~20.8 ms of it is per-triangle and per-draw-');
+      L('!! call work that no render scale can remove. (An earlier version of this banner');
+      L('!! claimed interval was flat in resolution. That claim was wrong and is retired.)');
       L('!! The CPU table below IS honest and DOES transfer. The PACING table does not.');
       L('!! Use --raster=none to measure the loop pacing with GL submission removed.');
       L('!'.repeat(74));
@@ -220,7 +290,26 @@ try {
       L('-- It proves NOTHING about rendering cost. See README AXIS 2 / AXIS 3.');
       L('-'.repeat(74));
     }
-    L(`TIER ${TIER.padEnd(6)} cpu-throttle ${TIER_THROTTLE[TIER]}.0x (measured ${thr.measured.toFixed(2)}x)   rung ${R.rung}   raster=${RASTER}(${R.buffer.w}x${R.buffer.h})   css ${R.css.w}x${R.css.h} dpr ${TIER_DPR[TIER]}`);
+    L(`TIER ${effTier.padEnd(6)} cpu-throttle ${throttleRate.toFixed(1)}x${THROTTLE !== null ? ' (OVERRIDDEN, tier default ' + TIER_THROTTLE[effTier] + 'x)' : ''} (measured ${thr.measured.toFixed(2)}x)   rung ${R.rung}   raster=${RASTER}(${R.buffer.w}x${R.buffer.h})   css ${R.css.w}x${R.css.h} dpr ${dpr}`);
+    // THE RUNG LADDER'S RANGE, STATED. A forced tier clamps the scaler to that tier's
+    // rungs, so "the scaler settled at rung 7" under `--tier=mid` means it reached the
+    // BOTTOM OF ITS ALLOWED RANGE, not that it stopped trying. Round 1 of this report
+    // did not say so and the number was read the other way.
+    if (AUTO) {
+      L(`DETECT   tier=${detected.tier} rung=${detected.rung} rate=${detected.rate} Hz   ladder range 0..15 (unclamped)`);
+      L(`         ${detected.notes}`);
+    } else {
+      const lo = R.scaler.minRung !== undefined ? R.scaler.minRung : '?';
+      L(`DETECT   tier FORCED to "${TIER}" by the command line — boot probe SKIPPED.`);
+      L(`         *** the rung ladder is CLAMPED to ${TIER} rungs ${QT[TIER].rungLo}..${QT[TIER].rungHi} ***`
+        + `  a scaler that stops at rung ${QT[TIER].rungLo} here has hit that clamp, not its limit.`
+        + (lo === '?' ? '' : ''));
+      L(`         Run with --tier=auto to exercise the real detector and the full 0..15 ladder.`);
+    }
+    if (RUNG_SCALE !== null) {
+      L(`OVERRIDE *** rung ${R.rung} renderScale overwritten to ${RUNG_SCALE} by --rung-scale ***`
+        + `  this is a ladder-tuning run, not a run of the shipped table.`);
+    }
     L(`RATE     active ${R.rate} Hz   period ${period.toFixed(2)} ms   wall ${R.wall.toFixed(2)} ms   frames@60 ${R.hist.r60}  frames@30 ${R.hist.r30}`);
     L(`FRAMES   n=${R.frames}  dur=${DUR.toFixed(2)}s  input events=${R.inputCount}`);
     L(`WARMUP   ${warm.frames} frames excluded (p50 ${fmt(warm.p50, 0, 2)} ms, worst ${fmt(warm.worst, 0, 2)} ms) — reported, not hidden`);
@@ -305,7 +394,14 @@ try {
     // that is not leaking, and failing a run for it would be nonsense.
     const growOk = !heapEnough || h.growthPer1000 <= 0.5;
     L('');
-    L(`HEAP     start ${fmt(h.startMB, 0, 1)} end ${fmt(h.endMB, 0, 1)} peak ${fmt(h.peakMB, 0, 1)} MB   sawtooth ${fmt(h.sawtoothMB, 0, 2)}MB (<=8)  ${pass(sawOk)}`);
+    L(`HEAP     start ${fmt(h.startMB, 0, 1)} end ${fmt(h.endMB, 0, 1)} peak ${fmt(h.peakMB, 0, 1)} MB` +
+      `   GC amplitude ${fmt(h.sawtoothMB, 0, 2)}MB (<=8)  ${pass(sawOk)}`);
+    // The RANGE is reported next to the amplitude and never gated. They are different
+    // quantities: amplitude is garbage-per-GC-cycle (what the contract caps), range is
+    // the whole excursion of the run. Conflating them is what made a flat heap read as a
+    // 29 MB sawtooth before this run forced a collection at warmup end.
+    L(`         total range (peak-trough) ${fmt(h.rangeMB, 0, 2)} MB   not gated, reported` +
+      `   ${gcOk ? 'GC forced at warmup end' : '*** GC NOT forced: boot garbage is IN this window ***'}`);
     L(`         growth/1000f ${fmt(h.growthPer1000, 0, 3)} MB (<=0.5)   samples ${h.n}       ${heapEnough ? pass(growOk) : 'n/a (too few samples)'}`);
 
     // --- programs (ASSUMPTION D gate) --------------------------------------
@@ -321,13 +417,20 @@ try {
     // --- scaler ------------------------------------------------------------
     const rungCh = R.rungChanges.filter((c) => c.kind === 0);
     const rateCh = R.rungChanges.filter((c) => c.kind === 1);
-    L(`SCALER   rung changes ${rungCh.length}   RATE changes ${rateCh.length}   final rung ${R.rung} rate ${R.rate}   60-latched ${R.scaler.rate60Latched}`);
+    // BOOT rung is printed next to FINAL rung. `reset()` clears the rung-change log at
+    // the start of the measured window, so a descent that happened during the settle
+    // (which the new escape-velocity windows make FAST — a bad first window now closes
+    // in ~1 s instead of ~3.5 s) would otherwise show as "0 rung changes, final rung 0"
+    // with no hint that it started higher.
+    L(`SCALER   boot rung ${boot.rung} -> final rung ${R.rung}   rung changes in window ${rungCh.length}`
+      + `   RATE changes ${rateCh.length}   rate ${R.rate}   60-latched ${R.scaler.rate60Latched}`);
     for (const c of R.rungChanges.slice(0, 8)) {
       L(`           ${c.kind === 1 ? 'RATE' : 'rung'} ${c.from}->${c.to} at frame ${c.frame}`);
     }
     L(`CLOCK    ticks ${R.clock.tick}  dropped steps ${R.clock.droppedSteps}  drop events ${R.clock.dropEvents}  stalls ${R.clock.stalls}  maxCatchup ${R.clock.maxCatchup}`);
     L(`PACER    divisor ${R.pacer.divisor}  measured refresh ${R.pacer.refreshHz.toFixed(1)} Hz  vsyncs ${R.pacer.vsyncCount}  presents ${R.pacer.presentCount}`);
-    L(`SCENE    draw calls ${R.renderInfo.drawCalls}  tris ${R.renderInfo.tris}  programs ${R.programs}`);
+    L(`SCENE    draw calls ${R.renderInfo.drawCalls}  tris ${R.renderInfo.tris}  programs ${R.programs}`
+      + `   actor LOD mix ${R.actorLod.key} over ${R.actorLod.actors} actors (${R.actorLod.rebuilds} rebuilds)`);
     if (rampNote) L(`THERMAL  ${rampNote}`);
 
     const w = R.worst;

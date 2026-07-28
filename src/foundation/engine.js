@@ -39,7 +39,7 @@
 
 import * as THREE from 'three';
 import { REG } from './registry.js';
-import { buildFromShot } from './world.js';
+import { buildFromShot, buildActors, disposeActors } from './world.js';
 import { createOverlay, createRuntimeOverlay } from './overlay.js';
 import { resolveScene } from './scenes.js';
 import { qualityProfile } from './params.js';
@@ -530,6 +530,59 @@ export function createRuntime(opts) {
     drawCalls: 0, tris: 0, programs: 0, geometries: 0, textures: 0, points: 0, lines: 0,
   };
 
+  /* ------------------------------------------------------- actor LOD state */
+
+  // The LOD plan the CURRENT actor meshes were built at, and a suppression flag used
+  // while pre-warming so a 16-rung walk does not rebuild the cast sixteen times.
+  let actorLodKey = null;
+  let pendingActorLod = null;
+  let suppressActorRebuild = false;
+  let actorRebuilds = 0;
+
+  /**
+   * The LOD mix a rung implies, as a comparable key.
+   *
+   * Asked of the PIECE, not derived here, because the mapping from rung to LOD mix is
+   * the piece's to own — `character-anatomy.lodPlan` has band edges at rungs 3, 7 and 12
+   * that no table in foundation knows about. The `skinned|imposter` fallback is only for
+   * a piece that has not been built yet.
+   */
+  function lodKeyFor(n) {
+    const a = REG.world.anatomy;
+    if (a && typeof a.lodPlan === 'function') {
+      try {
+        const p = a.lodPlan(n);
+        if (p) return `${p.lod0}|${p.lod1}|${p.lod2}|${p.lod3}`;
+      } catch (e) { /* fall through to the structural fallback */ }
+    }
+    const r = RUNGS[n];
+    return `${r.skinned}|${r.imposter}`;
+  }
+
+  /**
+   * REBUILD THE CAST AT THE CURRENT RUNG'S LOD MIX.
+   *
+   * This is the missing consumer of the EXPENSIVE-rung queue. `expensiveClass()` has
+   * always counted a change in `skinned`/`imposter` as expensive, and main.js has always
+   * queued such a change to the next play boundary — but nothing ever acted on it,
+   * because `character-anatomy` picks an actor's LOD when the actor is BUILT and actors
+   * were built exactly once. The ladder therefore moved render scale and nothing else.
+   *
+   * It ALLOCATES (new geometry per actor) and it is SLOW by frame-loop standards, so it
+   * is EXPENSIVE by construction and must only ever run where a hitch is invisible:
+   * the play boundary, or the loading screen. It compiles nothing — `prewarmPrograms`
+   * walks every distinct LOD plan before the first frame.
+   */
+  function rebuildActorLod() {
+    if (!world || !ctx.shot) return 0;
+    disposeActors(world);
+    buildActors(ctx.shot, ctx, world.root, world);
+    // The actors are new objects, so the shadow-caster budget has to be re-spent.
+    enforceShadowCasters(renderer.shadowMap.enabled ? RUNGS[rung].shadowCasters : 0);
+    actorRebuilds++;
+    return world.actors.length;
+  }
+
   function buildScene(sceneId) {
     if (world) world.dispose();
     if (synth) { synth.dispose(); synth = null; }
@@ -547,7 +600,22 @@ export function createRuntime(opts) {
     const shot = resolveScene(isSynth ? 'live_play' : sceneId, params);
     ctx.shot = shot;
     if (isSynth) shot.id = 'perf_synthetic';
+
+    // THE RUNG POLICY MUST BE IN FORCE BEFORE ANYTHING IS BUILT.
+    //
+    // `character-anatomy.applyRung()` only RECORDS the rung; the LOD mix it implies is
+    // consumed when an actor is BUILT, and actors are built exactly once, right here.
+    // Before this line existed, `applyRung` was called AFTER `buildFromShot`, so
+    // `currentRung` was still the piece's module default of 15 and EVERY DEVICE — floor
+    // tier included — got the HIGH tier's LOD mix: 2xLOD0 + 4xLOD1 + 8xLOD2.
+    //
+    // Measured, that is the whole reason the rung ladder was flat on geometry: rung 0
+    // drew 134,058 triangles and rung 15 drew 137,760, a 2.7% span across sixteen rungs,
+    // against a floor-tier structural cap of 90,000. See progress/cost-curve.md,
+    // "THE LADDER, MEASURED".
+    applyRung(rung, true);
     world = buildFromShot(shot, ctx);
+    actorLodKey = lodKeyFor(rung);      // the cast now matches this rung, by construction
 
     if (isSynth) {
       const tier = params.tier || tierOfRung(rung);
@@ -612,7 +680,45 @@ export function createRuntime(opts) {
     if (world && world.post && typeof world.post.applyRung === 'function') {
       try { world.post.applyRung(rung, r, ctx); } catch (e) { reportErr('post.applyRung', e); }
     }
+
+    // ACTOR LOD. Forwarded LAST, so the piece has already recorded the new rung.
+    //
+    // A REBUILD NEVER HAPPENS ON THE FRAME PATH. `force` is true only at boot and during
+    // `prewarmPrograms` — the scaler's own calls (`rt.applyRung(next)` from main.js, and
+    // the play-boundary commit) never pass it. So an LOD change made by the scaler is
+    // QUEUED here and committed by `commitActorLod()` at the next play boundary, where a
+    // hitch is invisible.
+    //
+    // This used to rebuild inline and relied on main.js routing every plan-changing rung
+    // through the play boundary because `expensiveClass()` happens to include `skinned`
+    // and `imposter`. That is a coincidence, not a guarantee: across the rung 11 -> 12
+    // boundary `skinned` and `imposter` are IDENTICAL (14 and 0) while the LOD plan
+    // changes from {0,3,11,0} to {2,4,8,0}, and only the unrelated `postPasses` field
+    // kept that step on the safe path. Rebuilding 14 actors inside the scaler's own
+    // 0.10 ms span is not a risk worth leaving to luck.
+    const key = lodKeyFor(rung);
+    if (key !== actorLodKey) {
+      if (world && !suppressActorRebuild && force) {
+        actorLodKey = key;
+        rebuildActorLod();
+      } else {
+        pendingActorLod = key;         // committed at the next play boundary
+      }
+    } else {
+      pendingActorLod = null;
+    }
     return true;
+  }
+
+  /**
+   * Commit a queued actor-LOD change. Called from the play boundary and nowhere else.
+   * Returns the number of actors rebuilt, or 0 if nothing was queued.
+   */
+  function commitActorLod() {
+    if (pendingActorLod === null || !world || suppressActorRebuild) return 0;
+    actorLodKey = pendingActorLod;
+    pendingActorLod = null;
+    return rebuildActorLod();
   }
 
   function reportErr(label, e) {
@@ -699,8 +805,16 @@ export function createRuntime(opts) {
     const before = renderer.info.programs ? renderer.info.programs.length : 0;
     const saveRung = rung;
     const saveShadow = renderer.shadowMap.enabled;
+    // Walk every rung. The actor rebuild is NOT suppressed here: an LOD level has its own
+    // material array shape (LOD0 uses all 12 slots, LOD2/LOD3 a single one), which is a
+    // different program cache key in three.js. Compiling with only the boot LOD in the
+    // scene would leave the other LODs to link on the play boundary that switches to
+    // them — i.e. the driver stall this function exists to prevent. `applyRung` rebuilds
+    // only when the LOD PLAN changes, so this is ~8 rebuilds, not 16.
+    const lodKeysSeen = new Set();
     for (let r = 0; r <= 15; r++) {
       applyRung(r, true);
+      lodKeysSeen.add(actorLodKey);
       try { renderer.compile(scene, camera); } catch (e) { reportErr('compile', e); }
     }
     // Explicitly cover both shadow states at the current geometry set.
@@ -714,7 +828,7 @@ export function createRuntime(opts) {
     renderer.setRenderTarget(null);
     renderer.render(scene, camera);
     const after = renderer.info.programs ? renderer.info.programs.length : 0;
-    return { before, after, programs: after };
+    return { before, after, programs: after, lodPlans: lodKeysSeen.size, actorRebuilds };
   }
 
   /* --------------------------------------------------------------- render */
@@ -756,13 +870,21 @@ export function createRuntime(opts) {
 
   return {
     ctx, renderer, scene, camera, overlay, params, profile, info,
-    buildScene, applyRung, prewarmPrograms, render, update, setViewport,
+    buildScene, applyRung, prewarmPrograms, render, update, setViewport, commitActorLod,
     get rung() { return rung; },
     get world() { return world; },
     get bufferSize() { return { w: bufW, h: bufH }; },
     get cssSize() { return { w: cssW, h: cssH }; },
     get synthetic() { return synth ? synth.added : null; },
     get hasCanary() { return !!canary; },
+    get actorLod() {
+      return {
+        key: actorLodKey, pending: pendingActorLod, rebuilds: actorRebuilds,
+        actors: world ? world.actors.length : 0,
+      };
+    },
+    /** Test hook: suppress actor rebuilds (used by the cost-curve rig to isolate axes). */
+    set suppressActorRebuild(v) { suppressActorRebuild = !!v; },
     dispose() {
       if (world) world.dispose();
       if (synth) synth.dispose();

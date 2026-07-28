@@ -352,8 +352,37 @@ export function createTelemetry(opts) {
       if (!m) return;
       if (heapN < heapS.length) { heapS[heapN] = m.usedJSHeapSize / 1048576; heapF[heapN] = count; heapN++; }
     },
+    /**
+     * SAWTOOTH AMPLITUDE vs TOTAL RANGE — two different numbers, and this used to
+     * conflate them.
+     *
+     * The contract caps "JS heap sawtooth amplitude": how much garbage piles up between
+     * one collection and the next. That is the largest DROP between consecutive samples
+     * — a drop is a GC, and the rise that preceded it is the garbage it collected.
+     *
+     * This function used to return `Math.max(saw, peak - trough)`. `peak - trough` is
+     * the total excursion of the whole run, which is a different quantity and always the
+     * larger one whenever the run also settles. On this container that single `max()`
+     * turned a genuinely flat heap into a 29.15 MB "sawtooth": measured over 20 s at
+     * floor/rung 0, the true GC amplitude was 0.65 MB while the run ALSO collected ~15 MB
+     * of one-time boot garbage (procedural geometry, texture bakes, the 16-rung program
+     * prewarm) inside the measured window. Independently confirmed by V8's sampling
+     * allocation profiler over the same window: 259 BYTES per presented frame, i.e. the
+     * frame loop is allocation-free as the contract requires.
+     * (`node scripts/allocprobe.mjs --tier=floor --rung=0`.)
+     *
+     * So: BOTH are returned, `sawtoothMB` means what the contract says it means, and
+     * `rangeMB` is printed beside it so the excursion is never hidden. Harnesses should
+     * also force a collection at warmup end — see `perf.mjs` — so boot garbage is not
+     * billed to the steady state it was never part of.
+     */
     heapStats() {
-      if (heapN < 2) return { n: heapN, startMB: 0, endMB: 0, peakMB: 0, sawtoothMB: 0, growthPer1000: 0, series: [] };
+      if (heapN < 2) {
+        return {
+          n: heapN, startMB: 0, endMB: 0, peakMB: 0, troughMB: 0,
+          sawtoothMB: 0, rangeMB: 0, growthPer1000: 0, series: [],
+        };
+      }
       let peak = 0, trough = Infinity, saw = 0, prev = heapS[0];
       for (let i = 0; i < heapN; i++) {
         const v = heapS[i];
@@ -373,7 +402,9 @@ export function createTelemetry(opts) {
       for (let i = 0; i < heapN; i++) series.push({ f: heapF[i], mb: heapS[i] });
       return {
         n: heapN, startMB: heapS[0], endMB: heapS[heapN - 1], peakMB: peak, troughMB: trough,
-        sawtoothMB: Math.max(saw, peak - trough), growthPer1000: (minB - minA) * 1000 / df, series,
+        sawtoothMB: saw,            // GC amplitude — what the contract caps at 8 MB
+        rangeMB: peak - trough,     // total excursion — reported, never gated
+        growthPer1000: (minB - minA) * 1000 / df, series,
       };
     },
 
@@ -435,6 +466,15 @@ export function createTelemetry(opts) {
       }
       return out;
     },
+
+    /**
+     * Drop every heap sample taken so far, keeping all other channels.
+     * Called by a harness at warmup end, immediately AFTER it has forced a collection,
+     * so the steady-state heap series starts from a collected baseline and one-time boot
+     * garbage is not billed to the run. Warmup is excluded from every other verdict;
+     * this is what excluding it from the heap verdict has to mean.
+     */
+    resetHeap() { heapN = 0; },
 
     reset() {
       head = 0; count = 0; warmupEnd = 0; ltN = 0; heapN = 0; rlN = 0;

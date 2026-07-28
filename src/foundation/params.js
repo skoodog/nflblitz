@@ -93,13 +93,18 @@ export function parseParams(search) {
   // auto = the rung's real render scale.  min = 256x144.  none = skip GL submission.
   //
   // `none` exists because of a measurement, not a preference. The contract assumed a
-  // 256x144 internal render would take software raster out of the equation. Measured on
-  // this box it does not: with 118 draw calls and 70k triangles the frame interval is
-  // 66-150 ms at ANY internal resolution, because SwiftShader's per-triangle and
-  // per-draw-call cost is resolution-independent. Shrinking the framebuffer removes
-  // fill cost and leaves geometry cost untouched. So `min` cannot isolate the loop's
-  // pacing here, and `none` — which runs input, sim, anim, fx, camera, overlay and the
-  // scaler but issues no GL draw — is what actually does.
+  // 256x144 internal render would take software raster out of the equation. It does not.
+  //
+  // ROUND 2 CORRECTION. This comment used to say the frame interval was "66-150 ms at
+  // ANY internal resolution" because SwiftShader's cost was "resolution-independent".
+  // That is false, and `progress/cost-curve.md` measures it properly: near the floor,
+  //     frame_ms ~ 20.8 + 838 * megapixels
+  // Resolution matters a great deal — the ladder spans 24 ms to 1240 ms on resolution
+  // alone. What is TRUE is that ~20.8 ms of the floor frame is per-triangle and
+  // per-draw-call work that no render scale touches, and 20.8 ms is already most of a
+  // 33.3 ms period. So `min` still cannot isolate the loop's pacing here, and `none` —
+  // which runs input, sim, anim, fx, camera, overlay and the scaler but issues no GL
+  // draw — is what actually does. Same conclusion, correct reason.
   const rr = q.get('raster');
   p.raster = rr === 'min' ? 'min' : rr === 'none' ? 'none' : 'auto';
   // `?canary=1` plants a deliberately over-budget 400-draw-call group so that

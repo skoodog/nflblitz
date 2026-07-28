@@ -183,6 +183,11 @@ function bootPlay(glCanvas, uiCanvas) {
         rt.applyRung(pendingExpensive);
         pendingExpensive = -1;
       }
+      // ...and commit any queued ACTOR LOD rebuild. `applyRung` never rebuilds on the
+      // frame path; it queues, and this is the only place the queue is drained. 14
+      // actors' worth of geometry is built here, which is why it happens at a boundary
+      // and not inside the scaler's 0.10 ms span.
+      rt.commitActorLod();
     }
     if (simState && REG.sim.step) {
       try { REG.sim.step(simState, TICK); } catch (e) { simState = null; }
@@ -266,6 +271,7 @@ function bootPlay(glCanvas, uiCanvas) {
     longTaskList: () => tel.longTaskList(),
     heap: () => tel.heapStats(),
     sampleHeap: () => tel.sampleHeap(),
+    resetHeap: () => tel.resetHeap(),
     get inputLog() { return tel.inputEntries(); },
     resetInputLog: () => tel.resetInputLog(),
     rungChanges: () => tel.rungChanges(),
