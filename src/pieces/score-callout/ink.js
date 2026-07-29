@@ -353,27 +353,28 @@ export function inkMask(faces, spec) {
    * thing the compiled face cannot do for us (its outline is baked at a fixed pressure
    * profile) and the one thing that separates brush lettering from a distressed font.
    *
-   * So: an isotropic (diamond, L1) erosion whose radius RAMPS WITH DEPTH. Band 1 covers
-   * the whole taper zone and takes 1 px off every side; band 2 covers everything below a
-   * fifth of the zone and takes another; and so on. A stem passing through all `bands`
-   * therefore loses 2 px of width per band by the time it reaches the foot, and the last
-   * band or two eat the flat bottom edge outright and leave a point.
+   * So: an isotropic (diamond, L1) erosion whose radius RAMPS WITH DEPTH. Band k takes one
+   * more pixel off every side of everything below its own start row, so a pixel at depth d
+   * through the zone ends up eroded by however many bands start above it.
    *
-   * Measured against the bar's T stem in panel-truck (cap 38 px, ink thresholded at 150):
+   * The ramp is a POWER law, not linear, and that is measured. The bar's T stem in
+   * panel-truck (cap 38 px, ink thresholded at 150) runs:
    *   depth   0.20 cap   0.50   0.75   0.92   0.97   1.00
    *   bar     0.132 cap  0.132  0.132  0.105  0.053  0.026   -> point
-   * i.e. a gentle 20% narrowing down the stem and then a hard point over the last 8% of
-   * the cap. One px per band over a zone that starts at -0.46 cap reproduces both: the
-   * upper bands are spread thin over most of the stem, and the bands pile up at the foot.
+   * — flat for three quarters of its length, then a hard point over the last 8%. A LINEAR
+   * ramp spreads the same total erosion evenly and eats the bottom of the U and the C's
+   * lower terminal on the way past (tried it: TRUCK! came out as "TR||C|<!"). Band k
+   * therefore starts at ((k-0.5)/bands)^(1/2.4) of the zone, which puts one band above the
+   * midpoint, five in the last fifth and three in the last tenth.
    *
    * Integer offsets on purpose. A sub-pixel destination-in multiplies the edge alpha 4x a
    * band and after six bands the letter has a soft airbrushed rim; 1 px keeps it crisp.
    *
    * Cost: the zone is ~0.5 cap tall, so this is 5 draws over W x 0.5cap per band, ~0.9 M
-   * pixels for a display line at 1:1 — measured at 0.6-1.1 ms, and it is its own slice.
+   * pixels for a display line at 1:1 — measured at 0.5-1.2 ms, and it is its own slice.
    */
   function taper(amount, zoneTop) {
-    const bands = Math.min(9, Math.round(amount * capH));
+    const bands = Math.min(8, Math.round(amount * capH));
     if (bands < 1) return;
     const zTop = Math.max(0, Math.floor(oy + capH * zoneTop));
     const zBot = Math.min(H, Math.ceil(oy + capH * 0.05));
@@ -387,7 +388,7 @@ export function inkMask(faces, spec) {
       const dst = scratch(di, W, zH);
       const c = dst.ctx;
       c.drawImage(src.cv, 0, 0, W, zH, 0, 0, W, zH);
-      const yb = Math.max(1, Math.floor((zH - 1) * (k - 1) / bands));
+      const yb = Math.max(1, Math.floor((zH - 1) * Math.pow((k - 0.5) / bands, 1 / 2.4)));
       c.save();
       c.beginPath();
       c.rect(0, yb, W, zH - yb);
@@ -395,8 +396,15 @@ export function inkMask(faces, spec) {
       c.globalCompositeOperation = 'destination-in';
       c.drawImage(src.cv, 0, 0, W, zH, 1, 0, W, zH);
       c.drawImage(src.cv, 0, 0, W, zH, -1, 0, W, zH);
-      c.drawImage(src.cv, 0, 0, W, zH, 0, 1, W, zH);
-      c.drawImage(src.cv, 0, 0, W, zH, 0, -1, W, zH);
+      // The VERTICAL half of the diamond only runs on the last two bands. Erosion across
+      // the stroke is what narrows it; erosion along the stroke also SHORTENS it, and with
+      // all nine bands vertical too the word lost 0.05 cap of length — measured, ours had
+      // two strokes still alive at 0.97 of the cap where the bar has eight. Two bands is
+      // enough to round the very tip off and leaves the stem standing to the baseline.
+      if (k > bands - 2) {
+        c.drawImage(src.cv, 0, 0, W, zH, 0, 1, W, zH);
+        c.drawImage(src.cv, 0, 0, W, zH, 0, -1, W, zH);
+      }
       c.restore();
       src = dst;
       const t = si; si = di; di = t;

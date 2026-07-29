@@ -79,8 +79,8 @@ export const GEO = {
  * zero on its own. This is the same trap round 1 documented and it is real.
  */
 const INK = {
-  line1: { tracking: 0.078, xScale: 1.47, minor: 0.930, slimX: 0.024, fray: 0.70, taper: 0.040, halo: 0.70, jitter: 0.9 },
-  line2: { tracking: 0.016, xScale: 1.50, minor: 0.885, slimX: 0.029, slimY: 0.010, fray: 1.0, taper: 0.050, jitter: 0.85 },
+  line1: { tracking: 0.078, xScale: 1.47, minor: 0.930, slimX: 0.024, fray: 0.70, taper: 0.050, halo: 0.70, jitter: 0.9 },
+  line2: { tracking: 0.016, xScale: 1.50, minor: 0.885, slimX: 0.029, slimY: 0.010, fray: 1.0, taper: 0.058, jitter: 0.85 },
   // ITALIC NUMERALS and NO TAILS. Both are measured: the bar's 150/250 lean with the
   // display line (~0.24, the brush face's own 0.27 taken off a touch because a geometric
   // digit at 15 deg already reads fast) and neither panel's points line has a single
