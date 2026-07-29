@@ -1,26 +1,31 @@
 // PIECE: score-callout — the lockup: composition, colour rule, and the bake cache.
 //
-// GEOMETRY, ROUND 2. Re-measured with one threshold applied to both sides — ink is a
-// pixel whose max channel is over 150 and whose saturation is under 46, tight bbox, no
-// background inside the window:
+// GEOMETRY. Measured with ONE rule applied to both sides — ink is a pixel whose max
+// channel clears the threshold and whose saturation is under 46 (white lines) or which
+// is dominantly red (MURDER!), tight bbox inside a window that holds no background. Two
+// thresholds, because the bar's TAILS live between them: 205 keeps only the strokes, 150
+// picks the filaments up as well.
 //
-//   panel-truck.png (528x310)   TRUCK!    140 x 45   W/frame 0.265   W/H 3.11
-//   panel-leveler   (410x376)   LEVELER!  176 x 44   W/frame 0.429   W/H 4.00
-//   panel-touchdown (382x376)   TOUCHDOWN 210 x 60   W/frame 0.550   W/H 3.50
-//   panel-midair    (528x338)   MID-AIR+MURDER! 173 x 68 (both lines)
+//   bar panel-truck    (528x310)  TRUCK!     T205 138 x 38  w/h 3.63   T150 140 x 46  3.04
+//   bar panel-midair   (528x338)  MURDER!    T150 154 x 45  w/h 3.42 (core 3.85)
+//   bar panel-touchdown(382x376)  TOUCHDOWN! T205 208 x 51  core w/h 4.08
+//   bar panel-leveler  (410x376)  LEVELER!   T205 256 x 56  core w/h 4.57
 //
-// The three panels have three different aspect ratios, so "fraction of frame WIDTH" is
-// not comparable between them. Normalised to a 16:9 frame by ink width / frame HEIGHT
-// they agree closely: truck 0.452, leveler 0.468, touchdown 0.559 — i.e. a single-line
-// callout is about half the frame height wide, and 0.12-0.16 of the frame height tall.
+// The panels have four different aspect ratios and all four carry the same UI (HUD top
+// left, TURBO bottom left), so "fraction of frame WIDTH" is not comparable between them.
+// Normalised by frame HEIGHT the single-line callouts run 0.445 (truck) / 0.456 (murder)
+// / 0.559 (touchdown) / 0.692 (leveler) — the two 16:9-ish panels at the bottom of that
+// range and the two square ones at the top.
 //
-// Round 1 shipped 479 x 139 (core) at 1920x1080 = 0.2495 x 0.129, W/H 3.45 — i.e. the
-// LETTERFORMS were already close, and the reported 2.51 aspect came from 74 px of dark
-// drips inflating the bbox to 479 x 213 (see ink.js). What was genuinely short was
-// SCALE. This round takes cap2 from 115 to 138 and xScale from 1.36 to 1.46, which puts
-// TRUCK! at ~617 x 168 = 0.321 x 0.156 of the frame with W/H 3.67 — 21% larger than the
-// bar's own truck panel in linear terms, sitting between panel-truck's 0.452 and
-// panel-touchdown's 0.559 on the height-normalised axis.
+// WHERE WE LAND, on the same rule, off shots/score-callout/iso_callout_truck.png:
+//
+//   TRUCK!   T205 645 x 185 (core 636 x 182)  w/h core 3.50   w/frameW 0.336  w/frameH 0.597
+//   MURDER!  T150 697 x 159 (core 697 x 156)  w/h core 4.47   w/frameW 0.363  w/frameH 0.645
+//
+// i.e. 0.336 of frame width against round 1's 0.208 — a 62% scale-up — and an aspect of
+// 3.50 against round 1's 2.51 and the bar's 3.63. Deliberately at the TOP of the bar's
+// own spread rather than the middle: the verdict was that the callout read small, and
+// 0.597 of frame height sits between panel-touchdown's 0.559 and panel-leveler's 0.692.
 //
 // LINE 1 gets its own, much looser tracking. At a shared value MID-AIR came out 0.55 as
 // wide as MURDER! and the two lines never locked into the bar's near-rectangular block;
@@ -39,7 +44,9 @@ import { GOLD_GLOW } from './palette.js';
 /* ------------------------------------------------------------- proportions */
 
 export const GEO = {
-  cap2: 138,          // line-2 cap height at scale 1, one-line lockup.  bar: 33/310
+  cap2: 150,          // line-2 cap height at scale 1, one-line lockup. 115 in round 1,
+                      //   138 in round 2, 150 now: measured, that puts TRUCK!'s ink box at
+                      //   0.336 of the frame's width where round 1 sat at 0.208.
   duo: 0.82,          // x cap2 when line 1 is present — the bar shrinks the stack to fit
                       //   (bar: MURDER! cap 27 against TRUCK! cap 31 = 0.87)
   cap1: 0.725,        // x cap2eff   (bar: 19/27)
@@ -48,7 +55,7 @@ export const GEO = {
   dy1: -1.380,        // line-1 baseline, x cap2eff, relative to line-2 baseline
                       //   (bar: MID-AIR baseline 252, MURDER! baseline 290, cap 27)
   dyNum: 0.950,       // points baseline, x cap2eff  (bar: +32/33 truck, +25/27 midair)
-  ptsGap: 0.175,      // x capNum, between the last digit and P
+  ptsGap: 0.155,      // x capNum, between the last digit and P
   ptsLift: 0.030,     // x capNum, PTS baseline sits marginally above the numerals
   liftSolo: 0.760,    // x cap2. A one-line lockup has less mass, so it is lifted to
                       //   sit in the same band of the frame as a two-line one. Measured
@@ -60,36 +67,39 @@ export const GEO = {
                       //   display line's centre on panel-truck; round 1 put it 14 left.
   rotation: -0.0435,  // rad, -2.5 deg. Measured: truck -1.7, midair -1.3, touchdown -2.9,
                       //   leveler -4.6. Rises to the right, as every panel does.
-  maxWidth: 800,      // TOUCHDOWN! is 10 glyphs. The bar's TOUCHDOWN! is 1.21x its
-                      //   TRUCK! on the height-normalised axis; 800 against TRUCK!'s 595
-                      //   is 1.34, and the rest of the difference is taken out of the x
-                      //   axis by `condense` rather than off the cap.
-  condense: 0.80,     // floor on the horizontal squeeze an over-long line may take before
-                      //   any of the overflow comes off its cap height.
+  maxWidth: 680,      // TOUCHDOWN! is 10 glyphs. MEASURED: the bar sets a 10-glyph line at
+                      //   0.408 cap per glyph against TRUCK!'s 0.605 — it condenses a long
+                      //   word by a THIRD. At maxWidth 800 nothing squeezed at all (raw
+                      //   780) and TOUCHDOWN! ran 1148..1877 of a 1920 frame, 43 px off
+                      //   the edge. 680 keeps every line's right margin at 4% of the frame,
+                      //   which is what the bar holds (panel-truck 8%, panel-midair 5%).
+  condense: 0.70,     // floor on the horizontal squeeze an over-long line may take before
+                      //   any of the overflow comes off its cap height. The bar's own
+                      //   floor, read off TOUCHDOWN! against TRUCK!, is 0.674.
 };
 
 /**
  * Per-line ink recipes. Kept here so the whole look is legible in one place.
  *
- * slimY — the thick/thin contrast lever — is on LINE 2 ONLY. It costs a fixed 2 px off
- * every horizontal, so what matters is the cap it is spent against, and line 1 is the
- * SMALL line: on the hostile sheet (k 0.74) line 1 lands at cap 61 and 2 px took the arm
- * off the T, so "WHAT A" captured as "WHAI A" in all four tiles. Line 2 at its smallest
- * shipped scale is cap 84 and CATCH! survives it; below cap 100 the erosion rounds to
- * zero on its own. This is the same trap round 1 documented and it is real.
+ * `taper` is the round-3 addition and the one that decides whether the mark reads as
+ * brush or as a distressed typeface — see ink.js's taper(), which is where it is spent.
+ * `slimX`/`slimY`/`taper` are all whole numbers of pixels off a stroke whose width is a
+ * FRACTION of the cap, so ink.js gates all three on its own `fine` factor; that is what
+ * keeps MURDER! from reading as MURDFR! on the five-up sheet, where the tile scale is
+ * 0.604 and a stacked lockup lands at cap 74.
  */
 const INK = {
-  line1: { tracking: 0.078, xScale: 1.47, minor: 0.930, slimX: 0.024, fray: 0.70, taper: 0.050, halo: 0.70, jitter: 0.9 },
+  line1: { tracking: 0.062, xScale: 1.47, minor: 0.930, slimX: 0.024, fray: 0.70, taper: 0.050, halo: 0.70, jitter: 0.9 },
   // WIDE GLYPHS, SET TIGHT. Round 2 hit the bar's block aspect (3.63) with narrower
   // letters and 0.034 cap of tracking, and beside the bar it read airy: on panel-truck the
   // R's leg all but touches the U. The width is now all in the letterform — xScale 1.55,
   // tracking zero — which is the same total and a denser mark.
-  line2: { tracking: 0.000, xScale: 1.55, minor: 0.885, slimX: 0.029, slimY: 0.010, fray: 1.0, taper: 0.058, jitter: 0.85 },
+  line2: { tracking: -0.010, xScale: 1.60, minor: 0.885, slimX: 0.0362, slimY: 0.010, fray: 1.0, taper: 0.056, jitter: 0.85 },
   // ITALIC NUMERALS and NO TAILS. Both are measured: the bar's 150/250 lean with the
   // display line (~0.24, the brush face's own 0.27 taken off a touch because a geometric
   // digit at 15 deg already reads fast) and neither panel's points line has a single
   // filament under it — the drips belong to the brush face, not to the score.
-  num: { tracking: 0.026, xScale: 1.44, minor: 1, excl: 1, slant: 0.235, slimX: 0.013, fray: 0, taper: 0, jitter: 0.45 },
+  num: { tracking: 0.010, xScale: 1.44, minor: 1, excl: 1, slant: 0.235, slimX: 0.013, fray: 0, taper: 0, jitter: 0.45 },
   pts: { tracking: 0.030, xScale: 1.44, minor: 1, slimX: 0.014, fray: 0, taper: 0.022, jitter: 0.5 },
 };
 
@@ -229,11 +239,18 @@ export function beginLockup(faces, state, opts) {
     jobs.push(() => { inkPaint(g, faces, spec, st); st = null; });
   }
 
+  // CONDENSING THINS THE STEMS, so the erosion that trims them has to condense with it.
+  // `slimX` is a fixed fraction of the CAP, but a stem's width is a fraction of the cap
+  // times `cond` — so at LEVELER!'s 0.87 the same 4.7 px came off a stem that was 13%
+  // narrower to begin with and the word rendered visibly lighter than TRUCK! beside it.
+  const slim2 = INK.line2.slimX * cond, slimY2 = INK.line2.slimY * cond;
+
   /* ---- line 1: always warm white, quieter shadow ---- */
   if (l1) {
     pushLine(Object.assign({}, INK.line1, {
       text: A.l1, layout: l1, path: linePath(faces, l1), capH: cc1,
       x: x1, y: y1, rampKey: 'white', seed: hash(seed, 1),
+      slimX: INK.line1.slimX * cond,
     }));
   }
 
@@ -243,6 +260,7 @@ export function beginLockup(faces, state, opts) {
     pushLine(Object.assign({}, INK.line2, {
       text: A.l2, layout: l2, path: linePath(faces, l2), capH: CC,
       x: x2, y: y2, rampKey: A.key, seed: hash(seed, 2), glow,
+      slimX: slim2, slimY: slimY2, taper: INK.line2.taper * (0.35 + 0.65 * cond),
     }));
   }
 

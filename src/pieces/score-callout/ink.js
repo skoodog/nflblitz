@@ -1,22 +1,21 @@
 // PIECE: score-callout — the ink engine.
 //
-// ROUND 2 REBUILD, against four measurements taken off bar/panel-truck.png and our own
-// capture with the same threshold (mx>150, saturation<46, tight bbox):
+// Measurements are taken off bar/panel-truck.png and off our own capture with ONE rule —
+// ink is a pixel whose max channel clears the threshold and whose saturation is under 46,
+// tight bbox — at TWO thresholds, because the bar's tails live between them:
 //
-//                             bar TRUCK!        round-1 ours       this round
-//   ink bbox                  140 x 45 px       479 x 213 px       measured below
-//   width / frame width       0.265             0.2495             ~0.31
-//   w / h  (whole bbox)       3.11              2.25               ~3.4
-//   w / h  (rows >=5% peak)   3.33              3.45               ~3.6
+//                             bar TRUCK!        round-1 ours       shipping now
+//   ink bbox, T150            140 x 46 px       479 x 213 px       648 x 186
+//   ink bbox, T205            138 x 38          —                  645 x 185
+//   width / frame width       0.265             0.2495             0.336
+//   w / h (cols/rows >=5%)    3.63              3.45               3.50
 //
 // The round-1 bbox was 213 px tall against a 139 px core: seventy-four pixels of stuff
-// hanging under the letters. That is where the reported "31% too condensed" came from —
-// not from the letterforms, which already measured 3.45, but from long DARK drips under
-// every foot. They were dark because the drop shadow was derived from the mask AFTER the
-// filaments were added, so a 1 px hair carried a 2-pass blurred shadow that outweighed
-// its own ink. On the bar the tails are the same light grey as the stroke: at threshold
-// 205 they vanish (bbox 38 px tall) and at 150 they appear (46 px), i.e. they are ink
-// fading out, not a dark drip.
+// hanging under the letters. They were dark because the drop shadow was derived from the
+// mask AFTER the filaments were added, so a 1 px hair carried a 2-pass blurred shadow
+// that outweighed its own ink. On the bar the tails are the same light grey as the
+// stroke: at 205 they vanish (bbox 38 px tall) and at 150 they appear (46 px), i.e. they
+// are ink fading out, not a dark drip.
 //
 // So this version:
 //
@@ -54,7 +53,9 @@
 // the bar narrows to a point and only then sheds a hair or two, and round 2 cut every
 // stroke off square and hung a machined comb under it. A comb under a square end is
 // exactly what a distressed display font looks like. taper() + the split comb below are
-// the fix, and slimX went 0.017 -> 0.029 to bring the stem weight onto the bar's.
+// the fix, and slimX went 0.017 -> 0.036 to bring the stem weight onto the bar's: measured
+// after, our mid-cap stem is 0.151 cap against the bar's 0.132 (was 0.170), and it runs
+// 0.151 -> 0.146 -> 0.130 -> 0.097 down the stroke where round 2 was flat all the way.
 //
 // COST. Round 1 measured 45-49 ms for a one-line lockup at 1:1 against an 8 ms cap, and
 // the money was not where the comments said it was: the display line was 14 ms and the
@@ -283,10 +284,9 @@ export function linePath(faces, L) {
 /**
  * inkMask(faces, spec) -> state
  *
- * Phase one: silhouette, x-erosion, the shadow downsample and the SHORT fringe. Nothing
- * is coloured and nothing is drawn to the plate. The long filaments come back as
- * `st.finish` and `inkPaint` does the colour, so a caller can spend the line over three
- * slices.
+ * Phase one: silhouette and the directional erosion, and nothing else. The TAPER and the
+ * shadow downsample come back as st.step(0), the split tails as st.step(1), and inkPaint
+ * does the colour — four resumable slices for a line, none over 4 ms at 1:1.
  *
  * The returned state carries live POOLED surfaces: nothing else may bake between the
  * phases. lockup.js's slices are strictly sequential.
@@ -325,12 +325,25 @@ export function inkMask(faces, spec) {
   //
   // slimY is the mirror image and is the only lever this piece has on thick/thin
   // contrast: it thins the HORIZONTALS and leaves the stems, and the bar's brush runs a
-  // much higher contrast than the face's fixed 2.6:1. Round 1 shipped it at zero because
-  // at tile scale it ate the tapered arm of the T's crossbar and CATCH! read as CAICH!;
-  // at this round's cap (138 against 115) 0.010 cap is 1.4 px and the crossbar is 25.
+  // much higher contrast than the face's fixed 2.6:1.
+  //
+  // BOTH ARE GATED ON `fine`, and so is the taper. Every one of them is a whole number of
+  // pixels off a stroke whose width is a FRACTION of the cap, so their cost in proportion
+  // explodes as the lockup shrinks: on the five-up sheet the tile scale is 0.604 and a
+  // two-line lockup lands at cap 68, where 0.029 cap of slimX is 2 px a side and 0.010 of
+  // slimY is 1 px a side off an E's arm that is only four pixels thick. MURDER! captured
+  // as MURDFR! and LEVELER! as I FVFI FR!. Round 1 hit the same wall from the other side
+  // and answered it by shipping slimY at zero everywhere, which cost the display line its
+  // thick/thin at full size for the sake of a thumbnail.
+  //
+  // `fine` is the honest fix and it is just hinting: below cap 50 no ink treatment is
+  // resolvable at all, by cap 120 all of it is, and in between it ramps. At the shipping
+  // cap (150 solo / 123 stacked) it is 1.0, so nothing about the hero changes; on the
+  // five-up tile it is 0.34 and slimX falls to 1 px, slimY to 0 and the taper to 1 band.
+  const fine = Math.max(0, Math.min(1, (capH - 50) / 70));
   let M = S;
-  const ex = Math.round((spec.slimX || 0) * capH);
-  const ey = Math.round((spec.slimY || 0) * capH);
+  const ex = Math.round((spec.slimX || 0) * capH * fine);
+  const ey = Math.round((spec.slimY || 0) * capH * fine);
   if (ex >= 1 || ey >= 1) {
     const E = scratch(1, W, H);
     E.ctx.drawImage(S.cv, 0, 0, W, H, 0, 0, W, H);
@@ -365,7 +378,7 @@ export function inkMask(faces, spec) {
    * ramp spreads the same total erosion evenly and eats the bottom of the U and the C's
    * lower terminal on the way past (tried it: TRUCK! came out as "TR||C|<!"). Band k
    * therefore starts at ((k-0.5)/bands)^(1/2.4) of the zone, which puts one band above the
-   * midpoint, five in the last fifth and three in the last tenth.
+   * zone's midpoint and half of them inside its last fifth.
    *
    * Integer offsets on purpose. A sub-pixel destination-in multiplies the edge alpha 4x a
    * band and after six bands the letter has a soft airbrushed rim; 1 px keeps it crisp.
@@ -374,7 +387,7 @@ export function inkMask(faces, spec) {
    * pixels for a display line at 1:1 — measured at 0.5-1.2 ms, and it is its own slice.
    */
   function taper(amount, zoneTop) {
-    const bands = Math.min(8, Math.round(amount * capH));
+    const bands = Math.min(8, Math.round(amount * capH * fine));
     if (bands < 1) return;
     const zTop = Math.max(0, Math.floor(oy + capH * zoneTop));
     const zBot = Math.min(H, Math.ceil(oy + capH * 0.05));
@@ -398,7 +411,7 @@ export function inkMask(faces, spec) {
       c.drawImage(src.cv, 0, 0, W, zH, -1, 0, W, zH);
       // The VERTICAL half of the diamond only runs on the last two bands. Erosion across
       // the stroke is what narrows it; erosion along the stroke also SHORTENS it, and with
-      // all nine bands vertical too the word lost 0.05 cap of length — measured, ours had
+      // all eight bands vertical too the word lost 0.05 cap of length — measured, ours had
       // two strokes still alive at 0.97 of the cap where the bar has eight. Two bands is
       // enough to round the very tip off and leaves the stem standing to the baseline.
       if (k > bands - 2) {
@@ -541,8 +554,12 @@ export function inkMask(faces, spec) {
   //     bar's tails disappear at a 205 cut (bbox 138 x 38, w/h 3.63) and reappear at 150
   //     (140 x 46, w/h 3.04). A tail baked at full alpha survives the 205 cut and drags
   //     the measured aspect down with it — the exact artefact behind the round-1 verdict.
-  if (fr > 0) {
-    steps.push(() => tails(-0.34, 0.46, 5, 0.076 * fr, 0.70, 0.80, [0.62, 0.008, 0.019, 0.50, 0.26, 0.20]));
+  // The tails fade out with the same gate. A 0.008 cap wedge is 0.5 px at tile scale, and
+  // a sub-pixel filament is not a filament, it is speckle — which is one of the three
+  // things the round-2 verdict named.
+  if (fr > 0 && fine > 0.05) {
+    steps.push(() => tails(-0.34, 0.46, 5, 0.076 * fr, 0.70, 0.80 * (0.30 + 0.70 * fine),
+      [0.62, 0.008, 0.019, 0.50, 0.26, 0.20]));
   }
 
   return {
