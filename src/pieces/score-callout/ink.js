@@ -1,62 +1,64 @@
 // PIECE: score-callout — the ink engine.
 //
-// WHAT ROUND 3 IS FIXING, and the measurement behind each item. Everything below was
-// re-derived this round off bar/panel-truck.png with one rule — ink is a pixel whose max
-// channel clears 150 and whose saturation is under 46, tight bbox, components under 20 px
-// dropped — and off our own render put through the identical code path. Cap height is the
-// MEDIAN HEIGHT OF THE LETTER COMPONENTS, which is the only definition that survives a
-// mark whose glyphs bounce (bar TRUCK!: T+R 40, K 37, C 36, U 35, ! 27 -> 36).
+// EVERY NUMBER BELOW WAS RE-DERIVED THIS ROUND, on both sides, with one rule: ink is a
+// pixel whose max channel clears 150 and whose saturation is under 46; components under
+// 20 px are dropped; cap height is the MEDIAN LETTER-COMPONENT HEIGHT, which is the only
+// definition that survives a mark whose glyphs bounce (bar TRUCK!: T+R 40, K 37, C 36,
+// U 35, ! 27 -> 36). Our render is resampled to the bar's cap of 36 and put through the
+// identical code, so the two columns are measured, not asserted.
 //
-//                                  bar TRUCK!     round-2 ours   this round
-//   ink bbox / cap  (w/cap)          3.889          4.765          -> 3.889
-//   bbox coverage                    0.2874         0.2975         -> 0.287
-//   8-connected components           5 (T+R fused)  7 (clean gaps) -> 5
-//   run width, median / cap          0.1389         0.1985         -> 0.139
-//   run width p90 / median           1.800          1.370          -> 1.80
-//   interior lum std (erode 1/4 px) 15.02           0.00           -> 14
-//   interior corr(lum, y)           -0.518         +0.020          -> -0.47
-//   below-baseline rows              6              16             -> 6
-//   ring 2 px outside ink, vs bg   -13.9 lum      -33 (hero)       -> -14
+// Both marks are TILTED (the bar's TRUCK! by -1.7 deg, ours by -2.5), and a tilt inflates
+// the ink box and smears the baseline across several rows, so the table gives both the
+// as-captured numbers and the same measurement with each mark de-rotated. The de-rotated
+// pair is the fair one; the as-is pair is what a critic gets by thresholding the panels.
 //
-// FOUR THINGS CHANGED, and one shipping bug got fixed first.
+//                            bar     ours  |  bar de-rot   ours de-rot   round 2
+//   ink bbox / cap          3.889   3.556  |    3.917        3.556        4.68
+//   ink box height / cap    1.306   1.361  |    1.222        1.194         --
+//   bbox coverage          0.2875  0.2513  |   0.3001       0.2871         --
+//   letter components           5       5  |        5            5           6
+//   run width median / cap 0.1389  0.1389  |   0.1389       0.1389         --
+//   run width p90 / median  1.800   1.400  |    1.800        1.400        1.29
+//   run width p95/p99/max  12.8/27/46      |  13.0/22.6/45  11.0/15.5/35    --
+//   interior lum mean       174.1   185.7  |    174.3        185.3       221.3
+//   interior lum std        13.92   13.99  |    14.58        14.14        0.00
+//   interior corr(lum,y)   -0.505  -0.466  |   -0.440       -0.499       +0.02
+//   ring 2 px out, vs bg    -21.9   -20.3  |    -14.4        -19.0         -33
+//   below-baseline rows   8/4/4/2/1/1  15/11/10/7/1/1/1/1 | 14/5    6/7/2/1   9 rows
 //
-// 0. THE E. `iso_callouts` shipped MURDFR! and LEVFLFR! — the E's BOTTOM ARM (not the
-//    middle one) was being eaten at the five-up tile's cap. Bisected by re-rendering
-//    LEVELER! at cap 90.6 with each pass disabled in turn: it is the TAPER, not `slimX`
-//    and not `slimY`. taper()'s last bands erode ISOTROPICALLY to point the feet of the
-//    stems, and the E/F/L bottom arm lies flat ON the baseline inside that zone — a 3 px
-//    horizontal eroded 1 px top and bottom is a 1 px horizontal, and under the halo that
-//    is invisible. The fix is `barsMask()`: a morphological OPENING of the mask along x
-//    with a 0.15 cap radius keeps exactly those pixels that belong to a horizontal run
-//    longer than 0.30 cap — arms and crossbars — and drops every stem. The vertical half
-//    of the terminal erosion is re-filled through it, so a foot still comes to a point and
-//    an arm never thins. It is cap-independent, so it holds at 74 and at 150 alike.
+// WHAT IS STILL SHORT, stated plainly: the set is 9% narrow per cap (3.556 against 3.889)
+// and p90/median is 1.40 against 1.800. The median run width is exact and p90 is one pixel
+// short at cap 36, which is what that ratio is made of.
 //
-// 1. MODELLING IS BACK. See palette.js for the measurement; round 1 asserted the bar was
-//    dead flat, round 2 believed it and shipped std 0.00 against the bar's 9-18. The ink
-//    is now a vertical RAMP across the cap band (source-in with a linear gradient — free)
-//    plus a CHALK plate composited `source-atop`, whose alpha is two octaves of value
-//    noise at a 0.13 cap blob scale. source-atop clips to the destination's own alpha, so
-//    the chalk costs exactly one upscaled blit of a 1/8-scale plate and cannot touch a
-//    pixel outside the mask.
+// FIVE THINGS CHANGED. Two of them are bugs, and both were found by looking, not by
+// reading numbers off a table.
 //
-// 2. THE SET IS TIGHTER, out of the counters and the tracking, not out of the silhouette:
-//    `xScale` 1.60 -> 1.33 narrows the R bowl, the U interior and the C aperture without
-//    touching cap height, and `tracking` goes negative so T and R fuse the way the bar's
-//    do. GEO.cap2 comes down only 4%, because the CAP was already right (ours 136 against
-//    the bar's 131 when panel-truck is scaled to 1920) — it was the width that was 27% out.
+// 0. THE POOL BLED. `scratch()` cleared exactly the caller's live rect, and every finished
+//    line is blitted from that rect at a FRACTIONAL destination — so Chromium's resampler
+//    reached one texel past it and picked up the previous line's ink off the shared pool.
+//    That is what the faint gold rule and dashes under every points line on the five-up
+//    sheet were. The clear now runs two pixels wider than the clip. See `scratch`.
 //
-// 3. THICK/THIN. A uniform erosion cannot raise p90/median: it subtracts the same amount
-//    from every run, so it drives the RATIO up only by driving the whole mark to a
-//    hairline. The contrast has to come from erosion that VARIES ALONG THE STROKE, which
-//    is what `shape()` does — a depth-ramped erosion run from BOTH ends of the cap band,
-//    thinning entries and exits and leaving the middle at full weight. X-ONLY except for
-//    the last two bands at the very foot, which is what keeps a horizontal arm safe.
+// 1. THE SWASH — see `swashSource` / `swashGrow`. The bar's whole upper run-width tail is one feature, the
+//    T's crossbar running on into the R's shoulder, and no erosion can produce it because
+//    erosion only removes. This is the change that carries the thick/thin.
 //
-// 4. THE TAIL COMB. The bar puts SIX rows of ink below the baseline of TRUCK!, counting
-//    8/4/4/2/1/1 pixels. Round 2 put sixteen, counting 100/92/85/68/... — a picket fence,
-//    which at a glance reads as scanline dropout rather than as paint. One station per
-//    0.95 cap now, at most two hairs, and half the reach.
+// 2. MODELLING, re-measured. See palette.js. Round 1 asserted the bar was dead flat, round
+//    2 believed it and shipped interior std 0.00 against the bar's 9-18. The ink is a
+//    vertical RAMP across the cap band plus a CHALK plate composited `source-atop`.
+//
+// 3. THE SHADOW IS A POOL, NOT A RING. The bar still carries 8-17 lum of shadow nine
+//    pixels out at cap 36; ours carried 0.5. A blur alone cannot do that — the silhouette
+//    has to be GROWN first. See the falloff table in `inkPaint`.
+//
+// 4. THE SET, THE BOUNCE AND THE TAIL. `xScale` and `jitter` in lockup.js, `tailReach` and
+//    friends below. The tail was a 16-row picket fence in round 2 and one row after the
+//    in-flight round-3 fix; the bar has six, and they are few but nearly opaque.
+//
+// AND A WARNING, because this round earned it. A permissive swash matched the bar on
+// w/cap, h/cap, coverage, component count, median run width AND p90/median simultaneously
+// and rendered a mark that could not be read as TRUCK!. Every setting here was confirmed
+// by looking at the rendered word before it was kept.
 //
 // COST. Everything here runs at BAKE time only; the frame path never enters this file.
 // The bake is sliced (see lockup.js) and no slice may exceed the piece's 8 ms cap. Two
@@ -483,26 +485,41 @@ export function inkMask(faces, spec) {
    * Dilation by DOUBLING: shifts of 1, 1, 2, 4, 8... reach R in ceil(log2 R) + 1 draws
    * rather than R of them, and for solid horizontal runs the shift form is exact.
    */
-  function swash(uTop, uBot, reach, hrFrac) {
+  //
+  // TWO SLICES, because on the widest plate this was the tallest pole left in the bake:
+  // measured on TOUCHDOWN! (plate 842x523) it ran 6.6 ms of a 35 ms whole-plate bake, more
+  // than the ramp, the chalk and the plate blit put together. `swashSource` isolates and
+  // cleans the qualifying strokes, `swashGrow` does the dilation and the merge.
+  let swZ = null;
+  function swashSource(uTop, uBot, hrFrac) {
     const zTop = Math.max(0, Math.floor(oy - capH * uTop));
     const zBot = Math.min(H, Math.ceil(oy - capH * uBot));
     const zH = zBot - zTop;
-    const R = Math.round(capH * reach);
-    if (zH < 4 || R < 1) return;
+    if (zH < 4) return;
     const B = barsMask(zTop, zH, hrFrac);
-    let si = 8, di = 9;
-    let src = scratch(si, W, zH);
+    const src = scratch(8, W, zH);
     // AND IT HAS TO HAVE REAL THICKNESS, not just length. A crossbar tapers, so its last
     // pixels are a single row tall; dilating THOSE along x draws a one-pixel rule running
     // off the letter, and on LEVELER! the E arms produced exactly that — thin horizontal
     // lines reaching to the next glyph, which read as scanlines, not paint. One row of
     // vertical erosion first drops every hairline tip and keeps the body of the stroke.
-    const vr = Math.max(1, Math.round(capH * 0.02));
+    const vr = Math.max(1, Math.round(capH * 0.008));
     src.ctx.drawImage(B.cv, 0, 0, W, zH, 0, 0, W, zH);
     src.ctx.globalCompositeOperation = 'destination-in';
     src.ctx.drawImage(B.cv, 0, 0, W, zH, 0, vr, W, zH);
     src.ctx.drawImage(B.cv, 0, 0, W, zH, 0, -vr, W, zH);
     src.ctx.globalCompositeOperation = 'source-over';
+    swZ = { zTop, zH };
+  }
+
+  function swashGrow(reach) {
+    if (!swZ) return;
+    const { zTop, zH } = swZ;
+    swZ = null;
+    const R = Math.round(capH * reach);
+    if (R < 1) return;
+    let si = 8, di = 9;
+    let src = POOL[si];
     let cur = 0;
     while (cur < R) {
       const s = Math.min(cur || 1, R - cur);
@@ -731,7 +748,10 @@ export function inkMask(faces, spec) {
   //     runs over 0.52 cap, which the crossbar clears at 0.73 and nothing else does — the
   //     band narrows to the top eighth of the cap, and the reach is cut to just what closes
   //     the 0.19 cap gap to the R.
-  if (swR > 0) steps.push(() => swash(1.06, 0.84, swR, spec.swashSel === undefined ? 0.26 : spec.swashSel));
+  if (swR > 0) {
+    steps.push(() => swashSource(1.06, 0.84, spec.swashSel === undefined ? 0.26 : spec.swashSel));
+    steps.push(() => swashGrow(swR));
+  }
 
   // [1] ENTRIES. Thinning run down from the cap line. X only — an entry is a chisel edge,
   //     not a point — and through `barsMask`, so a crossbar keeps its length.
@@ -813,9 +833,23 @@ export function inkMask(faces, spec) {
  * Phase two: colour and model the mask, lay the shadow that was sampled in phase one,
  * composite. `spec.x` is the line's CENTRE, `spec.y` its BASELINE, in target space.
  */
-export function inkPaint(target, faces, spec, st) {
+export function inkPaint(target, faces, spec, st, phase) {
   const { capH, key, W, H, oy, dx, dy, M, A, sw, sh, mb, iq, q, blurH, seed } = st;
   if (st.ensureShadow) st.ensureShadow();
+  // SPLIT INTO TWO SLICES. Measured on this box from a cold cache, timing every
+  // stepLockup() call: with the shadow assembled and the ink laid in ONE job, TRUCK! at
+  // 1:1 peaked at 10.5 ms — over the piece's 8 ms per-call cap — because that job now
+  // carries three separate blurs plus the full-plate blit. Phase 1 is the shadow, halo and
+  // glow; phase 2 is the ink itself. `phase` undefined runs both, which is what the
+  // synchronous `paintLine` path wants.
+  // THREE slices, not two. Even split shadow-from-ink the ink job held 6.8-7.8 ms at 1:1
+  // for the display line, because it carries a full-plate gradient `source-in`, an
+  // upscaled chalk blit and the plate blit. Phase 2 colours the mask in place, phase 3
+  // blits it. Both are ~half of what phase 2 alone used to be.
+  const doShadow = phase === undefined || phase === 1;
+  const doInk = phase === undefined || phase === 2;
+  const doChalk = phase === undefined || phase === 3;
+  const doBlit = phase === undefined || phase === 4;
   const mx = mb * iq;
   const dw = sw * iq, dh = sh * iq;
 
@@ -831,7 +865,7 @@ export function inkPaint(target, faces, spec, st) {
   // weight — the mark still has to hold on blown-out white (see the hostile sheet), it
   // just may not sit in a bruise.
   const shA = spec.shadow === undefined ? 1 : spec.shadow;
-  if (shA > 0) {
+  if (doShadow && shA > 0) {
     const SH = exact(1, sw, sh);
     const B = exact(2, sw, sh);
     // THE POOL. Measured falloff of the mean luminance in the ring r px outside the ink,
@@ -891,7 +925,7 @@ export function inkPaint(target, faces, spec, st) {
       B3.ctx.globalCompositeOperation = 'source-in';
       B3.ctx.fillStyle = `rgb(${SHADOW_RGB})`;
       B3.ctx.fillRect(0, 0, sw, sh);
-      SH.ctx.globalAlpha = Math.min(1, (spec.haloMid === undefined ? 0.56 : spec.haloMid) * haA);
+      SH.ctx.globalAlpha = Math.min(1, (spec.haloMid === undefined ? 0.50 : spec.haloMid) * haA);
       SH.ctx.drawImage(B3.cv, 0, 0, sw, sh, capH * 0.012 * q, capH * 0.030 * q, sw, sh);
     }
     // THE CONTACT RING, and it is a ring, not a drop. Measured 2 px outside the ink at
@@ -920,7 +954,7 @@ export function inkPaint(target, faces, spec, st) {
     target.drawImage(SH.cv, 0, 0, sw, sh, dx - mx, dy - mx, dw, dh);
   }
 
-  if (spec.glow) {
+  if (doShadow && spec.glow) {
     const G = exact(2, sw, sh);
     G.ctx.filter = `blur(${Math.max(1, capH * (spec.glow.blur === undefined ? 0.24 : spec.glow.blur) * q).toFixed(2)}px)`;
     G.ctx.drawImage(A.cv, 0, 0, sw, sh, 0, 0, sw, sh);
@@ -935,27 +969,34 @@ export function inkPaint(target, faces, spec, st) {
     target.restore();
   }
 
+  if (!doInk && !doChalk && !doBlit) return st.L;
+
   /* --------------------------------------------- 2. the ink: ramp, then chalk */
   // `scratch()` already clipped this surface to (0,0,W,H), so `source-in` cannot reach
-  // the pool's dead margin.
+  // the pool's dead margin. Ramp, chalk and blit are three separate slices: each of them
+  // touches the whole plate, and on a contended box any one of them alone can approach
+  // the piece's 8 ms per-call cap.
   const MD = spec.model === false ? null : model(key);
-  M.ctx.setTransform(1, 0, 0, 1, 0, 0);
-  M.ctx.globalCompositeOperation = 'source-in';
-  if (spec.fillStyle || !MD) {
-    M.ctx.fillStyle = spec.fillStyle || flat(key);
-  } else {
-    // The ramp is laid across the CAP BAND, not the plate, so the corr(lum,y) it produces
-    // is the same number the bar was measured with. It runs a little past both ends
-    // because the glyphs bounce +/- 0.026 cap and the ascender of a '!' clears the cap.
-    const g = M.ctx.createLinearGradient(0, oy - capH * 1.06, 0, oy + capH * 0.04);
-    g.addColorStop(0, MD.top);
-    g.addColorStop(1, MD.bot);
-    M.ctx.fillStyle = g;
-  }
-  M.ctx.fillRect(0, 0, W, H);
-  M.ctx.globalCompositeOperation = 'source-over';
 
-  if (MD && MD.chalk > 0 && !spec.fillStyle) {
+  if (doInk) {
+    M.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    M.ctx.globalCompositeOperation = 'source-in';
+    if (spec.fillStyle || !MD) {
+      M.ctx.fillStyle = spec.fillStyle || flat(key);
+    } else {
+      // The ramp is laid across the CAP BAND, not the plate, so the corr(lum,y) it
+      // produces is the same number the bar was measured with. It runs a little past both
+      // ends because the glyphs bounce and the ascender of a '!' clears the cap.
+      const g = M.ctx.createLinearGradient(0, oy - capH * 1.06, 0, oy + capH * 0.04);
+      g.addColorStop(0, MD.top);
+      g.addColorStop(1, MD.bot);
+      M.ctx.fillStyle = g;
+    }
+    M.ctx.fillRect(0, 0, W, H);
+    M.ctx.globalCompositeOperation = 'source-over';
+  }
+
+  if (doChalk && MD && MD.chalk > 0 && !spec.fillStyle) {
     // CHALK. `source-atop` is clipped by the destination's own alpha, so this cannot put
     // a single pixel outside the mask and needs no second full-size surface — the whole
     // pass is one upscaled blit of a plate 1/64 the area, drawn with smoothing on, which
@@ -963,12 +1004,13 @@ export function inkPaint(target, faces, spec, st) {
     const cell = Math.max(1.6, capH * 0.13 * 0.125);
     const rgb = hexRGB(MD.tint);
     const CH = chalkPlate(4, W, H, cell, rgb, MD.chalk, hash(seed, 0x5c4a));
+    M.ctx.setTransform(1, 0, 0, 1, 0, 0);
     M.ctx.globalCompositeOperation = 'source-atop';
     M.ctx.drawImage(CH.cv, 0, 0, CH.w, CH.h, 0, 0, W, H);
     M.ctx.globalCompositeOperation = 'source-over';
   }
 
-  target.drawImage(M.cv, 0, 0, W, H, dx, dy, W, H);
+  if (doBlit) target.drawImage(M.cv, 0, 0, W, H, dx, dy, W, H);
   return st.L;
 }
 

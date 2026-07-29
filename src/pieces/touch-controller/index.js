@@ -8,21 +8,25 @@
 // ============================ THE SCHEME, IN FULL ============================
 //
 // LEFT THUMB — one control, never looked at.
-//   THE POCKET. A 176 x 236 CSS px capture pad filling the lower-left corner. The
-//   stick's anchor is wherever the thumb LANDS inside it, and the anchor DRAGS along
-//   behind a thumb that travels past a full radius, so travel never runs out and a
-//   reversal costs one radius from where the thumb IS. Analogue magnitude with a 16%
-//   dead zone, plus an 8-way quantisation for a sim that wants a facing.
+//   THE POCKET. A 124 x 236 CSS px capture pad flush against the lower-left corner — the
+//   drawn well's exact diameter, so every pixel the player can see is live and none of
+//   the pad is a promise the artwork does not make. The stick's anchor is wherever the
+//   thumb LANDS inside it, and the anchor DRAGS along behind a thumb that travels past a
+//   full radius, so travel never runs out and a reversal costs one radius from where the
+//   thumb IS. Analogue magnitude with a 16% dead zone, plus an 8-way quantisation for a
+//   sim that wants a facing.
 //   A short, fast HORIZONTAL FLICK of the stick — down, throw, lift, inside 14 ticks —
 //   is a juke. That is the oldest idiom in arcade football and it costs no screen area.
 //
-// RIGHT THUMB — three controls, on an arc around the pivot, nearest-first by how often
-// they are pressed under pressure.
-//   TURBO (14.3 mm)  the blue lozenge from the concept art. Hold to burn; the meter IS
+// RIGHT THUMB — three controls: a two-high COLUMN against the right edge, plus one
+// inboard. Nearest-first by how often they are pressed under pressure, and no two of them
+// closer than 16 CSS px at any viewport (see the width-budget note in layout.js).
+//   TURBO (13.5 mm)  the blue lozenge from the concept art. Hold to burn; the meter IS
 //                    the button, so the thing you read is under the thumb reading it.
 //                    Also the POWER MODIFIER: turbo + stiff-arm is a truck, turbo + dive
 //                    is a layout, turbo + tackle is a launch. One map, not two.
-//   ACTION (29.4 mm) the gesture pad. Seven meanings off one thumb position:
+//   ACTION (29.2 mm) the gesture pad, directly above TURBO. Seven meanings off one thumb
+//                    position:
 //                       tap  double  hold  swipe-up  swipe-down  swipe-left  swipe-right
 //                    and the meanings change with the side of the ball:
 //                       CARRY  stiff-arm  spin   protect  hurdle  dive       juke  juke
@@ -31,13 +35,13 @@
 //                    with the four swipe meanings BAKED INTO THE ARTWORK as a legend
 //                    ring, so it is a control you read once rather than a control you
 //                    have to be told about.
-//   PASS  (34.9 mm)  press to raise the receiver icons, release to throw. See the
-//                    receiver-selection note in resolve.js for the three commit paths
-//                    and why all three exist.
+//   PASS  (35.5 mm)  inboard of the column, press to raise the receiver icons, release to
+//                    throw. See the receiver-selection note in resolve.js for the three
+//                    commit paths and why all three exist.
 //
 // WHY GESTURES ON A PAD AND NOT MORE BUTTONS. A 40 mm thumb-reach disc on a 390 pt phone
 // fits about three 9 mm targets with survivable gaps; the third one in this layout is
-// already at 34.9 mm of a 40 mm budget. Offence needs seven actions and defence four.
+// already at 35.5 mm of a 40 mm budget. Offence needs seven actions and defence four.
 // Directions off a pad the thumb is already touching cost no area, no reach, and — the
 // part that matters on a phone — no LOOKING. Four more buttons would each have to be
 // found by eye, every time, during a play.
@@ -57,8 +61,8 @@ import {
   GRADE, GRADE_NAME, OUTCOME, PAD_MAP, PAD_INPUTS, windowFor, grade, ticksToMs,
 } from './tuning.js';
 import {
-  ZONE_RECTS, ZONE_HOMES, ZONE_ART, REACH_PX, MM_PER_CSSPX,
-  layoutZones, zoneAt, reachReport, minZoneGap,
+  ZONE_RECTS, ZONE_HOMES, ZONE_ART, REACH_PX, MM_PER_CSSPX, FIT, FIT_REF_PX,
+  layoutZones, zoneAt, reachReport, minZoneGap, zonePairGaps,
 } from './layout.js';
 import { createState, MAX_TARGETS } from './state.js';
 import {
@@ -79,6 +83,7 @@ const impl = {
   ACT, ACT_NAME, TUNING, TW, TW_NAME, WINDOW, ACT_WINDOW,
   GRADE, GRADE_NAME, OUTCOME, PAD_MAP, PAD_INPUTS,
   ZONE_RECTS, ZONE_HOMES, ZONE_ART, REACH_PX, MM_PER_CSSPX, MAX_TARGETS,
+  FIT, FIT_REF_PX,
 
   /* ---- lifecycle ---------------------------------------------------------- */
   create: createState,
@@ -132,6 +137,7 @@ const impl = {
   /* ---- reporting (harness + self-test; never on the frame path) ----------- */
   reachTable: reachReport,
   minZoneGap,
+  zonePairGaps,
 
   /**
    * windowTable() -> every timing window in ticks AND milliseconds, with its early /

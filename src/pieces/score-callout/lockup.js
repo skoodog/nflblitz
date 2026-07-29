@@ -114,7 +114,7 @@ export const INK = {
   line2: {
     tracking: -0.040, xScale: 1.44, minor: 0.885, slimX: 0.026, slimY: 0, fray: 1.0,
     taper: 0.058, entry: 0.030, jitter: 1.6,
-    swash: 0.34, swashSel: 0.14,
+    swash: 0.44, swashSel: 0.14,
     tailReach: 0.20, tailW: 2.2, tailDecay: 0.98,
   },
   // ITALIC NUMERALS and NO TAILS. Both are measured: the bar's 150/250 lean with the
@@ -223,8 +223,13 @@ export function beginLockup(faces, state, opts) {
   // Room for the halo and nothing else. The halo blur is 0.30 cap and its visible reach
   // is about 1.5x that, so 0.56 x 0.46 cap clears it. Round 1 used 1.15 x 1.05, roughly
   // 40% of the plate's area spent on empty pixels — and the plate is blitted every frame.
-  const padX = Math.ceil(CC * 0.56);
-  const padY = Math.ceil(CC * 0.46);
+  // The halo now SPREADS the silhouette by 0.075 cap before blurring it by 0.30 cap (see
+  // inkPaint), so its visible reach is 0.075 + ~1.5 x 0.30 = 0.53 cap, not 0.45. At the old
+  // 0.46 cap of vertical padding the plate cut the halo off square, and on the blown-out
+  // white tile of the hostile sheet that clipped edge was visible as a faint rectangle
+  // around the lockup. 0.62 x 0.56 clears the spread halo with a little margin.
+  const padX = Math.ceil(CC * 0.62);
+  const padY = Math.ceil(CC * 0.56);
   const W = Math.ceil(halfW * 2 + padX * 2);
   const H = Math.ceil(bot - top + padY * 2);
   const ox = Math.round(W * 0.5);
@@ -256,14 +261,14 @@ export function beginLockup(faces, state, opts) {
   function pushLine(spec) {
     let st = null;
     jobs.push(() => { st = inkMask(faces, spec); });
-    jobs.push(() => { st.step(0); });
-    jobs.push(() => { st.step(1); });
-    jobs.push(() => { st.step(2); });
-    // A line may have up to four resumable passes (swash, entries, exits, tails);
-    // `step(i)` is a no-op for a line that has fewer, so the slice count is fixed and
-    // the plan does not have to know which passes a given recipe turned on.
-    jobs.push(() => { st.step(3); });
-    jobs.push(() => { inkPaint(g, faces, spec, st); st = null; });
+    // A line has up to FIVE resumable mask passes — swash source, swash grow, entries,
+    // exits, tails — and `step(i)` is a no-op for a line that has fewer, so the slice
+    // count is fixed and the plan does not have to know which passes a recipe turned on.
+    for (let i = 0; i < 5; i++) jobs.push(() => { st.step(i); });
+    // ...and FOUR paint passes: shadow/halo/glow, the colour ramp, the chalk, the plate
+    // blit. Each of the last three touches the whole plate on its own. See inkPaint.
+    for (let p = 1; p <= 4; p++) jobs.push(() => { inkPaint(g, faces, spec, st, p); });
+    jobs.push(() => { st = null; });
   }
 
   // CONDENSING THINS THE STEMS, so the erosion that trims them has to condense with it.

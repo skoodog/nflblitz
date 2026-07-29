@@ -74,10 +74,11 @@ export const FLAT = {
 // more than it was shading. `chalk` 0.46 -> 0.40 takes the breakup down; widening the two
 // stops by ~10% while dropping both takes the ramp up and the mean with it. The chalk only
 // ever darkens, and lightening it raises the mean, so the stops carry both corrections.
+// Two passes were needed. The first landed mean 184.8 and std 14.45 but overshot the ramp
+// at corr -0.596, so the stops closed from 43.9 lum apart to 36.0 about the same midpoint —
+// corr scales with the gap, and 0.596 x (36.0/43.9) = 0.489. Final measured white line:
+// mean 183.7, std 14.16, corr -0.491, against the bar's 174.1 / 13.92 / -0.505.
 export const MODEL = {
-// Measured after the first correction: mean 184.8, std 14.45, corr -0.596 — mean and std
-// on the nose, but the ramp overshot, so the stops close from 43.9 lum apart to 36.0 about
-// the same midpoint. corr scales with the gap, and 0.596 x (36.0/43.9) = 0.489.
   white:    { top: '#e9e3d7', bot: '#c7bfb0', tint: '#6d675c', chalk: 0.43 },
   red:      { top: '#c81d19', bot: '#8f1210', tint: '#4a0f0d', chalk: 0.42 },
   goldLine: { top: '#f0c405', bot: '#c69c01', tint: '#7a5f04', chalk: 0.38 },

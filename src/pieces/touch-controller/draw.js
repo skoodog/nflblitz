@@ -20,7 +20,7 @@
 // for rather than from a devicePixelRatio the piece would have to guess at.
 
 import { ZONE, TUNING, GRADE, SIDE } from './tuning.js';
-import { ZONE_ART } from './layout.js';
+import { ZONE_ART, FIT } from './layout.js';
 import { bake, SHEET, GRADE_TINT } from './sprites.js';
 import { armedInfo } from './resolve.js';
 
@@ -39,14 +39,22 @@ function artOf(zone) {
 }
 
 /**
- * blit(c2d, img, S, sheet, col, row, ox, oy, L, cxCss, cyCss)
- * One sprite cell, centred on a CSS-px point, at exactly 1:1 device pixels.
+ * blit(c2d, img, S, sheet, col, row, ox, oy, L, cxCss, cyCss, k)
+ * One sprite cell, centred on a CSS-px point.
+ *
+ * `k` IS THE LAYOUT'S OWN UNIFORM SCALE (`FIT.scale`), and passing it here rather than
+ * folding it into `L` is the whole point: `L` converts a CSS-px POSITION into the
+ * overlay's logical units and must not be touched, while `k` shrinks the artwork's SIZE
+ * by exactly the amount `layoutZones()` shrank its hit rectangle by. Scaling one and not
+ * the other is the drawn-here / hit-tested-there defect, and it would show up only on
+ * the narrow phones nobody screenshots.
  */
-function blit(c2d, img, S, sheet, col, row, ox, oy, L, cx, cy) {
+function blit(c2d, img, S, sheet, col, row, ox, oy, L, cx, cy, k) {
   const W = sheet.w, H = sheet.h;
+  const dw = W * L * k, dh = H * L * k;
   c2d.drawImage(img,
     col * W * S, row * H * S, W * S, H * S,
-    ox + (cx - W * 0.5) * L, oy + (cy - H * 0.5) * L, W * L, H * L);
+    ox + cx * L - dw * 0.5, oy + cy * L - dh * 0.5, dw, dh);
 }
 
 /**
@@ -66,6 +74,9 @@ export function draw(c2d, t, ui, st, SP) {
   const dpr = Math.max(0.5, Math.min(3, (ui && ui.dpr) || 1));
   if (!SP.ok || SP.dpr !== dpr) bake(SP, dpr, ui && ui.faces);
   const S = SP.dpr;
+  // The layout's uniform scale: 1 on every surface whose narrow dimension is >= 360 CSS
+  // px, and below that the same factor `layoutZones()` applied to the hit rectangles.
+  const k = FIT.scale;
 
   c2d.save();
   c2d.lineCap = 'round';
@@ -82,12 +93,15 @@ export function draw(c2d, t, ui, st, SP) {
       const wx = live ? st.anchorX : a[1];
       const wy = live ? st.anchorY : a[2];
       c2d.globalAlpha = live ? 1 : 0.85;
-      blit(c2d, SP.stick, S, SHEET.stick, live ? 1 : 0, 0, ox, oy, L, wx, wy);
+      blit(c2d, SP.stick, S, SHEET.stick, live ? 1 : 0, 0, ox, oy, L, wx, wy, k);
       c2d.globalAlpha = 1;
       if (live) {
-        const R = TUNING.stickRadiusPx;
+        // The head rides the well's RIM at full deflection, so its offset scales with the
+        // well and not with the input radius. The input radius is a physical distance the
+        // thumb travels and does not scale; the well is a picture of it.
+        const R = TUNING.stickRadiusPx * k;
         blit(c2d, SP.head, S, SHEET.head, st.boost ? 1 : 0, 0, ox, oy, L,
-          wx + st.stickX * R, wy + st.stickY * R);
+          wx + st.stickX * R, wy + st.stickY * R, k);
       }
     }
   }
@@ -97,9 +111,9 @@ export function draw(c2d, t, ui, st, SP) {
     const a = artOf(ZONE.TURBO);
     if (a) {
       const W = SHEET.turbo.w, H = SHEET.turbo.h;
-      const dx = ox + (a[1] - W * 0.5) * L;
-      const dy = oy + (a[2] - H * 0.5) * L;
-      const dw = W * L, dh = H * L;
+      const dw = W * L * k, dh = H * L * k;
+      const dx = ox + a[1] * L - dw * 0.5;
+      const dy = oy + a[2] * L - dh * 0.5;
       // plate
       c2d.drawImage(SP.turbo, 0, 0, W * S, H * S, dx, dy, dw, dh);
       // fill — a horizontal SOURCE SUB-RECT, so a draining meter is one blit and not a
@@ -114,7 +128,7 @@ export function draw(c2d, t, ui, st, SP) {
       // white-hot leading smear at the bar's edge. Same source geometry as the fill row,
       // so it lands inside the bar's band and never over the word.
       if (f > 0.06 && f < 0.975) {
-        const lead = 13 * L;
+        const lead = 13 * L * k;
         c2d.globalAlpha = 0.9;
         c2d.drawImage(SP.turbo, 0, H * S * 2, W * S, H * S,
           dx + dw * f - lead, dy, lead, dh);
@@ -136,7 +150,7 @@ export function draw(c2d, t, ui, st, SP) {
   {
     const a = artOf(ZONE.PASS);
     if (a) {
-      blit(c2d, SP.pass, S, SHEET.pass, st.aiming ? 1 : 0, 0, ox, oy, L, a[1], a[2]);
+      blit(c2d, SP.pass, S, SHEET.pass, st.aiming ? 1 : 0, 0, ox, oy, L, a[1], a[2], k);
 
       if (st.aiming) {
         const px = ox + a[1] * L, py = oy + a[2] * L;
@@ -164,7 +178,7 @@ export function draw(c2d, t, ui, st, SP) {
         if (st.aimMag > 4) {
           const m = Math.min(st.aimMag, 84);
           const ux = st.aimDx / st.aimMag, uy = st.aimDy / st.aimMag;
-          c2d.lineWidth = 4 * L;
+          c2d.lineWidth = 4 * L * k;
           c2d.strokeStyle = st.aimLatched >= 0 ? '#ffe9a3' : '#ffc61e';
           c2d.beginPath();
           c2d.moveTo(px, py);
@@ -177,7 +191,11 @@ export function draw(c2d, t, ui, st, SP) {
         for (let i = 0; i < st.tgtN; i++) {
           const num = i % 6;
           const hot = (i === sel) || (sel < 0 && i === st.tgtPrimary) ? 1 : 0;
-          blit(c2d, SP.recv, S, SHEET.recv, num, hot, ox, oy, L, st.tgtX[i], st.tgtY[i]);
+          // k = 1 DELIBERATELY. A receiver icon is anchored to a player on the field, not
+          // to a thumb pivot; it is not part of the layout, it does not scale with the
+          // layout, and its hit radius (TUNING.receiverRPx) does not scale either. Scaling
+          // the icon and not the radius is exactly the mismatch `k` exists to prevent.
+          blit(c2d, SP.recv, S, SHEET.recv, num, hot, ox, oy, L, st.tgtX[i], st.tgtY[i], 1);
         }
       }
     }
@@ -188,7 +206,7 @@ export function draw(c2d, t, ui, st, SP) {
     const a = artOf(ZONE.ACTION);
     if (a) {
       const side = st.side < 0 || st.side > SIDE.DEF ? 0 : st.side;
-      blit(c2d, SP.pad, S, SHEET.pad, st.btnA ? 1 : 0, side, ox, oy, L, a[1], a[2]);
+      blit(c2d, SP.pad, S, SHEET.pad, st.btnA ? 1 : 0, side, ox, oy, L, a[1], a[2], k);
 
       const px = ox + a[1] * L, py = oy + a[2] * L;
 
@@ -204,12 +222,15 @@ export function draw(c2d, t, ui, st, SP) {
         const span = ARM[2] > 0 ? ARM[2] : 1;
         const frac = Math.max(0, Math.min(1, (ARM[3] + 1) / (span + 1)));
         const band = ARM[4];
-        // Radius 56, not 60: the pad's centre sits 56 CSS px from the right edge of a
-        // 390 pt screen, and a 60 px arc with a 5 px stroke ran off it.
-        c2d.lineWidth = 4.5 * L;
+        // Radius 56, not 60: the pad's centre sits 54 CSS px inboard of a pivot that is
+        // itself 0.02 * W from the right edge — 59.8 px of clearance on a 390 pt screen —
+        // and a 60 px arc with a 5 px stroke ran off it. Both the radius and the stroke
+        // carry `k`, so the clearance argument survives the narrow-surface scale: at
+        // 320 CSS px the arc's outer edge is 51.8 px out and there are 52.6 px of room.
+        c2d.lineWidth = 4.5 * L * k;
         c2d.strokeStyle = band === 1 ? '#ffc61e' : band === 0 ? '#29c8ff' : '#ff5a2b';
         c2d.beginPath();
-        c2d.arc(px, py, 56 * L, -HALF_PI, -HALF_PI + TAU * frac);
+        c2d.arc(px, py, 56 * L * k, -HALF_PI, -HALF_PI + TAU * frac);
         c2d.stroke();
       }
 
@@ -217,7 +238,7 @@ export function draw(c2d, t, ui, st, SP) {
       if (tick < st.flashUntil && st.grade !== GRADE.UNARMED) {
         const age = TUNING.flashTicks - (st.flashUntil - tick);
         c2d.globalAlpha = Math.max(0, 1 - age / TUNING.flashTicks);
-        blit(c2d, SP.ring, S, SHEET.ring, st.grade, 0, ox, oy, L, a[1], a[2]);
+        blit(c2d, SP.ring, S, SHEET.ring, st.grade, 0, ox, oy, L, a[1], a[2], k);
         c2d.globalAlpha = 1;
       }
     }

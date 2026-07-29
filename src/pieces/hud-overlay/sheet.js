@@ -145,7 +145,7 @@ export function drawStates(c, t, state, ui) {
     'SCORE  22      99.1 X 60.7 INK   OURS 99 X 62',
     'SCORE  14      92.7 X 63.9 INK   OURS 99 X 62',
     'METERS         Y 83..102, FLUSH TO THE FOOT  FIRE / STEEL+PIPS / GOLD',
-    'TURBO PLATE    288 X 82 AT 48,954           ROUNDED SLAB, ONE RIGHT CHOP',
+    'TURBO PLATE    288 X 76 AT 48,960           ASPECT 3.79; BAR 3.63-3.87',
     'TURBO WORD     170.6 X 30.1 INK  OURS 169 X 30   OBLIQUE 0.24 (13.5 DEG)',
   ];
   for (let i = 0; i < facts.length; i++) label(c, ui, facts[i], ex, ey + 34 + i * 26, 17, 'rgba(158,184,216,0.85)');
@@ -194,7 +194,7 @@ export function drawTurbo(c, t, state, ui) {
   label(c, ui, 'OVERHEAT  ·  ONE EXTRA ALPHA-MODULATED BLIT OF A BAKED RIM', dx, 892, 18, 'rgba(255,150,90,0.95)');
 
   label(c, ui,
-    'PLATE 288 X 82 AT 48,954  ·  WORD INK 169 X 30 AT OBLIQUE 0.24 (13.5 DEG)  ·  BAR MEASURES 177.7 X 31.4 IN A 300-WIDE PLATE, TRACED OFF PANEL-TRUCK AT 16X',
+    'PLATE 288 X 76 AT 48,960 (ASPECT 3.79)  ·  WORD INK 173 X 29.5 AT OBLIQUE 0.24 (13.5 DEG)  ·  GAPS U-R 3.5 R-B 4.3 B-O 3.3, BAR 3.5 EACH; T-U 11.2, BAR 17.4',
     48, ui.H - 34, 18, 'rgba(120,148,184,0.85)');
 
   TURBO.bake(ui, 1);

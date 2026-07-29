@@ -95,7 +95,7 @@ export const ACT_NAME = [
  *
  * WHY SWIPE DIRECTION AND NOT MORE BUTTONS. A 40 mm thumb-reach disc on a 390 pt phone
  * has room for about three 9 mm targets with survivable gaps between them (see the reach
- * table in layout.js — the third one is already at 34.9 mm). Offence needs seven actions
+ * table in layout.js — the third one is already at 35.5 mm). Offence needs seven actions
  * and defence four. Directions off one pad cost no screen area, no reach, and — this is
  * the part that matters on a phone — no LOOKING: the thumb is already on the pad, so
  * the gesture is proprioceptive. Four extra buttons would each need to be found.

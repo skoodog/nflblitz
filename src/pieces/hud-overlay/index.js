@@ -10,7 +10,7 @@
 // border sits at panel x=30, so logical x = (panelX - 31) * 3.1953 and logical
 // y = panelY * 3.1953. Under that mapping the top-left cluster is SIX recessed
 // near-black tiles on opaque black gutters spanning 45..681 x 44.7..146.9 — there
-// is no carrier plate — and panel-truck.png puts the TURBO slab at 288 x 82,
+// is no carrier plate — and panel-truck.png puts the TURBO slab at 288 x 76,
 // bottom-left, with an oblique word filling a 178 x 37 ink rect.
 //
 // The type is set by INK RECTANGLE, not by point size (see ink.js): the bar's
@@ -199,7 +199,7 @@ registerIsoShot('iso_hud', Object.assign({}, BASE, {
     teamA: 'NYC', teamB: 'CHI', scoreA: 22, scoreB: 14, possess: 1,
     turbo: 0.68, momentumA: 0.62, momentumB: 0.86,
   },
-  note: 'Both persistent elements over the real night bowl at the exact logical coordinates measured off panel-qb_dropback: six recessed tiles spanning 45..681 x 44.7..146.9, and the TURBO slab 288x82 bottom-left.',
+  note: 'Both persistent elements over the real night bowl at the exact logical coordinates measured off panel-qb_dropback: six recessed tiles spanning 45..681 x 44.7..146.9, and the TURBO slab 288x76 bottom-left.',
 }));
 
 registerIsoShot('iso_hud_over_grey', Object.assign({}, BASE, {

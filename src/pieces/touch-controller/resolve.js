@@ -570,34 +570,63 @@ export function resolve(st, tick, touch, tel, idxScratch) {
               emitAction(st, dir === DIR.LEFT ? ACT.JUKE_L : ACT.JUKE_R, dir, downTick, tick, tel, entry);
             }
           }
-        } else if (z === ZONE.TURBO) {
-          // Holding a hold-button is not a gesture. No tap, no hold, no double.
-          st.changeTick = tick;
-        } else if (z === ZONE.PASS) {
-          // The PASS pad's release IS the throw; it has no tap/swipe/hold vocabulary of
-          // its own. Handled below by commitPass.
-          st.changeTick = tick;
-        } else if (dist >= TUNING.swipeMinPx) {
-          // Reached only when the mid-drag commit did not fire: a single MOVE-less
-          // release that still landed far from the anchor (a very fast flick whose only
-          // sample is the UP).
-          const dir = dirOf(dx, dy);
-          emitGesture(st, GESTURE.SWIPE, z, dir, tick);
-          emitAction(st, padAction(st, dir + 2), dir, downTick, tick, tel, entry);
-        } else if (held >= TUNING.holdTicks) {
-          emitGesture(st, GESTURE.HOLD, z, DIR.NONE, tick);
-          emitAction(st, padAction(st, PAD_HOLD), DIR.NONE, downTick, tick, tel, entry);
-        } else {
-          const zi = z & 7;
-          if (tick - st.lastTapTick[zi] <= TUNING.doubleGapTicks) {
-            emitGesture(st, GESTURE.DOUBLE, z, DIR.NONE, tick);
-            st.lastTapTick[zi] = -999;            // a double does not seed a triple
-            emitAction(st, padAction(st, PAD_DOUBLE), DIR.NONE, downTick, tick, tel, entry);
+        } else if (z === ZONE.ACTION) {
+          // ===================================================================
+          // THE ACTION PAD IS THE ONLY ZONE WITH A RELEASE VOCABULARY, and it now says so
+          // in the control flow instead of by being what is left over.
+          //
+          // This used to be the UNTAGGED TAIL of the chain — `else if (dist >= ...)`,
+          // `else if (held >= ...)`, `else` tap — so it was not the ACTION pad's
+          // vocabulary, it was EVERY ZONE'S vocabulary, awarded to whichever zone nobody
+          // had remembered to name above. ZONE.RECEIVER was that zone. Its icon-tap
+          // commits the throw on the DOWN (see the DOWN handler above, at true input
+          // latency), so its lift has nothing left to say — but the lift landed here and
+          // fired a second action out of PAD_MAP. At SIDE.QB the tap column is ACT.TUCK,
+          // so tapping a receiver to pick him threw the ball and then tucked and ran with
+          // it, on the primary passing path, every single time. 40 px of thumb drift made
+          // it a SLIDE off the swipe column instead; 20 ticks of rest made it a SLIDE off
+          // the hold column.
+          //
+          // Gating the vocabulary on ZONE.ACTION rather than naming the other zones fixes
+          // the CLASS and not the instance: a zone id added to tuning.js next round
+          // inherits SILENCE here, which is wrong in the harmless direction, instead of
+          // inheriting a tap-to-tuck it was never designed to have.
+          // ===================================================================
+          if (dist >= TUNING.swipeMinPx) {
+            // Reached only when the mid-drag commit did not fire: a single MOVE-less
+            // release that still landed far from the anchor (a very fast flick whose only
+            // sample is the UP).
+            const dir = dirOf(dx, dy);
+            emitGesture(st, GESTURE.SWIPE, z, dir, tick);
+            emitAction(st, padAction(st, dir + 2), dir, downTick, tick, tel, entry);
+          } else if (held >= TUNING.holdTicks) {
+            emitGesture(st, GESTURE.HOLD, z, DIR.NONE, tick);
+            emitAction(st, padAction(st, PAD_HOLD), DIR.NONE, downTick, tick, tel, entry);
           } else {
-            emitGesture(st, GESTURE.TAP, z, DIR.NONE, tick);
-            st.lastTapTick[zi] = tick;
-            emitAction(st, padAction(st, PAD_TAP), DIR.NONE, downTick, tick, tel, entry);
+            const zi = z & 7;
+            if (tick - st.lastTapTick[zi] <= TUNING.doubleGapTicks) {
+              emitGesture(st, GESTURE.DOUBLE, z, DIR.NONE, tick);
+              st.lastTapTick[zi] = -999;            // a double does not seed a triple
+              emitAction(st, padAction(st, PAD_DOUBLE), DIR.NONE, downTick, tick, tel, entry);
+            } else {
+              emitGesture(st, GESTURE.TAP, z, DIR.NONE, tick);
+              st.lastTapTick[zi] = tick;
+              emitAction(st, padAction(st, PAD_TAP), DIR.NONE, downTick, tick, tel, entry);
+            }
           }
+        } else {
+          // TURBO, PASS, RECEIVER — and anything added later. Every one of them has
+          // already committed whatever it was going to commit before this lift:
+          //   TURBO     is a hold-button. Holding a hold-button is not a gesture, and
+          //             releasing one is not a tap. The release is handled below, where
+          //             `st.turbo` goes false.
+          //   PASS      the release IS the throw, and commitPass() below performs it —
+          //             with power derived from how long it was held. It has no tap /
+          //             swipe / hold vocabulary of its own to collide with that.
+          //   RECEIVER  the throw fired on the DOWN, at true input latency, while the
+          //             other thumb kept holding PASS. Nothing is left to decide.
+          // The redraw epoch still has to move, because the pad art changes on release.
+          st.changeTick = tick;
         }
         if (tel && entry) tel.markResponse(entry, tick);
       }
