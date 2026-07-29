@@ -25,15 +25,36 @@
 //                      bar's set width multiplies a near-vertical STEM and leaves a
 //                      horizontal hairline alone, so eroding the same axis back restores
 //                      the stem weight with the counters left open.
-//   3. SHADOW SOURCE   the mask is downsampled to the shadow's working size HERE, before
-//                      a single filament exists. Nothing the tails do can cast a shadow.
-//   4. tails           the mask is extruded down the brush axis with a per-step alpha
-//                      decay and combed with TAPERED wedges — wide where they leave the
-//                      terminal, a hairline at the tip. Two passes: a dense short fringe
-//                      on every downward edge, and 2-3 long hairs per foot.
-//   5. flat ink        ONE fill colour, composited straight into the mask with source-in.
+//   3. TERMINAL TAPER  an ISOTROPIC erosion whose radius ramps with depth — see taper()
+//                      below. This is the round-3 fix and it is the one that decides
+//                      whether the mark reads as brush or as a distressed typeface.
+//   4. SHADOW SOURCE   the mask is downsampled to the shadow's working size HERE, after
+//                      the taper and before a single filament exists. Nothing the tails
+//                      do can cast a shadow.
+//   5. split tails     the tapered mask is extruded down the brush axis with a per-step
+//                      alpha decay and combed with SPLIT STATIONS — one terminal shedding
+//                      two or three clustered hairs — not an evenly spaced picket comb.
+//   6. flat ink        ONE fill colour, composited straight into the mask with source-in.
 //                      No gradient object, no keyline, no speckle, no specular sweep.
-//   6. shadow + glow   from the step-3 downsample, on EXACT-SIZED blur canvases.
+//   7. shadow + glow   from the step-4 downsample, on EXACT-SIZED blur canvases.
+//
+// WHAT ROUND 3 CHANGED, and why. Round 2 matched the bar's overall block — TRUCK! came
+// out 594 x 168 against the bar's 138 x 38 scaled up, w/h 3.63 against 3.63, flat matte
+// with a 0.000 top-to-bottom swing — and still read as a grunge FONT beside it. Measured
+// on the two at matched ink height:
+//
+//                              bar TRUCK!            round-2 ours
+//   stem width, mid-cap        0.132 cap             0.170 cap      29% heavy
+//   stem width at the foot     0.026-0.053 cap       0.170 cap      NO TAPER AT ALL
+//   terminal                   point, then 1-3       flat cut, then 8-10 identical
+//                              hairlines             vertical pickets
+//   numerals                   italic, ~0.24 slant   upright, and dripping
+//
+// So the letterforms were right and the ENDS OF THE STROKES were wrong: every stroke in
+// the bar narrows to a point and only then sheds a hair or two, and round 2 cut every
+// stroke off square and hung a machined comb under it. A comb under a square end is
+// exactly what a distressed display font looks like. taper() + the split comb below are
+// the fix, and slimX went 0.017 -> 0.029 to bring the stem weight onto the bar's.
 //
 // COST. Round 1 measured 45-49 ms for a one-line lockup at 1:1 against an 8 ms cap, and
 // the money was not where the comments said it was: the display line was 14 ms and the
@@ -280,8 +301,10 @@ export function inkMask(faces, spec) {
   const rng = makeRng(seed);
 
   // The pad only has to cover the erosion and the tails' sideways run — the blur margin
-  // lives on the downsampled canvas, not here — so 0.22 cap, not round 1's 0.55.
-  const pad = Math.ceil(capH * 0.22);
+  // lives on the downsampled canvas, not here — so 0.26 cap, not round 1's 0.55. It went
+  // 0.22 -> 0.26 when the NUMERALS were sheared: a slant of 0.24 throws the top of a digit
+  // 0.24 cap right of its advance box and the old pad clipped the 1's flag.
+  const pad = Math.ceil(capH * 0.26);
   const y0 = L.top, y1 = L.bot;
   const W = Math.ceil(L.width + pad * 2);
   const H = Math.ceil((y1 - y0) + pad * 2);
@@ -323,7 +346,68 @@ export function inkMask(faces, spec) {
     M = E;
   }
 
-  /* ------------------------------------ 3. shadow source, BEFORE the tails */
+  /* ------------------------------------------- 3. THE TERMINAL TAPER */
+  /**
+   * A brush lifting off the paper does not get cut off square — the nib narrows in EVERY
+   * direction as the pressure comes off, so the stroke ends in a point. That is the one
+   * thing the compiled face cannot do for us (its outline is baked at a fixed pressure
+   * profile) and the one thing that separates brush lettering from a distressed font.
+   *
+   * So: an isotropic (diamond, L1) erosion whose radius RAMPS WITH DEPTH. Band 1 covers
+   * the whole taper zone and takes 1 px off every side; band 2 covers everything below a
+   * fifth of the zone and takes another; and so on. A stem passing through all `bands`
+   * therefore loses 2 px of width per band by the time it reaches the foot, and the last
+   * band or two eat the flat bottom edge outright and leave a point.
+   *
+   * Measured against the bar's T stem in panel-truck (cap 38 px, ink thresholded at 150):
+   *   depth   0.20 cap   0.50   0.75   0.92   0.97   1.00
+   *   bar     0.132 cap  0.132  0.132  0.105  0.053  0.026   -> point
+   * i.e. a gentle 20% narrowing down the stem and then a hard point over the last 8% of
+   * the cap. One px per band over a zone that starts at -0.46 cap reproduces both: the
+   * upper bands are spread thin over most of the stem, and the bands pile up at the foot.
+   *
+   * Integer offsets on purpose. A sub-pixel destination-in multiplies the edge alpha 4x a
+   * band and after six bands the letter has a soft airbrushed rim; 1 px keeps it crisp.
+   *
+   * Cost: the zone is ~0.5 cap tall, so this is 5 draws over W x 0.5cap per band, ~0.9 M
+   * pixels for a display line at 1:1 — measured at 0.6-1.1 ms, and it is its own slice.
+   */
+  function taper(amount, zoneTop) {
+    const bands = Math.min(9, Math.round(amount * capH));
+    if (bands < 1) return;
+    const zTop = Math.max(0, Math.floor(oy + capH * zoneTop));
+    const zBot = Math.min(H, Math.ceil(oy + capH * 0.05));
+    const zH = zBot - zTop;
+    if (zH < bands + 2) return;
+
+    let si = 4, di = 5;
+    let src = scratch(si, W, zH);
+    src.ctx.drawImage(M.cv, 0, zTop, W, zH, 0, 0, W, zH);
+    for (let k = 1; k <= bands; k++) {
+      const dst = scratch(di, W, zH);
+      const c = dst.ctx;
+      c.drawImage(src.cv, 0, 0, W, zH, 0, 0, W, zH);
+      const yb = Math.max(1, Math.floor((zH - 1) * (k - 1) / bands));
+      c.save();
+      c.beginPath();
+      c.rect(0, yb, W, zH - yb);
+      c.clip();
+      c.globalCompositeOperation = 'destination-in';
+      c.drawImage(src.cv, 0, 0, W, zH, 1, 0, W, zH);
+      c.drawImage(src.cv, 0, 0, W, zH, -1, 0, W, zH);
+      c.drawImage(src.cv, 0, 0, W, zH, 0, 1, W, zH);
+      c.drawImage(src.cv, 0, 0, W, zH, 0, -1, W, zH);
+      c.restore();
+      src = dst;
+      const t = si; si = di; di = t;
+    }
+    M.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    M.ctx.globalCompositeOperation = 'source-over';
+    M.ctx.clearRect(0, zTop, W, zH);
+    M.ctx.drawImage(src.cv, 0, 0, W, zH, 0, zTop, W, zH);
+  }
+
+  /* ------------------------------------ 4. shadow source, BEFORE the tails */
   // This is the fix for the dark drips. A filament is one or two pixels of half-loaded
   // ink; give it a two-pass blurred shadow of its own and the shadow wins, which is how
   // round 1 grew 74 px of black drool under every foot. The shadow is cast by the
@@ -333,19 +417,33 @@ export function inkMask(faces, spec) {
   const mb = Math.ceil(blurH * q * 1.6) + 2;
   const sw = Math.max(8, Math.round(W * q) + mb * 2), sh = Math.max(8, Math.round(H * q) + mb * 2);
   const A = exact(0, sw, sh);
-  A.ctx.drawImage(M.cv, 0, 0, W, H, mb, mb, W * q, H * q);
+  let sampled = false;
+  function sampleShadow() {
+    if (sampled) return;
+    sampled = true;
+    A.ctx.drawImage(M.cv, 0, 0, W, H, mb, mb, W * q, H * q);
+  }
 
-  /* ------------------------------------------------- 4. tapered tails */
+  /* ------------------------------------------------- 5. split tails */
   // Direction the paint runs off a terminal: gravity, leaning back along the brush axis.
   // The face is sheared to the right going UP, so running DOWN the axis runs left, which
   // is exactly the way the bar's filaments lean.
   const fx = -slant * 0.55, fy = 1;
 
   /**
-   * One comb of tapered wedges: `spacing` cap between hairs, `wTop` cap wide where the
-   * hair leaves the terminal, tapering to a twelfth of that at the tip. Stroked
-   * hairlines (round 1) comb out as a machined sawtooth of constant width — a wedge is
-   * what makes it read as a splayed bristle.
+   * SPLIT STATIONS, not a comb.
+   *
+   * Round 2 laid hairs down every 0.074 cap at a constant width — across TRUCK! that is
+   * about fifty of them, evenly spaced, all the same length, hanging off a square-cut
+   * bottom edge. Counted on bar/panel-truck at threshold 150 there are SIX filaments under
+   * the whole word, and they arrive in twos: one terminal sheds two or three hairs that
+   * leave from the same point and splay apart. That is what "split hairline tails" means,
+   * and it is the difference between paint leaving a brush and a texture layer.
+   *
+   * So the walk steps `spacing` cap between STATIONS, and each station puts 1-3 hairs
+   * inside a twentieth of a cap of each other. Each hair is a wedge — `w0` cap at the root
+   * where it leaves the terminal, a tenth of that at the tip — because a stroked constant
+   * width hairline reads as a machined sawtooth.
    */
   function comb(bTop, bH, spacing, wMin, wMax, aMin, fadeAt, fadeLen) {
     const bOy = oy - bTop;
@@ -356,21 +454,25 @@ export function inkMask(faces, spec) {
     const run = fx * (yB - yA);
     let x = bx0;
     while (x < bx1) {
-      const t = rng();
-      const w0 = capH * (wMin + t * t * (wMax - wMin));
-      const w1 = w0 * 0.10;
-      // Per-hair opacity. Uniform hairs read as a comb; real dry brush leaves some
-      // filaments barely loaded, and against the extrusion's alpha decay a faint hair
-      // also runs SHORT, which is where the length variation comes from.
-      C.ctx.globalAlpha = aMin + rng() * (1 - aMin);
-      C.ctx.beginPath();
-      C.ctx.moveTo(x - w0 * 0.5, yA);
-      C.ctx.lineTo(x + w0 * 0.5, yA);
-      C.ctx.lineTo(x + run + w1 * 0.5, yB);
-      C.ctx.lineTo(x + run - w1 * 0.5, yB);
-      C.ctx.closePath();
-      C.ctx.fill();
-      x += capH * spacing * (0.45 + rng() * 1.1);
+      const n = 1 + (rng() < 0.60 ? 1 : 0) + (rng() < 0.24 ? 1 : 0);
+      for (let k = 0; k < n; k++) {
+        const hx = k === 0 ? x : x + rng.range(-0.052, 0.052) * capH;
+        const t = rng();
+        const w0 = capH * (wMin + t * t * (wMax - wMin));
+        const w1 = w0 * 0.10;
+        // Per-hair opacity. Uniform hairs read as a comb; real dry brush leaves some
+        // filaments barely loaded, and against the extrusion's alpha decay a faint hair
+        // also runs SHORT, which is where the length variation comes from.
+        C.ctx.globalAlpha = aMin + rng() * (1 - aMin);
+        C.ctx.beginPath();
+        C.ctx.moveTo(hx - w0 * 0.5, yA);
+        C.ctx.lineTo(hx + w0 * 0.5, yA);
+        C.ctx.lineTo(hx + run + w1 * 0.5, yB);
+        C.ctx.lineTo(hx + run - w1 * 0.5, yB);
+        C.ctx.closePath();
+        C.ctx.fill();
+      }
+      x += capH * spacing * (0.55 + rng() * 0.95);
     }
     C.ctx.globalAlpha = 1;
     // Only from the lower part of a glyph — a curtain under every horizontal edge would
@@ -413,38 +515,37 @@ export function inkMask(faces, spec) {
   }
 
   const fr = spec.fray === undefined ? 1 : spec.fray;
+  const tp = spec.taper === undefined ? 0.048 : spec.taper;
   const steps = [];
-  // Two passes, each its own resumable slice.
+
+  // [0] taper, then sample the shadow off the TAPERED letter. Order matters twice over:
+  //     the shadow has to follow the pointed stroke, and it has to be taken before a
+  //     single filament exists, or a 1 px hair carries a two-pass blurred shadow that
+  //     outweighs its own ink — which is how round 1 grew 74 px of black drool per foot.
+  steps.push(() => { taper(tp, -0.46); sampleShadow(); });
+
+  // [1] the split tails, off the tapered mask. ONE pass now, not round 2's dense fringe
+  //     plus long hairs: with the terminals coming to a point the fringe had nothing left
+  //     to do except advertise itself.
   //
-  //   [0] a ragged, splayed edge on every downward-facing stroke end. THREE steps at a
-  //       steep decay, not two at a shallow one: the per-step alphas are 1 / 0.55 / 0.30,
-  //       so a wedge drawn at 0.75 alpha dies one step earlier than one at 1.0 and the
-  //       fringe stops being a machined sawtooth of a single depth.
-  //   [1] the long hairs: 2-3 per foot, running to 0.36 cap.
-  //
-  // The wedges are WIDE and BRIGHT (aMin 0.70 / 0.55, up to 0.05 cap at the root). Round
-  // 1 used 1 px hairs at 0.45 alpha, and against the drop shadow — which is a dark band
-  // sitting exactly where the tails hang — a faint hair reads as a gap and the SHADOW
-  // between the hairs reads as the mark. The whole comb then looks like dark drool. A
-  // tail has to out-value the shadow it is standing on or it is not a tail.
+  //     Composited at 0.80, not 1.0. A filament carries less paint than the stroke it
+  //     leaves, and it has to READ that way under a threshold as well as to the eye: the
+  //     bar's tails disappear at a 205 cut (bbox 138 x 38, w/h 3.63) and reappear at 150
+  //     (140 x 46, w/h 3.04). A tail baked at full alpha survives the 205 cut and drags
+  //     the measured aspect down with it — the exact artefact behind the round-1 verdict.
   if (fr > 0) {
-    steps.push(() => tails(-0.32, 0.28, 3, 0.015 * fr, 0.55, 0.98, [0.074, 0.016, 0.050, 0.70, 0.62, 0.40]));
-    // Composited at 0.78, not 1.0. A filament carries less paint than the stroke it
-    // leaves, and it has to READ that way under a threshold as well as to the eye: the
-    // bar's tails disappear at a 205 cut (bbox 138 x 38, W/H 3.63) and reappear at 150
-    // (140 x 45, W/H 3.11). Ours at full alpha survived the 205 cut and dragged the
-    // measured aspect from 3.58 back down to 3.10 — the exact artefact that produced the
-    // round-1 verdict. 0.78 puts a tail's peak at 177 against the stroke's 227.
-    steps.push(() => tails(-0.30, 0.44, 4, 0.090 * fr, 0.74, 0.78, [0.44, 0.011, 0.029, 0.55, 0.30, 0.26]));
+    steps.push(() => tails(-0.34, 0.46, 5, 0.076 * fr, 0.70, 0.80, [0.62, 0.008, 0.019, 0.50, 0.26, 0.20]));
   }
 
   return {
     L, capH, slant, key, rng, W, H, ox, oy, bx0, bx1, dx, dy, y0, y1, M, A, sw, sh, mb, iq, q, blurH,
     steps,
-    /** Run resumable tail pass `i`, or nothing if this line has none. */
+    /** Run resumable pass `i`, or nothing if this line has none. */
     step(i) { const f = steps[i]; if (f) f(); },
     /** Every remaining pass, back to back. */
     finish() { for (let i = 0; i < steps.length; i++) steps[i](); },
+    /** Belt and braces: the shadow plate must exist by paint time whatever ran. */
+    ensureShadow: sampleShadow,
   };
 }
 
@@ -455,6 +556,7 @@ export function inkMask(faces, spec) {
  */
 export function inkPaint(target, faces, spec, st) {
   const { capH, key, W, H, dx, dy, M, A, sw, sh, mb, iq, q, blurH } = st;
+  if (st.ensureShadow) st.ensureShadow();
   const mx = mb * iq;
   const dw = sw * iq, dh = sh * iq;
 

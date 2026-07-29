@@ -79,10 +79,14 @@ export const GEO = {
  * zero on its own. This is the same trap round 1 documented and it is real.
  */
 const INK = {
-  line1: { tracking: 0.090, xScale: 1.44, minor: 0.930, slimX: 0.014, fray: 0.62, halo: 0.70, jitter: 0.9 },
-  line2: { tracking: 0.034, xScale: 1.46, minor: 0.885, slimX: 0.017, slimY: 0.010, fray: 1.0, jitter: 0.85 },
-  num: { tracking: 0.030, xScale: 1.45, minor: 1, excl: 1, slimX: 0.013, fray: 0.55, jitter: 0.45 },
-  pts: { tracking: 0.055, xScale: 1.45, minor: 1, slimX: 0.011, fray: 0.55, jitter: 0.5 },
+  line1: { tracking: 0.078, xScale: 1.47, minor: 0.930, slimX: 0.024, fray: 0.70, taper: 0.040, halo: 0.70, jitter: 0.9 },
+  line2: { tracking: 0.016, xScale: 1.50, minor: 0.885, slimX: 0.029, slimY: 0.010, fray: 1.0, taper: 0.050, jitter: 0.85 },
+  // ITALIC NUMERALS and NO TAILS. Both are measured: the bar's 150/250 lean with the
+  // display line (~0.24, the brush face's own 0.27 taken off a touch because a geometric
+  // digit at 15 deg already reads fast) and neither panel's points line has a single
+  // filament under it — the drips belong to the brush face, not to the score.
+  num: { tracking: 0.026, xScale: 1.44, minor: 1, excl: 1, slant: 0.235, slimX: 0.013, fray: 0, taper: 0, jitter: 0.45 },
+  pts: { tracking: 0.030, xScale: 1.44, minor: 1, slimX: 0.014, fray: 0, taper: 0.022, jitter: 0.5 },
 };
 
 function accentFor(state) {
