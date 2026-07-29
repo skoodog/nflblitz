@@ -46,7 +46,7 @@ import {
   mkCanvas, rr, vgrad, hgrad, rgba, mix, lighten, darken, hudColor, lum, chroma, vivid,
   grain, innerEdge,
 } from './chrome.js';
-import { inkSet, NUM_WELD } from './ink.js';
+import { inkSet } from './ink.js';
 
 /* ------------------------------------------------------------- geometry */
 
@@ -133,6 +133,17 @@ const NUM_GRAD = [
 const KEY = { color: '#000000', k: 0.052 };
 const HALO = { color: 'rgba(255,202,124,0.52)', blur: 8, alpha: 0.7, reps: 1 };
 const SHADOW = { color: 'rgba(0,3,9,0.92)', blur: 5, dy: 2.4, alpha: 0.62 };
+/* The modelling, MEASURED off the bar and applied to the SILHOUETTE, never to
+ * each subpath (see the `lit` pass in ink.js). Eroded interior of the bar's own
+ * numerals, panel-qb_dropback at 1:1:
+ *     '22'  mean 237.7  std 7.2  min 220  corr(lum,y) -0.38
+ *     '14'  mean 241.3  std 6.4  min 219  corr(lum,y) -0.13
+ * i.e. a gentle bright-top / cool-foot ramp with a floor around 220 and NO
+ * internal seam anywhere. Round 2's per-subpath top-light produced the same std
+ * and the same sign of correlation and a floor of 158, because the seams it drew
+ * inside the '2' and the '5' are exactly the pixels that set the minimum. */
+const LIT_NUM = { top: 'rgba(255,255,255,0.30)', topH: 0.12, foot: 'rgba(16,26,44,0.075)', footH: 0.34 };
+const LIT_ABBR = { top: 'rgba(255,255,255,0.30)', topH: 0.14, foot: 'rgba(12,20,36,0.11)', footH: 0.36 };
 
 let cv = null, cx = null;
 let quality = 1;
@@ -431,7 +442,7 @@ function abbr(F, c, id, x, maxW, grad, halo, side) {
     shadow: SHADOW,
     halo: { color: halo, blur: 9, alpha: 0.7, reps: 1 },
     grad,
-    shade: { color: 'rgba(10,16,28,0.14)', dy: 2.2, alpha: 1 },
+    lit: LIT_ABBR,
   });
 }
 
@@ -444,11 +455,8 @@ function score(F, c, v, xRight, maxW) {
     // minXs 0.62, not 1.0: a three-digit score wants 153 of ink in a 102-wide cell,
     // and a floor of 1.0 made the run refuse to compress and overrun its tile.
     gap: G_SCORE.gap, maxXs: 1.85, minXs: 0.62,
-    // blitz-num's '2' and '5' are severed at this size without the weld — the
-    // foot bar is a separate subpath that the diagonal only clips the corner of.
-    weld: NUM_WELD.weld, smear: NUM_WELD.smear,
     keyline: KEY, halo: HALO, shadow: SHADOW, grad: NUM_GRAD,
-    shade: { color: 'rgba(12,20,34,0.09)', dy: 2.0, alpha: 1 },
+    lit: LIT_NUM,
   });
 }
 
@@ -514,10 +522,9 @@ export function bake(ui, S, k) {
     x: T_CLK.x + T_CLK.w - 1, y: IY_CLOCK, h: IH_CLOCK, align: 'right',
     w: Math.min(T_CLK.w - 2, runW(G_CLOCK, ck.length) - (ck.indexOf(':') >= 0 ? 20 : 0)),
     gap: G_CLOCK.gap, maxXs: 1.6, minXs: 0.9,
-    weld: NUM_WELD.weld, smear: NUM_WELD.smear,
     keyline: KEY, halo: { color: 'rgba(190,214,255,0.42)', blur: 8, alpha: 0.75, reps: 1 },
     shadow: SHADOW, grad: NUM_GRAD,
-    shade: { color: 'rgba(12,20,34,0.09)', dy: 1.8, alpha: 1 },
+    lit: LIT_NUM,
   });
 
   /* ---- second line: the YARDAGE. Round 1 made this a caption at half the ink
@@ -531,7 +538,6 @@ export function bake(ui, S, k) {
     x: T_CLK.x + 3, y: IY_YARD, h: IH_YARD, align: 'left',
     w: Math.min(T_CLK.w - 6, runW(G_YARD, yard.length)),
     gap: G_YARD.gap, maxXs: 1.7, minXs: 0.82,
-    weld: NUM_WELD.weld, smear: NUM_WELD.smear,
     keyline: { color: '#000000', k: 0.06 },
     shadow: { color: 'rgba(0,3,9,0.85)', blur: 5, dy: 2, alpha: 0.85 },
     grad: NUM_GRAD,

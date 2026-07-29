@@ -70,6 +70,85 @@ const probeCols = new Uint16Array(PROBE_W);
 /* horizontal slices used for the optical side profile, in em units */
 const NB = 32, BAND_LO = -260, BAND_H = 1300 / 32;
 
+/* ------------------------------------------------------- THE MISSING JOINS
+ * ROUND 3. `blitz-num`'s '2', '3' and '5' render as BROKEN glyphs. The defect is
+ * in the shared face — reported upward, worked around here — and it is worth
+ * writing down exactly, because the repair is derived from it rather than tuned.
+ *
+ * Every glyph in these faces is a union of pen-swept subpaths (stroker.js). For
+ * blitz-num the pen is CIRCULAR (cfg a = b = 75, nib 0), and every terminal is
+ * declared `c:['butt','butt']` — see num-digits.js. A butt cap on a circular pen
+ * is a contradiction: where two subpaths meet end-to-end the stroker emits no
+ * JOIN, so the union is two flat-ended sausages laid against each other and the
+ * outside of the turn is left as a sharp empty wedge. The geometric faces avoid
+ * this by extending both strokes onto one corner point (`ext: E` in geo-glyphs);
+ * the digits never do.
+ *
+ * MEASURED, by re-running stroker.js's own Catmull-Rom sampler over the authored
+ * centrelines (scratch/joints.py) — every number below is derived, not chosen:
+ *
+ *   '2'  curve tail ends at (112,170) heading (-0.447,-0.895); its butt cap runs
+ *        (44.9,203.5) -> (179.1,136.5). The foot bar (w 0.94, ext E both ends) is
+ *        x 49.5..416.5, y 5.5..146.5. The cap crosses the bar's TOP at x = 158.7,
+ *        so between the cap and the bar top there is an EMPTY WEDGE 109 em wide,
+ *        57 em deep, closing at 26.7 degrees. At the score's 62 px ink that wedge
+ *        is 12 x 4 px, and a 3.2 px keyline paints all of it: the '2' reads as a
+ *        "?" sitting above a detached dash. THIS IS THE TELL.
+ *   '5'  stem ends (114,470) heading (-0.040,-0.999); bowl starts (112,484)
+ *        heading (0.951,0.311). Left turn, so the outer flank is -x: the stem's
+ *        outer cap corner is (39.1,473) and the bowl's is (141.8,415.2), and the
+ *        103 em between them is empty. That is the bite out of the '5's waist.
+ *   '3'  same shape: C1 ends (224,514), C2 starts (192,508); outer corners
+ *        (185.2,578.2) and (187.5,433.1).
+ *
+ * THE REPAIR IS THE JOIN THE STROKER OWED: for each break, the BEVEL between the
+ * two outer cap corners, hinged on the join centre. Three triangles, in em units,
+ * authored here. It is not a dilation — it adds ink ONLY inside the wedge, so
+ * nothing else about the glyph moves: no counter closes, no inter-digit gap
+ * shrinks, no stroke thickens. (Round 3's first pass tried an anisotropic
+ * dilation instead — `smear` — which did reconnect the parts but painted a flat
+ * band under every horizontal and left the foot bar looking glued on. Measured:
+ * darkest pixel inside the '22' body 158/255 against the bar's floor of 220.)
+ *
+ * A round join (a disc of the pen radius at the join centre) was the other
+ * candidate and is wrong here: on the '5' it extends the stem 75 em past its
+ * authored end and hangs a bump below the bowl's underside. The bevel closes the
+ * same wedge and stays inside the letter.
+ */
+const JOINTS = {
+  'blitz-num': {
+    2: [[[44.9, 203.5], [179.1, 136.5], [49.5, 146.5]]],
+    3: [[[208, 511], [185.2, 578.2], [187.5, 433.1]]],
+    5: [[[113, 477], [39.1, 473], [141.8, 415.2]]],
+  },
+};
+
+/**
+ * The join polygons for one glyph, appended to `sink` in the same frame emit()
+ * uses: screen y = -emY*k, screen x = penX + emX*k - screenY*slant.
+ * Returns the sink, or null if this glyph needs no repair.
+ */
+function jointsOf(face, ch, k, slant, penX, sink) {
+  const tbl = JOINTS[face];
+  const polys = tbl ? tbl[ch] : null;
+  if (!polys) return null;
+  const p = sink || new Path2D();
+  for (let i = 0; i < polys.length; i++) {
+    const q = polys[i];
+    for (let j = 0; j < q.length; j++) {
+      const yy = -q[j][1] * k;
+      const xx = penX + q[j][0] * k - yy * slant;
+      if (j === 0) p.moveTo(xx, yy); else p.lineTo(xx, yy);
+    }
+    p.closePath();
+  }
+  return p;
+}
+function hasJoints(face, ch) {
+  const tbl = JOINTS[face];
+  return !!(tbl && tbl[ch]);
+}
+
 /** Command-point box of one glyph, in em units, y up-positive. */
 function cmdBox(g) {
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
@@ -118,6 +197,10 @@ function emBox(F, f, face, ch) {
       // probe upright and untracked: the box is a per-glyph property, and slant
       // and tracking are re-applied analytically by inkBox().
       c.fill(F.path(ch, face, PROBE, { tracking: 0, slant: 0 }));
+      // ...INCLUDING the join repair, so the box and the side profile describe the
+      // shape that is drawn rather than the shape the face hands over.
+      const jp = jointsOf(face, ch, PROBE / (f.unitsPerEm || 1000), 0, 0, null);
+      if (jp) c.fill(jp);
       c.restore();
       const d = c.getImageData(rx, ry, rw, rh).data;
       // Row/column coverage counts, then a bbox over the rows and columns that
@@ -363,18 +446,34 @@ export function inkRun(F, face, text, size, gap, xs, o) {
   return { items, w: packed + shear, packed, shear, slant, y0: yy0, y1: yy1, size, xs };
 }
 
+/**
+ * The run's outlines, plus — as a SECOND path — the join repair.
+ *
+ * The two are kept apart on purpose. `fill()` is nonzero, so merging a repair
+ * polygon into the glyph's own path would subtract its area wherever the two
+ * wind opposite; two paths, filled in the same passes, can only ever union.
+ */
 function runPath(F, face, run, o) {
   const p = new Path2D();
+  let q = null;
+  const f = fontOf(F, face);
+  const k = f ? run.size / (f.unitsPerEm || 1000) : 0;
+  const slant = o && o.slant !== undefined ? o.slant : (f ? (f.defaultSlant || 0) : 0);
   for (const it of run.items) {
     const gp = F.path(it.ch, face, run.size, o);
     try {
-      p.addPath(gp, new DOMMatrix([run.xs, 0, 0, 1, it.at, 0]));
+      const m = new DOMMatrix([run.xs, 0, 0, 1, it.at, 0]);
+      p.addPath(gp, m);
+      if (f && hasJoints(face, it.ch)) {
+        const j = jointsOf(face, it.ch, k, slant, 0, null);
+        if (j) { if (!q) q = new Path2D(); q.addPath(j, m); }
+      }
     } catch (e) {
       matOk = false;
       return null;
     }
   }
-  return p;
+  return { p, q };
 }
 
 /* --------------------------------------------------------------- treatment */
@@ -392,67 +491,20 @@ function haloPass(c, p, color, blur, alpha, reps) {
   c.restore();
 }
 
-/* ---------------------------------------------------------------- the WELD
- * ROUND 3. `blitz-num` '2' and '5' render as broken glyphs at 1:1. THE DEFECT IS
- * IN THE SHARED FACE, not in this file, and it is worth writing down exactly
- * because the workaround below is shaped entirely by it.
- *
- * Every glyph in these faces is a UNION OF BUTT-CAPPED STROKE SUBPATHS. For most
- * letters the subpaths overlap generously. For '2' and '5' they only KISS:
- *
- *   '2' = C([[102,592] ... [246,436],[112,170]])  +  L([[120,76],[346,76]], 0.94)
- *         Pen half-width 75, so the foot bar's TOP edge is y = 146.5 while the
- *         curve's centreline stops at y = 170 — the curve ends 23.5 units ABOVE
- *         the bar it is supposed to land on, and only the corner of its butt cap
- *         dips in. The cap runs (179,136.3) -> (45,203.7); it crosses y = 146.5 at
- *         x = 158.7 and the curve's right flank crosses it at x = 184.1. So the
- *         ENTIRE junction is 25.4 em units wide. At the score's 62 px ink that is
- *         k = 0.0734 px/unit and xs = 1.50, i.e. a 2.8 px neck — with a 63 degree
- *         concave notch opening to the right of it.
- *   '5' = the stem's butt cap at (114,470) against the bowl's butt cap starting at
- *         (112,484); same pattern, two joints.
- *
- * The bar's own '2' (bar/panel-qb_dropback.png at 12x, x 100..150) has NO such
- * notch: its diagonal merges into the foot at full stroke width. So this is a
- * `blitz-num` outline bug, reported upward, and worked around here.
- *
- * WHY THE ROUND-3 FIRST PASS DID NOT FIX IT. A 3.2 px keyline runs down BOTH
- * flanks of that 2.8 px neck, so the neck is gone. An isotropic dilation big
- * enough to beat it (`weld`) also closes the 3.0 px gap between the yardage
- * digits and chokes the '0' counter, which is only 9 px wide — measured: at
- * weld 0.09 the '167' run fuses into one blob. Isotropic is the wrong tool.
- *
- * WHAT ACTUALLY WORKS IS ANISOTROPIC. The junctions in this face all stack
- * VERTICALLY — a cap sitting above the bar it should meet. A dilation along Y
- * alone (`smear`: the same path filled again, offset down) drives the cap DOWN
- * into the foot and closes the notch, while leaving every horizontal measurement
- * untouched: inter-glyph gaps are horizontal, and the '0' counter is 6 x 32 px,
- * so it loses nothing that shows. A small isotropic `weld` on top rounds the
- * remaining corner. Both are taken OUT of the requested ink box so the drawn ink
- * still lands exactly on the measured rectangle.
- *
- * MEASURED at the shipped values (smear 0.030, weld 0.012), by eroding the
- * rendered bright mask until the glyph splits in two — "how thick is the join":
- *          '2' join      '0' counter    '167' inter-digit gap
- *   before  0.8 px        9.1 px         3.0 px
- *   after   3.4 px        8.4 px         3.0 px
- *
- * BOTH DEFAULT TO ZERO and are opted into per call. This is a repair for two
- * specific glyphs in one face, not a house style: applied blind it would fatten
- * `blitz-block`'s abbreviations and `blitz-techno`'s TURBO for no reason, and a
- * silent global dilation is exactly the kind of thing that turns up three rounds
- * later as "why is everything soft". See hud.js for the three calls that use it.
+/* ------------------------------------------------------------------ the FUSE
+ * A hairline seam can also open where two subpaths are supposed to terminate on
+ * exactly the same point (`ext: E` in geo-glyphs) and land a floating-point
+ * apart. `fuse` is the belt to the join repair's braces: the SAME path, stroked
+ * in the SAME paint with round joins and caps, at a fraction of the ink height.
+ * It welds abutting subpaths without moving any edge more than fuse/2, and it is
+ * taken out of the requested ink height so the drawn ink still lands exactly on
+ * the measured rectangle. 0.015 = 0.9 px at the score's 62 px ink.
  */
-function weldOf(o) {
-  const k = o.weld === undefined ? 0 : o.weld;
+const FUSE = 0.015;
+function fuseOf(o) {
+  const k = o.fuse === undefined ? FUSE : o.fuse;
   return k > 0 ? o.h * k : 0;
 }
-function smearOf(o) {
-  const k = o.smear === undefined ? 0 : o.smear;
-  return k > 0 ? o.h * k : 0;
-}
-/** The repair, as opted into by the `blitz-num` setters in hud.js. */
-export const NUM_WELD = { weld: 0.012, smear: 0.030 };
 
 /**
  * Set `text` so its INK box lands where the caller asked.
@@ -462,11 +514,11 @@ export const NUM_WELD = { weld: 0.012, smear: 0.030 };
  *   o.w        optional: solve xs so the ink is exactly this wide (overrides o.xs)
  *   o.x, o.y   ink-box anchor; o.align picks which edge o.x refers to
  *   o.keyline  {color, k}  k = fraction of ink height OUTSIDE the glyph
- *   o.weld     dilation as a fraction of ink height (default 0.016; 0 disables)
+ *   o.fuse     weld stroke as a fraction of ink height (default 0.015; 0 disables)
  *   o.halo     {color, blur, alpha, reps}
  *   o.shadow   {color, blur, dy, alpha}
  *   o.grad     [[t,color],...] vertical across the ink box
- *   o.shade    {color, dy, alpha}  low-alpha dark inner fill that leaves a lit top rim
+ *   o.lit      {top, topH, foot, footH}  silhouette-only top rim / cool foot
  *
  * Returns the ink rect actually drawn.
  */
@@ -477,19 +529,18 @@ export function inkText(F, c, text, face, o) {
   if (o.tracking === undefined) delete topt.tracking;
   if (o.slant === undefined) delete topt.slant;
 
-  const weld = weldOf(o);
-  const smear = smearOf(o);
-  // the isotropic weld grows the ink on all four sides; the smear grows it DOWN
-  // only, so it comes out of the height and never out of the width.
-  const hEff = Math.max(1, o.h - weld - smear);
+  const fuse = fuseOf(o);
+  // the fuse grows the ink by fuse/2 on all four sides, so it comes out of the
+  // requested height and the drawn ink still lands on the measured rectangle.
+  const hEff = Math.max(1, o.h - fuse);
   const size = sizeForInk(F, face, s, hEff, topt);
   const b = inkBox(F, face, s, size, topt);
   let xs = o.xs === undefined ? 1 : o.xs;
-  if (o.w !== undefined && b.w > 0.01) xs = Math.max(0.05, o.w - weld) / b.w;
+  if (o.w !== undefined && b.w > 0.01) xs = Math.max(0.05, o.w - fuse) / b.w;
   if (o.maxXs !== undefined && xs > o.maxXs) xs = o.maxXs;
   if (o.minXs !== undefined && xs < o.minXs) xs = o.minXs;
 
-  const inkW = b.w * xs + weld;
+  const inkW = b.w * xs + fuse;
   let ix = o.x;
   if (o.align === 'right') ix = o.x - inkW;
   else if (o.align === 'center') ix = o.x - inkW / 2;
@@ -498,12 +549,34 @@ export function inkText(F, c, text, face, o) {
   const p = scaledPath(p0, xs) || p0;
   const useCtxScale = p === p0 && Math.abs(xs - 1) >= 0.002;
 
+  // the join repair, laid out along the same advances emit() uses
+  let q = null;
+  const f0 = fontOf(F, face);
+  if (f0) {
+    const upm = f0.unitsPerEm || 1000;
+    const k = size / upm;
+    const tracking = topt.tracking !== undefined ? topt.tracking : (f0.defaultTracking || 0);
+    const slant = topt.slant !== undefined ? topt.slant : (f0.defaultSlant || 0);
+    let pen = 0;
+    for (let i = 0; i < s.length; i++) {
+      const ch = s[i];
+      const g = glyphOf(f0, ch);
+      if (hasJoints(face, ch)) q = jointsOf(face, ch, k, slant, pen, q);
+      pen += (g ? g.adv : upm * 0.42) * k;
+      if (f0.kern && i < s.length - 1) {
+        const kv = f0.kern[ch + s[i + 1]];
+        if (kv) pen += kv * k;
+      }
+      pen += tracking * size;
+    }
+    if (q && !useCtxScale) q = scaledPath(q, xs) || q;
+  }
+
   c.save();
-  c.translate(ix + weld / 2 - b.x0 * (useCtxScale ? 1 : xs), o.y + weld / 2 - b.y0);
+  c.translate(ix + fuse / 2 - b.x0 * (useCtxScale ? 1 : xs), o.y + fuse / 2 - b.y0);
   if (useCtxScale) c.scale(xs, 1);
-  c.lineJoin = 'round';
-  c.lineCap = 'round';
-  paint(c, p, b.y0, b.y1, o, useCtxScale ? weld / xs : weld, smear);
+  const lw = useCtxScale ? fuse / xs : fuse;
+  paint(c, p, q, b.x0 * (useCtxScale ? 1 : xs), b.x1 * (useCtxScale ? 1 : xs), b.y0, b.y1, o, lw);
   c.restore();
   return { x: ix, y: o.y, w: inkW, h: o.h, size, xs };
 }
@@ -530,72 +603,205 @@ export function inkSet(F, c, text, face, o) {
   if (o.clear !== undefined) topt.clear = o.clear;
 
   const gap = o.gap === undefined ? 3.5 : o.gap;
-  const weld = weldOf(o);
-  const smear = smearOf(o);
-  const hEff = Math.max(1, o.h - weld - smear);
+  const fuse = fuseOf(o);
+  const hEff = Math.max(1, o.h - fuse);
   const size = sizeForInk(F, face, s, hEff, topt);
   const nat1 = inkRun(F, face, s, size, gap, 1, topt);
   const gaps = gap * Math.max(0, nat1.items.length - 1);
   let xs = o.xs === undefined ? 1 : o.xs;
   if (o.w !== undefined && nat1.w - gaps > 0.01) {
-    xs = Math.max(0.05, o.w - weld - gaps) / (nat1.w - gaps);
+    xs = Math.max(0.05, o.w - fuse - gaps) / (nat1.w - gaps);
   }
   if (o.maxXs !== undefined && xs > o.maxXs) xs = o.maxXs;
   if (o.minXs !== undefined && xs < o.minXs) xs = o.minXs;
 
   const run = inkRun(F, face, s, size, gap, xs, topt);
-  const p = runPath(F, face, run, topt);
-  if (!p) {
+  const rp = runPath(F, face, run, topt);
+  if (!rp) {
     return inkText(F, c, s, face, Object.assign({}, o, { xs, w: undefined }));
   }
-  const inkW = run.w + weld;
+  const inkW = run.w + fuse;
   let ix = o.x;
   if (o.align === 'right') ix = o.x - inkW;
   else if (o.align === 'center') ix = o.x - inkW / 2;
 
   c.save();
-  c.translate(ix + weld / 2, o.y + weld / 2 - run.y0);
-  c.lineJoin = 'round';
-  c.lineCap = 'round';
-  paint(c, p, run.y0, run.y1, o, weld, smear);
+  c.translate(ix + fuse / 2, o.y + fuse / 2 - run.y0);
+  paint(c, rp.p, rp.q, 0, run.w, run.y0, run.y1, o, fuse);
   c.restore();
   return { x: ix, y: o.y, w: inkW, h: o.h, size, xs };
 }
 
-/**
- * Shared passes: warm halation, drop shadow, hard keyline, fill, WELD + SMEAR,
- * inner top-light.
+/* ------------------------------------------------------------- the LAYER
+ * ONE scratch canvas, shaped like whatever surface is being baked, reused for
+ * every string. It exists so the black keyline can be composited UNDERNEATH the
+ * ink instead of merely being painted before it. `destination-over` is the only
+ * construction that makes "the keyline is outside the letter" a property of the
+ * compositor rather than an argument about coverage — and round 2 shipped that
+ * argument and was wrong.
  *
- * THE SILHOUETTE THIS PAINTS is not `p`. It is
- *
- *     SIL = dilate( p ∪ (p + (0, smear)), weld/2 )
- *
- * — the path, plus a copy of the path pushed DOWN by `smear`, the union then
- * rounded outward by weld/2. That union is what closes `blitz-num`'s kissing
- * joints (see weldOf above). Every pass below is expressed against SIL, which is
- * why the fill, the weld and the keyline each go down twice.
- *
- * ORDER, AND WHY BLACK CANNOT LAND INSIDE THE LETTER. The keyline is stroked
- * FIRST, at half-width `k*h + weld/2`, on both copies. It therefore reaches
- * `k*h + weld/2` inside `p` — but every one of those pixels is then over-painted,
- * because the opaque fill covers `p ∪ (p+smear)` exactly and the weld stroke
- * covers the further weld/2. What survives is a band of exactly `k*h` outside
- * SIL, which is what `keyline.k` is documented to mean. This is the same
- * guarantee `globalCompositeOperation='destination-over'` into a scratch layer
- * would give, without paying for a scratch canvas and a composite per string —
- * and it is verified by sampling, not by argument: see the pixel probes in the
- * round-3 notes. The one thing that must never be reintroduced is a keyline pass
- * that is WIDER than the fill passes that follow it.
- *
- * `o.shade` is the top-light: clipping to `p` and filling `p` shifted DOWN paints
- * p ∩ (p+dy) — everything except the top edge of every stroke — so a low-alpha
- * DARK fill leaves a lit rim exactly along the top of each stroke. It is a fill
- * and not a stroke, so it cannot draw a line down an internal glyph boundary the
- * way stroking a union-of-strokes outline would.
+ * Bake-time only. Both bakes in this piece are invalidated by state, never by
+ * the frame clock, and the frame path never reaches this file.
  */
-function paint(c, p, y0, y1, o, weld, smear) {
-  const wd = weld || 0;
-  const sm = smear || 0;
+const TRANSPARENT = 'rgba(0,0,0,0)';
+let layCv = null, layCx = null;
+function layerFor(c) {
+  const dst = c.canvas;
+  if (!dst || !(dst.width > 0) || !(dst.height > 0)) return null;
+  if (!layCv) {
+    layCv = mkCanvas(dst.width, dst.height);
+    layCx = layCv.getContext('2d');
+  } else if (layCv.width !== dst.width || layCv.height !== dst.height) {
+    layCv.width = dst.width; layCv.height = dst.height;
+    layCx = layCv.getContext('2d');
+  }
+  return layCx ? layCv : null;
+}
+
+/**
+ * Shared passes, in the order the compositor needs them.
+ *
+ *   1  FILL      the body: `p` and the join repair `q`, in the fill or gradient.
+ *   2  FUSE      the SAME two paths, STROKED in the SAME paint, round join and
+ *                round cap, at `fuse`. This is what welds abutting subpaths: a
+ *                round-joined stroke bridges any hairline where two outlines
+ *                are meant to touch and land a rounding error apart.
+ *   3  LIT       an optional top rim / cool foot, `source-atop` so it can only
+ *                land on the silhouette that already exists. This replaces round
+ *                2's `shade` (clip to p, fill p shifted down), which painted a
+ *                lit rim along the top of EVERY subpath — including the ones
+ *                buried inside the letter. That is what drew a bright hairline
+ *                straight across the '2's diagonal where the foot bar passes
+ *                under it, and a dark one under that: measured, the darkest
+ *                pixel inside the '22' body was 158/255 against the bar's 220.
+ *   4  KEYLINE   `destination-over`, stroked at 2*k*h + fuse. Because the body
+ *                is already down, the keyline can only reach pixels the body
+ *                does not own — i.e. exactly the band OUTSIDE the silhouette.
+ *                No coverage argument, no ordering trap: it is not possible for
+ *                this pass to darken a pixel inside the letter.
+ *   5  SHADOW    `destination-over`, behind the keyline.
+ *   6  HALO      `destination-over`, behind that.
+ *
+ * then one blit of the dirty rect back onto `c`.
+ *
+ * If the surface cannot give a canvas or a CTM (no `c.canvas`, no
+ * `getTransform`), it falls back to painting in place with the keyline first —
+ * the round-2 order, which is right for every glyph whose fill is a superset of
+ * its keyline and is only unsafe at a broken join, which the join repair has
+ * already closed.
+ */
+function paint(c, p, q, x0, x1, y0, y1, o, fuse) {
+  const wd = fuse || 0;
+  let M = null, lay = null;
+  try { M = c.getTransform(); lay = layerFor(c); } catch (e) { M = null; lay = null; }
+  if (!M || !lay) { paintInPlace(c, p, q, y0, y1, o, wd); return; }
+
+  // dirty rect: the ink box, opened by everything that can paint outside it,
+  // pushed through the CTM. Keeps the clear and the blit proportional to the
+  // string rather than to the surface.
+  const pad = wd + (o.keyline ? o.h * o.keyline.k * 2 + 2 : 0)
+    + (o.shadow ? o.shadow.blur * 2 + Math.abs(o.shadow.dy || 0) : 0)
+    + (o.halo ? o.halo.blur * 2 : 0) + 3;
+  const bx0 = x0 - pad, bx1 = x1 + pad, by0 = y0 - pad, by1 = y1 + pad;
+  let dx0 = Infinity, dy0 = Infinity, dx1 = -Infinity, dy1 = -Infinity;
+  for (let i = 0; i < 4; i++) {
+    const ux = i & 1 ? bx1 : bx0, uy = i & 2 ? by1 : by0;
+    const vx = M.a * ux + M.c * uy + M.e;
+    const vy = M.b * ux + M.d * uy + M.f;
+    if (vx < dx0) dx0 = vx; if (vx > dx1) dx1 = vx;
+    if (vy < dy0) dy0 = vy; if (vy > dy1) dy1 = vy;
+  }
+  const rx = Math.max(0, Math.floor(dx0)), ry = Math.max(0, Math.floor(dy0));
+  const rw = Math.min(lay.width, Math.ceil(dx1)) - rx;
+  const rh = Math.min(lay.height, Math.ceil(dy1)) - ry;
+  if (!(rw > 0 && rh > 0)) return;
+
+  const l = layCx;
+  l.setTransform(1, 0, 0, 1, 0, 0);
+  l.clearRect(rx, ry, rw, rh);
+  l.setTransform(M.a, M.b, M.c, M.d, M.e, M.f);
+  l.lineJoin = 'round';
+  l.lineCap = 'round';
+  l.globalAlpha = 1;
+  l.globalCompositeOperation = 'source-over';
+
+  /* 1-2 — body, then the fuse stroke in the same paint */
+  if (o.grad) {
+    const g = l.createLinearGradient(0, y0, 0, y1);
+    for (const st of o.grad) g.addColorStop(st[0], st[1]);
+    l.fillStyle = g; l.strokeStyle = g;
+  } else {
+    l.fillStyle = o.fill || '#ffffff';
+    l.strokeStyle = o.fill || '#ffffff';
+  }
+  l.fill(p);
+  if (q) l.fill(q);
+  if (wd > 0) { l.lineWidth = wd; l.stroke(p); if (q) l.stroke(q); }
+
+  /* 3 — top rim / cool foot, on the silhouette only */
+  if (o.lit) {
+    const g = l.createLinearGradient(0, y0, 0, y1);
+    const topH = o.lit.topH === undefined ? 0.16 : o.lit.topH;
+    const footH = o.lit.footH === undefined ? 0.34 : o.lit.footH;
+    if (o.lit.top) { g.addColorStop(0, o.lit.top); g.addColorStop(topH, TRANSPARENT); }
+    else g.addColorStop(0, TRANSPARENT);
+    g.addColorStop(Math.max(topH, 1 - footH), TRANSPARENT);
+    g.addColorStop(1, o.lit.foot || TRANSPARENT);
+    l.globalCompositeOperation = 'source-atop';
+    l.fillStyle = g;
+    l.fillRect(x0 - 2, y0, (x1 - x0) + 4, y1 - y0);
+  }
+
+  /* 4 — the keyline, UNDER everything above */
+  l.globalCompositeOperation = 'destination-over';
+  if (o.keyline) {
+    l.lineWidth = o.h * o.keyline.k * 2 + wd;
+    l.strokeStyle = o.keyline.color;
+    l.stroke(p);
+    if (q) l.stroke(q);
+  }
+
+  /* 5-6 — shadow, then halation, each behind what is already there */
+  if (o.shadow) {
+    l.save();
+    l.globalAlpha = o.shadow.alpha === undefined ? 1 : o.shadow.alpha;
+    l.shadowColor = o.shadow.color;
+    l.shadowBlur = o.shadow.blur;
+    l.shadowOffsetX = 6000;
+    l.shadowOffsetY = o.shadow.dy || 0;
+    l.fillStyle = '#000';
+    l.translate(-6000, 0);
+    l.fill(p);
+    if (q) l.fill(q);
+    l.restore();
+  }
+  if (o.halo) {
+    l.save();
+    l.globalAlpha = o.halo.alpha === undefined ? 1 : o.halo.alpha;
+    l.shadowColor = o.halo.color;
+    l.shadowBlur = o.halo.blur;
+    l.shadowOffsetX = 6000;
+    l.fillStyle = '#000';
+    l.translate(-6000, 0);
+    for (let i = 0; i < (o.halo.reps || 1); i++) l.fill(p);
+    l.restore();
+  }
+  l.globalCompositeOperation = 'source-over';
+  l.setTransform(1, 0, 0, 1, 0, 0);
+
+  c.save();
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.globalAlpha = 1;
+  c.globalCompositeOperation = 'source-over';
+  c.drawImage(layCv, rx, ry, rw, rh, rx, ry, rw, rh);
+  c.restore();
+}
+
+/** Fallback for a surface with no readable canvas or CTM. Keyline first. */
+function paintInPlace(c, p, q, y0, y1, o, wd) {
+  c.save();
+  c.lineJoin = 'round';
+  c.lineCap = 'round';
   if (o.halo) {
     haloPass(c, p, o.halo.color, o.halo.blur, o.halo.alpha === undefined ? 1 : o.halo.alpha, o.halo.reps);
   }
@@ -609,53 +815,27 @@ function paint(c, p, y0, y1, o, weld, smear) {
     c.fillStyle = '#000';
     c.translate(-6000, 0);
     c.fill(p);
+    if (q) c.fill(q);
     c.restore();
   }
   if (o.keyline) {
-    c.lineWidth = (o.h * o.keyline.k + wd * 0.5) * 2;
+    c.lineWidth = o.h * o.keyline.k * 2 + wd;
     c.strokeStyle = o.keyline.color;
     c.stroke(p);
-    if (sm > 0) { c.save(); c.translate(0, sm); c.stroke(p); c.restore(); }
-  }
-  // The smeared copy is painted FLAT, in the gradient's last stop — never with the
-  // gradient itself. A canvas gradient lives in user space, so filling the copy
-  // under `translate(0, sm)` would slide the ramp down with it and the only part
-  // of that copy the eye ever sees is the sm-tall band below each stroke, where a
-  // slid ramp reads LIGHTER than its surroundings. That put a bright hairline
-  // under every horizontal — across the middle of the '5', where it looked like a
-  // second break rather than the repair of the first one. The last stop is exactly
-  // the value the real ramp reaches at the foot of the ink box, so the band
-  // disappears into it.
-  const flat = o.grad ? o.grad[o.grad.length - 1][1] : (o.fill || '#ffffff');
-  if (sm > 0) {
-    c.save();
-    c.fillStyle = flat;
-    c.strokeStyle = flat;
-    c.translate(0, sm);
-    c.fill(p);
-    if (wd > 0) { c.lineWidth = wd; c.stroke(p); }
-    c.restore();
+    if (q) c.stroke(q);
   }
   if (o.grad) {
     const g = c.createLinearGradient(0, y0, 0, y1);
     for (const st of o.grad) g.addColorStop(st[0], st[1]);
-    c.fillStyle = g;
-    c.strokeStyle = g;
+    c.fillStyle = g; c.strokeStyle = g;
   } else {
     c.fillStyle = o.fill || '#ffffff';
     c.strokeStyle = o.fill || '#ffffff';
   }
   c.fill(p);
-  if (wd > 0) { c.lineWidth = wd; c.stroke(p); }
-  if (o.shade) {
-    c.save();
-    c.clip(p);
-    c.globalAlpha = o.shade.alpha;
-    c.fillStyle = o.shade.color;
-    c.translate(0, o.shade.dy);
-    c.fill(p);
-    c.restore();
-  }
+  if (q) c.fill(q);
+  if (wd > 0) { c.lineWidth = wd; c.stroke(p); if (q) c.stroke(q); }
+  c.restore();
 }
 
 export default { inkBox, sizeForInk, inkText, inkSet, inkRun };

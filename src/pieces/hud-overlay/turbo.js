@@ -328,7 +328,7 @@ function bakeChrome(ui, s) {
       [0.80, '#e8eef8'],
       [1.00, '#c3cede'],
     ],
-    shade: { color: 'rgba(14,22,44,0.16)', dy: 2.4, alpha: 1 },
+    lit: { top: 'rgba(255,255,255,0.34)', topH: 0.14, foot: 'rgba(14,22,44,0.26)', footH: 0.36 },
   });
 
   c.setTransform(1, 0, 0, 1, 0, 0);
