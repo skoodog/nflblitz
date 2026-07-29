@@ -10,8 +10,9 @@
 // border sits at panel x=30, so logical x = (panelX - 31) * 3.1953 and logical
 // y = panelY * 3.1953. Under that mapping the top-left cluster is SIX recessed
 // near-black tiles on opaque black gutters spanning 45..681 x 44.7..146.9 — there
-// is no carrier plate — and panel-truck.png puts the TURBO slab at 288 x 76,
-// bottom-left, with an oblique word filling a 178 x 37 ink rect.
+// is no carrier plate — and the TURBO slab is 296 x 75 bottom-left (measured
+// aspect 3.89 against the art's ten-reading median of 3.91), with an oblique
+// word on a 169 x 28.7 ink rect hung 0.16 of the plate height below its top.
 //
 // The type is set by INK RECTANGLE, not by point size (see ink.js): the bar's
 // `NYC` is 74 x 46 and its `22` is 99 x 61, both packed edge to edge in their

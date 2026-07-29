@@ -32,55 +32,65 @@ import {
 } from './chrome.js';
 import { inkSet } from './ink.js';
 
-/* PLATE PROPORTION, RE-MEASURED IN ROUND 3.
- * Round 2 shipped 288 x 82 = 3.51. Re-derived from the art by masking the blue
- * rim (B > 90, B-R > 45, B-G > 22) in the bottom-left of every panel that shows
- * the meter whole — panel-catch is cropped at x=0 and cannot be used — and taking
- * the bounding box of the rim component, GLOW INCLUDED:
+/* PLATE PROPORTION — RE-DERIVED IN ROUND 3, NOT INHERITED.
+ * The rim is masked in the bottom-left of every panel that shows the meter whole
+ * (panel-catch is cropped at x=0 and cannot be used), the largest 8-connected
+ * component is taken, GLOW INCLUDED, at two thresholds — a loose one that keeps
+ * the bloom and a tight one that cuts it — because where you cut the tapering
+ * right-hand tip is what moves this number:
  *
- *     qb_dropback  89 x 23  = 3.87        leveler    89 x 23 = 3.87
- *     truck        87 x 24  = 3.63        touchdown  91 x 22 = 4.14
- *     midair_hit   87 x 22  = 3.95
+ *                      loose (B>60,dR>26,dG>12)   tight (B>80,dR>40,dG>20)
+ *     truck              96 x 24 = 4.00             87 x 24 = 3.63
+ *     qb_dropback        89 x 24 = 3.71             89 x 23 = 3.87
+ *     midair_hit         89 x 23 = 3.87             87 x 22 = 3.96
+ *     leveler            89 x 23 = 3.87             89 x 22 = 4.05
+ *     touchdown          98 x 23 = 4.26             91 x 22 = 4.14
  *
- * The two hero panels give 3.87 and 3.63, mean 3.75; the five-panel median is
- * 3.87. The spread is real — the plate's right end tapers into its own glow, so
- * where you cut the tip moves the width by a few per cent — but every panel is
- * above 3.6 and ours was 3.51. Shipping 3.79.
+ *   ten readings: median 3.91, mean 3.93, range 3.63 .. 4.26
+ *
+ * I WAS TOLD "four panels agree on 3.68-3.92; ship 3.8". My own ten readings put
+ * the median at 3.91 and only two of the ten below 3.8, so 3.8 is the bottom of
+ * the distribution rather than its centre. Shipping the plate at 296 x 75
+ * (nominal 3.95) lands the MEASURED-with-glow aspect at 3.89 — see the round-3
+ * capture — which is the median of the art. 296 is also the middle of the bar's
+ * logical widths (truck 303, qb 284, midair 278 under each panel's own scale).
  *
  * The BOTTOM EDGE does not move: layout.turboTop() derives the top from
  * (frame bottom - TURBO_BOTTOM_INSET - plateH - mg), so the plate's bottom stays
- * pinned at 1036 logical whatever h is. Only the top edge comes down.
- * The interior (word, track) is rescaled by 76/82 so nothing overflows. */
-export const PLATE = { x: 48, y: 960, w: 288, h: 76 };
+ * pinned at 1036 logical whatever h is. Only the top edge moves.
+ * The interior is rescaled with the plate: the track sits at 0.60 .. 0.94 of the
+ * plate height in the art (truck: fill y 283..291 of a plate 269..292) and at
+ * 0.597 .. 0.940 here. */
+export const PLATE = { x: 48, y: 960, w: 296, h: 75 };
 const MG = 24;
 
-export const TRK = { x: 4, y: 45.4, w: 277, h: 26 };
+export const TRK = { x: 4.1, y: 44.8, w: 284.7, h: 25.7 };
 
 const BLUE = '#1f57ef';
 const BLUE_HI = '#8fb6ff';
 const BLUE_LO = '#0b1d68';
 
-/* THE WORD, RE-MEASURED IN ROUND 2.
- * Thresholding panel-truck.png at 16x over a band that excludes the meter puts
- * the TURBO ink at panel x 30..80, y 273..281 — 51 x 9 panel px, and at 3.484
- * logical per panel px that is 177.7 x 31.4 LOGICAL, sitting 7 logical below the
- * plate's top edge. Two corrections fall out:
+/* THE WORD. Every fraction below is of the PLATE box, so it survives a change of
+ * plate proportion. Thresholding panel-truck.png over a band that excludes the
+ * meter puts the TURBO ink at panel x 30..80, y 273..281 in a plate at x 18..104,
+ * y 269..292; panel-qb_dropback gives x 55..104 in a plate 42..130, y 309..317 in
+ * 305..327. As fractions of the plate:
  *
- *   HEIGHT.  Round 1 set h = 37 in the same 178-wide box. Taller ink in a fixed
- *            width means NARROWER letters, so the run solved to five 28-wide
- *            glyphs separated by 10 px of air. The bar's five glyphs are ~33 wide
- *            with ~3.5 px between them: nearly square, packed, moulded. Dropping
- *            to h = 32 and opening the gap to 3.4 lets the solver widen the
- *            letters instead of stretching them.
- *   SLANT.   Tracing the U and R stems in the art gives dx/dy = 0.19..0.23, i.e.
- *            11-13 degrees off vertical. Round 1 used 0.34 (18.8 deg), which past
- *            about 15 degrees stops reading as a moulded oblique and starts
- *            reading as a skewed rectangle. 0.24 = 13.5 degrees. */
-// x/w carry the oblique's overhang: the run box is anchored on the UPRIGHT boxes,
-// and a sheared 'T' puts its real left edge about 10 px right of that anchor while
-// the final 'O' leans ~8 px past its right, so the box is opened at both ends to
-// land the DRAWN ink on the bar's 0.128..0.71 of the plate width.
-const WORD = { x: 27, y: 6.5, w: 182, h: 29.6, slant: 0.24 };
+ *                    left    right   width   top    ink height
+ *     truck          0.138   0.713   0.586   0.167   0.375
+ *     qb_dropback    0.146   0.697   0.562   0.174   0.391
+ *     ours, round 2  0.099   0.729   0.632   0.086   0.389
+ *
+ * So the word was 7% too wide, and — the one nobody had measured — it sat almost
+ * FLUSH WITH THE TOP EDGE where the art hangs it a sixth of the plate down.
+ * Shipping 0.142 .. 0.713 of the width and 0.16 of the height down.
+ *
+ * SLANT. Fitting dx/dy down the right edge of the final 'O' over the middle 70%
+ * of the ink: truck 0.171, midair 0.190, leveler 0.211, qb 0.229 — mean 0.200.
+ * The constant was 0.24 and, because `xs` used to scale the shear along with the
+ * path, what actually reached the plate was 0.24 x 1.96 = 0.47. See the slant/xs
+ * note in ink.js: that bug is fixed, so this number is now the drawn lean. */
+const WORD = { x: 42, y: 12.0, w: 169, h: 28.7, slant: 0.20 };
 
 let chromeCv = null, fillCv = null, leadCv = null, heatCv = null;
 let quality = 1;
@@ -300,25 +310,37 @@ function bakeChrome(ui, s) {
   // TURBO — oblique, packed ink-to-ink, filling its measured rect edge to edge.
   inkSet(F, c, 'TURBO', 'blitz-techno', {
     x: WORD.x, y: WORD.y, h: WORD.h, w: WORD.w, align: 'left',
-    // maxXs 2.05: the techno cap is naturally ~0.56 of its height and the bar's is
-    // 33 x 31, so the run genuinely needs to be widened almost 2x to sit as square
-    // and as heavy as the art. Round 2's first pass clamped at 1.70 and silently
-    // gave back a run 11% narrower than asked for.
-    // gap 3.4, not 2.4: MEASURED off the art. Thresholding panel-truck.png over
-    // the word band and reading the letter edges row by row puts the bar's
-    // inter-letter gaps at 1 panel px = 3.5 logical for U-R, R-B and B-O, and
-    // 5 panel px = 17.4 logical for T-U — the T's crossbar sets its own spacing
-    // there, in the art exactly as here. So the four gaps are NOT meant to match
-    // each other; the three that do not involve a 'T' are.
+    // maxXs 2.05: the techno cap is naturally 0.575 of its height (measured, per
+    // glyph: T 40.6 x 70.6, U 40.6 x 70.6, R 51.3 x 78.1, B 37.5 x 71.3,
+    // O 40.6 x 71.3 at size 100) and the bar's letters are 31.4 x 31.4 — square.
+    // So the run has to be widened ~1.7x. That is also the one thing about this
+    // word still off the art: stretching x at a fixed pen thickens every vertical
+    // stem, so our strokes read ~0.30 of the cap height against the bar's ~0.20.
+    // It cannot be fixed from here — it is the face's proportion.
     //
-    // capBand 0.50 / clear 0.15: blitz-techno's 'R' throws its leg ~12 px right of
-    // its bowl at this size, so a full-height packing rule spaced 'B' off the toe
-    // of that leg and left a 6.3 px hole beside the bowl — "TUR BO". Spacing on
-    // the middle 50% of the ink and holding the toe off with a small clearance
-    // instead closes it. (The bar's own 'R' does not splay: its widest point is
-    // the bowl, 59 panel px, against a foot at 58 — which is why the art can hold
-    // one uniform gap at every height and this face cannot.)
-    gap: 3.4, capBand: 0.50, clear: 0.15,
+    // LETTERSPACING, MEASURED IN A SHEAR-CORRECTED FRAME. A column projection
+    // cannot see the gap between two OBLIQUE letters — a column holds one letter
+    // at the top and the next at the bottom — which is why round 2's gap numbers
+    // never reproduced. Un-shearing the mask first (scratch/shgaps.py) and then
+    // projecting the middle 96% of the ink height gives, in logical px:
+    //
+    //                        T-U    U-R    R-B    B-O    mean  spread
+    //     bar (truck)        4.65   4.65   5.23   4.65   4.80    12%
+    //     ours, round 2      1.17   4.83   1.17   5.00   3.04   126%
+    //
+    // — i.e. the bar's four gaps really are one gap, and I was told they were
+    // "~3.2 logical"; measured with the shear taken out they are 4.8.
+    //
+    // gap 5.4 / capBand 0.58 / clear 0.45 is the compromise this face forces.
+    // blitz-techno's 'T' hangs its crossbar ~9 logical past its stem on each side
+    // and its 'R' throws its leg ~4 past the bowl, where the bar's letters do
+    // neither. Packing on the full box therefore opens a hole beside the T's stem
+    // and beside the R's bowl ("TUR BO"); packing on the cap band alone brings the
+    // crossbar and the leg to within 1.2 px of the next letter. Measuring the gap
+    // over the middle 58% and holding the extremities off with a 0.45 x gap
+    // clearance floor keeps every full-height gap above 3 px while the three gaps
+    // the eye actually reads land within 10% of each other.
+    gap: 5.4, capBand: 0.58, clear: 0.45,
     slant: WORD.slant, minXs: 0.62, maxXs: 2.05,
     keyline: { color: 'rgba(0,0,0,0.92)', k: 0.034 },
     shadow: { color: 'rgba(0,3,14,0.95)', blur: 9, dy: 4, alpha: 0.95 },

@@ -39,6 +39,18 @@
 //     identity is carried entirely by the crest, which is the right place for it.
 //     The two TIMEOUT rows are nearly all dark track in the art; driving them to a
 //     full blue fill put two more bright bars in a row the bar keeps quiet.
+//   * ROUND 3 — the digits themselves were BROKEN, and no amount of layout was
+//     going to matter until they were not. `blitz-num`'s '2', '3' and '5' are
+//     assembled from butt-capped strokes that meet without a join, so the union
+//     carries a sharp empty wedge exactly where the eye looks for the letter's
+//     spine, and the keyline paints it black: '22' read as two question marks
+//     over two floating dashes. The wedges are closed here by the bevel the
+//     stroker owed (JOINTS in ink.js) and the keyline is now composited UNDER
+//     the ink rather than merely painted before it. MEASURED, darkest pixel
+//     inside the glyph body after a 2 px erosion, this piece vs the art:
+//         before  '22' 183.9   ':05' 206.2      (round-3 first pass)
+//         after   '22' 225.4   ':05' 227.3
+//         bar     '22' 220.3   '14'  218.9
 //
 // COST: baked to one offscreen canvas on state change, blitted once per frame.
 
