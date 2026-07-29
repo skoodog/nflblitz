@@ -769,6 +769,86 @@ export function inkMask(faces, spec) {
     sampleShadow();
   });
 
+  // [2b] THE ARM FLOOR. Measured, not guessed: the bar never lets a horizontal feature
+  //      fall below about half a stem, and we were taking them to a sixteenth. On the
+  //      callouts sheet at cap 136, per-glyph (median horizontal run = stem, 10th
+  //      percentile vertical run = thinnest horizontal):
+  //
+  //                       stem   thinnest   arm/stem        bar
+  //        L              19        2         0.105
+  //        E V E L (fused)16        1         0.062        ~0.50
+  //        E R !          14        2         0.143
+  //
+  //      A one-pixel middle arm on an E is not a thin E, it is an F: the sheet rendered
+  //      LEVFLER!. Two rounds of texture work could not fix that because it is not a
+  //      texture defect — the letterform is wrong, and a mark that spells a different
+  //      word fails whatever its ink looks like.
+  //
+  //      Why the existing protection missed it. `barsMask` restores horizontals whose run
+  //      clears 2 * hr, and at the default hrFrac 0.15 that is 0.30 cap. An E arm on this
+  //      face measures 0.30-0.35 cap, so it sits ON the qualifying edge and falls through
+  //      whenever the shaping lands a band across it; a 0.12 cap stem is comfortably under.
+  //      So the discrimination is sound, the threshold was simply too close to the feature
+  //      it had to protect.
+  //
+  //      This pass is ADDITIVE, like the swash, for the reason that section already
+  //      records: erosion only ever removes, and the note here is missing mass. It lifts
+  //      qualifying horizontals to a floor thickness and leaves everything else alone --
+  //      no scale, aspect, interior modelling, colour ramp, shadow or halo is touched,
+  //      all of which now measure on the bar and must not move.
+  steps.push(() => {
+    // Stem width in px, from the face's own metrics rather than a constant, so the floor
+    // tracks weight instead of fighting it.
+    const stem = Math.max(2, Math.round(capH * 0.139));
+    const floorPx = Math.round(stem * (spec.armFloor === undefined ? 0.42 : spec.armFloor));
+    if (floorPx < 2) return;
+    const zTop = 0, zH = H;
+    // hr well clear of the arm it protects (qualifies runs over ~0.17 cap) and still well
+    // clear of the stem it must not (0.12 cap), instead of splitting the two at 0.30.
+    const B = barsMask(zTop, zH, 0.085);
+    const r = Math.max(1, Math.round(floorPx / 2));
+
+    // A floor is max(current, floor), NOT a thickening. Dilating every qualifying
+    // horizontal unconditionally is the obvious version and it is wrong: measured, it took
+    // arm/stem to 0.60-0.77 against the bar's ~0.50 and added 54% to the word's ink, which
+    // would trade a letterform bug for the airy-vs-loaded note two rounds just closed.
+    // So isolate the DEFICIENT horizontals first, with a vertical opening: erode across
+    // the arm by r and dilate back: anything thicker than 2r survives the round trip, and
+    // anything thinner is annihilated.
+    const open = scratch(8, W, zH);
+    open.ctx.drawImage(B.cv, 0, 0, W, zH, 0, 0, W, zH);
+    open.ctx.globalCompositeOperation = 'destination-in';
+    for (let k = 1; k <= r; k++) {
+      open.ctx.drawImage(B.cv, 0, 0, W, zH, 0, k, W, zH);
+      open.ctx.drawImage(B.cv, 0, 0, W, zH, 0, -k, W, zH);
+    }
+    const thick = scratch(9, W, zH);
+    thick.ctx.drawImage(open.cv, 0, 0, W, zH, 0, 0, W, zH);
+    for (let k = 1; k <= r; k++) {
+      thick.ctx.drawImage(open.cv, 0, 0, W, zH, 0, k, W, zH);
+      thick.ctx.drawImage(open.cv, 0, 0, W, zH, 0, -k, W, zH);
+    }
+    // Thin = qualifying horizontals MINUS the ones already thick enough.
+    const thin = scratch(10, W, zH);
+    thin.ctx.drawImage(B.cv, 0, 0, W, zH, 0, 0, W, zH);
+    thin.ctx.globalCompositeOperation = 'destination-out';
+    thin.ctx.drawImage(thick.cv, 0, 0, W, zH, 0, 0, W, zH);
+
+    // Grow ONLY the deficient ones, and only across the arm (+-y). Growing along it would
+    // relengthen terminals that step [2] deliberately shortened.
+    // Grow by HALF the floor, not the whole floor. A symmetric +-k dilation adds 2k of
+    // thickness, so dilating by floorPx lands at 1 + 2*floorPx and overshoots to arm/stem
+    // 0.67 -- measured. +-r puts a 1 px arm at 1 + 2r, i.e. the floor itself.
+    const G = scratch(11, W, zH);
+    G.ctx.drawImage(thin.cv, 0, 0, W, zH, 0, 0, W, zH);
+    for (let k = 1; k <= r; k++) {
+      G.ctx.drawImage(thin.cv, 0, 0, W, zH, 0, k, W, zH);
+      G.ctx.drawImage(thin.cv, 0, 0, W, zH, 0, -k, W, zH);
+    }
+    M.ctx.globalCompositeOperation = 'source-over';
+    M.ctx.drawImage(G.cv, 0, 0, W, zH, 0, zTop, W, zH);
+  });
+
   // [3] the split tails, off the shaped mask. Composited under 1.0: a filament carries
   //     less paint than the stroke it leaves, and it has to READ that way under a
   //     threshold as well as to the eye — the bar's tails vanish at a 205 cut and appear
