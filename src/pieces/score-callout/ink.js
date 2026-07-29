@@ -96,7 +96,20 @@ function scratch(i, w, h) {
   c.globalAlpha = 1;
   c.filter = 'none';
   c.imageSmoothingEnabled = true;
-  c.clearRect(0, 0, Math.ceil(w), Math.ceil(h));
+  // CLEAR TWO PIXELS WIDER THAN THE CLIP, and this is a real bug fix, not hygiene.
+  //
+  // Every finished line is blitted with `drawImage(M.cv, 0,0,W,H, dx,dy,W,H)` and dx/dy are
+  // FRACTIONAL — they come from `spec.x - L.width * 0.5`, and a laid-out line width is never
+  // an integer. A fractional destination makes Chromium resample, and at the edge of the
+  // source rect the sampler reaches one texel PAST it. On a pooled surface that has been
+  // grown to the display line, the texel past the points line's live rect still holds the
+  // previous line's ink — so the numerals bled a one-pixel gold rule down the right edge of
+  // the PTS box and a pair of gold dashes along its bottom, which is what the faint marks
+  // under every points line on the five-up sheet actually were.
+  //
+  // The clip stays at (0,0,w,h) so nothing can DRAW into the margin; the clear just makes
+  // the margin transparent so the resampler has nothing to pick up.
+  c.clearRect(0, 0, Math.ceil(w) + 2, Math.ceil(h) + 2);
   c.beginPath();
   c.rect(0, 0, Math.ceil(w), Math.ceil(h));
   c.clip();
@@ -479,7 +492,17 @@ export function inkMask(faces, spec) {
     const B = barsMask(zTop, zH, hrFrac);
     let si = 8, di = 9;
     let src = scratch(si, W, zH);
+    // AND IT HAS TO HAVE REAL THICKNESS, not just length. A crossbar tapers, so its last
+    // pixels are a single row tall; dilating THOSE along x draws a one-pixel rule running
+    // off the letter, and on LEVELER! the E arms produced exactly that — thin horizontal
+    // lines reaching to the next glyph, which read as scanlines, not paint. One row of
+    // vertical erosion first drops every hairline tip and keeps the body of the stroke.
+    const vr = Math.max(1, Math.round(capH * 0.02));
     src.ctx.drawImage(B.cv, 0, 0, W, zH, 0, 0, W, zH);
+    src.ctx.globalCompositeOperation = 'destination-in';
+    src.ctx.drawImage(B.cv, 0, 0, W, zH, 0, vr, W, zH);
+    src.ctx.drawImage(B.cv, 0, 0, W, zH, 0, -vr, W, zH);
+    src.ctx.globalCompositeOperation = 'source-over';
     let cur = 0;
     while (cur < R) {
       const s = Math.min(cur || 1, R - cur);
