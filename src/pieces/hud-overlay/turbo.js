@@ -1,40 +1,60 @@
 // PIECE hud-overlay — the bottom-left TURBO meter.
 //
-// GEOMETRY off bar/panel-truck.png and bar/panel-qb_dropback.png: the plate is
-// 86-88 panel px wide and 23-24 tall against a 310/338 px frame, i.e. ~288 x 78
-// logical, hugging the bottom-left. The silhouette is NOT a rectangle: the left
-// edge leans back, the top-right corner is chopped, and the fill bar runs out
-// past it into a spur. That silhouette is the single most recognisable thing
-// about this element, so it is built as a real polygon, not a rounded rect.
+// SILHOUETTE, MEASURED OFF bar/panel-truck.png (528x310 for a 1080-tall frame,
+// panel border at x=12, so 1 panel px = 3.484 logical). The plate is 298 x 75
+// logical. It is NOT the hard-mitred hexagon with a pointed right spur that round
+// one drew. Tracing the frame in the panel at 12x gives, as fractions of the
+// plate box:
 //
-// COST: chrome, fill strip and leading-edge sprite are each baked once. The
-// frame path is three drawImage calls with integer sub-rects — no allocation.
+//   (0.055, 0.00) (0.877, 0.00) (1.000, 0.64) (0.976, 1.00) (0.032, 1.00) (0.000, 0.42)
+//
+// i.e. a soft-rounded left lead, a flat top, ONE diagonal chop at the top right,
+// and a rounded bottom. There is no spur.
+//
+// The blue is not a uniformly-lit bevel around a dark hole either: the plate is a
+// near-black glass slab with a thin blue rim, and the big bright blue mass is the
+// FILL BAR itself, which occupies the bottom 35% and wraps around the rounded left
+// lead — which is exactly why the bar's plate reads brightest along its bottom
+// left. One segment divider, a long white-hot leading smear, no outer halo.
+//
+// The word sits high and large: ink 178 x 37 logical inside a 288 x 82 plate, and
+// it is OBLIQUE — slant 0.34, about 19 degrees right, matching the brush italic
+// elsewhere in the art. Round one drew it at the face's 0.19 default, which at
+// this size reads as dead upright. It is also PACKED, ink to ink, rather than set
+// on the face's 0.10 em default tracking (see ink.js).
+//
+// COST: chrome, fill strip, leading-edge sprite and the overheat rim are each
+// baked once. The frame path is drawImage calls with numeric sub-rects and, when
+// overheating, one extra alpha-modulated blit — no allocation, no re-pathing.
 
 import {
   mkCanvas, poly, vgrad, hgrad, rgba, mix, lighten, darken, grain, brushed, innerEdge, gloss,
 } from './chrome.js';
+import { inkSet } from './ink.js';
 
-export const PLATE = { x: 48, y: 966, w: 288, h: 78 };
-const MG = 26;
+export const PLATE = { x: 48, y: 954, w: 288, h: 82 };
+const MG = 24;
 
-export const TRK = { x: 17, y: 45, w: 254, h: 23 };
+export const TRK = { x: 4, y: 49, w: 277, h: 28 };
 
-const BLUE = '#2a5cf0';
-const BLUE_HI = '#7ea6ff';
-const BLUE_LO = '#122a7a';
+const BLUE = '#1f57ef';
+const BLUE_HI = '#8fb6ff';
+const BLUE_LO = '#0b1d68';
 
-let chromeCv = null, fillCv = null, leadCv = null;
+const WORD = { x: 31, y: 4, w: 178, h: 37, slant: 0.34 };
+
+let chromeCv = null, fillCv = null, leadCv = null, heatCv = null;
 let quality = 1;
 export function setQuality(q) { quality = q; }
 
 function outlinePts(w, h) {
   return [
-    [15, 0],
-    [w - 24, 0],
-    [w - 10, h * 0.38],
-    [w - 1, h * 0.62],
-    [w - 16, h],
-    [0, h],
+    [0.055 * w, 0],
+    [0.877 * w, 0],
+    [1.000 * w, 0.64 * h],
+    [0.976 * w, h],
+    [0.032 * w, h],
+    [0.000 * w, 0.42 * h],
   ];
 }
 
@@ -67,71 +87,85 @@ function inset(pts, d) {
 
 function bakeFill(W, H, s) {
   const w = TRK.w, h = TRK.h;
-  if (!fillCv) fillCv = mkCanvas(Math.round(w * s), Math.round(h * s));
-  if (fillCv.width !== Math.round(w * s)) { fillCv.width = Math.round(w * s); fillCv.height = Math.round(h * s); }
+  const cw = Math.round(w * s), ch = Math.round(h * s);
+  if (!fillCv) fillCv = mkCanvas(cw, ch);
+  if (fillCv.width !== cw) { fillCv.width = cw; fillCv.height = ch; }
   const c = fillCv.getContext('2d');
   c.setTransform(1, 0, 0, 1, 0, 0);
   c.clearRect(0, 0, fillCv.width, fillCv.height);
   c.setTransform(s, 0, 0, s, 0, 0);
 
-  // clip to the plate's inner silhouette so the strip's right end takes the spur
-  const innerLocal = inset(outlinePts(W, H), 6);
+  // clip to the plate's inner silhouette so the strip picks up the rounded left
+  // lead and the right-hand chop instead of ending in a square butt
+  const innerLocal = inset(outlinePts(W, H), 4.6);
   c.save();
-  const p = poly(innerLocal.map((q) => [q[0] - TRK.x, q[1] - TRK.y]), 4);
+  const p = poly(innerLocal.map((q) => [q[0] - TRK.x, q[1] - TRK.y]), 6);
   c.clip(p);
 
   c.fillStyle = hgrad(c, 0, w, [
-    [0.00, rgba(darken(BLUE, 0.42), 1)],
-    [0.18, rgba(BLUE, 1)],
-    [0.62, rgba(mix(BLUE, BLUE_HI, 0.32), 1)],
-    [1.00, rgba(mix(BLUE, BLUE_HI, 0.60), 1)],
+    [0.00, rgba(mix(BLUE, BLUE_HI, 0.34), 1)],
+    [0.22, rgba(BLUE, 1)],
+    [0.66, rgba(mix(BLUE, BLUE_HI, 0.24), 1)],
+    [1.00, rgba(mix(BLUE, BLUE_HI, 0.48), 1)],
   ]);
   c.fillRect(0, 0, w, h);
 
-  // glossy cylinder: dark top lip, hot specular band at 0.30, deep shadow at base
+  // glossy cylinder: dark top lip, hot specular band high, deep shadow at base
   c.fillStyle = vgrad(c, 0, h, [
-    [0.00, 'rgba(6,14,44,0.72)'],
-    [0.10, 'rgba(120,168,255,0.35)'],
-    [0.26, 'rgba(238,246,255,0.86)'],
-    [0.36, 'rgba(150,190,255,0.30)'],
-    [0.55, 'rgba(24,54,150,0.10)'],
-    [0.82, 'rgba(4,10,38,0.52)'],
-    [1.00, 'rgba(2,6,26,0.80)'],
+    [0.00, 'rgba(8,18,60,0.62)'],
+    [0.12, 'rgba(140,184,255,0.42)'],
+    [0.28, 'rgba(232,243,255,0.80)'],
+    [0.40, 'rgba(150,190,255,0.26)'],
+    [0.62, 'rgba(20,50,150,0.08)'],
+    [0.86, 'rgba(3,9,40,0.50)'],
+    [1.00, 'rgba(1,5,24,0.80)'],
   ]);
   c.fillRect(0, 0, w, h);
 
-  // segment dividers — four, thin, dark only. Six with a light side read as a
-  // battery gauge; the bar's meter reads as one glowing bar that happens to be
-  // notched.
-  c.fillStyle = 'rgba(3,7,22,0.62)';
-  const seg = 4;
-  for (let i = 1; i < seg; i++) c.fillRect(Math.round((w * i) / seg) - 0.6, 0, 1.2, h);
+  // ONE divider. The bar's meter is a single glowing bar that happens to be
+  // notched once, not a six-cell battery gauge.
+  c.fillStyle = 'rgba(2,6,26,0.72)';
+  c.fillRect(Math.round(w * 0.45) - 0.8, 0, 1.6, h);
+  c.fillStyle = 'rgba(150,190,255,0.18)';
+  c.fillRect(Math.round(w * 0.45) + 0.8, 0, 0.8, h);
 
-  grain(c, poly([[0, 0], [w, 0], [w, h], [0, h]], 0), 0, 0, w, h, 0x7be1, 0.5 * quality);
+  grain(c, poly([[0, 0], [w, 0], [w, h], [0, h]], 0), 0, 0, w, h, 0x7be1, 0.45 * quality);
   c.restore();
   return fillCv;
 }
 
-/** The white-hot leading edge that rides the fill boundary. */
+/** The long white-hot smear that rides the fill boundary, plus its warm tick. */
 function bakeLead(s) {
-  const w = 30, h = TRK.h + 16;
-  if (!leadCv) leadCv = mkCanvas(Math.round(w * s), Math.round(h * s));
-  if (leadCv.width !== Math.round(w * s)) { leadCv.width = Math.round(w * s); leadCv.height = Math.round(h * s); }
+  const w = 46, h = TRK.h + 10;
+  const cw = Math.round(w * s), ch = Math.round(h * s);
+  if (!leadCv) leadCv = mkCanvas(cw, ch);
+  if (leadCv.width !== cw) { leadCv.width = cw; leadCv.height = ch; }
   const c = leadCv.getContext('2d');
   c.setTransform(1, 0, 0, 1, 0, 0);
   c.clearRect(0, 0, leadCv.width, leadCv.height);
   c.setTransform(s, 0, 0, s, 0, 0);
-  const g = c.createRadialGradient(w * 0.5, h * 0.5, 0, w * 0.5, h * 0.5, w * 0.5);
-  g.addColorStop(0.00, 'rgba(255,255,255,0.92)');
-  g.addColorStop(0.22, 'rgba(196,224,255,0.60)');
-  g.addColorStop(0.55, 'rgba(74,132,255,0.28)');
-  g.addColorStop(1.00, 'rgba(40,90,240,0)');
+  const cy = h * 0.5;
+  // long horizontal smear rather than a round blob — the bar's is a streak
+  const g = c.createLinearGradient(0, 0, w, 0);
+  g.addColorStop(0.00, 'rgba(120,170,255,0)');
+  g.addColorStop(0.30, 'rgba(180,214,255,0.35)');
+  g.addColorStop(0.66, 'rgba(255,255,255,0.92)');
+  g.addColorStop(0.80, 'rgba(255,252,244,0.98)');
+  g.addColorStop(0.86, 'rgba(255,190,150,0.55)');
+  g.addColorStop(1.00, 'rgba(255,120,80,0)');
   c.fillStyle = g;
+  const vg = c.createLinearGradient(0, cy - h * 0.42, 0, cy + h * 0.42);
+  vg.addColorStop(0, 'rgba(0,0,0,0)');
+  vg.addColorStop(0.5, 'rgba(0,0,0,1)');
+  vg.addColorStop(1, 'rgba(0,0,0,0)');
+  c.fillRect(0, cy - h * 0.34, w, h * 0.68);
+  c.globalCompositeOperation = 'destination-in';
+  c.fillStyle = vg;
   c.fillRect(0, 0, w, h);
-  c.fillStyle = 'rgba(255,255,255,0.95)';
-  c.fillRect(w * 0.5 - 1.4, 8, 2.8, h - 16);
-  c.fillStyle = 'rgba(226,240,255,0.55)';
-  c.fillRect(w * 0.5 - 3.4, 8, 2, h - 16);
+  c.globalCompositeOperation = 'source-over';
+  // the warm tick the bar puts right at the boundary
+  c.fillStyle = 'rgba(255,96,60,0.85)';
+  c.fillRect(w * 0.855, cy - h * 0.24, 2.2, h * 0.48);
   return leadCv;
 }
 
@@ -152,22 +186,25 @@ function bakeChrome(ui, s) {
   c.miterLimit = 2;
 
   const pts = outlinePts(W, H);
-  const outer = poly(pts, 5);
+  const outer = poly(pts, 9);
 
-  // drop shadow ring, plus the blue spill the panel throws onto the turf
+  // Contact shadow only. Round one wrapped this in a strong additive blue halo;
+  // the bar has none — just a tight dark shadow and a faint blue bleed onto the
+  // turf below the plate, which is a light spill, not a glow ring.
   c.save();
-  c.shadowColor = 'rgba(2,5,14,0.80)';
-  c.shadowBlur = 20;
-  c.shadowOffsetY = 7;
+  c.shadowColor = 'rgba(1,3,10,0.78)';
+  c.shadowBlur = 11;
+  c.shadowOffsetY = 5;
   c.fillStyle = 'rgba(0,0,0,0.99)';
   c.fill(outer);
   c.restore();
   c.save();
   c.globalCompositeOperation = 'lighter';
-  c.shadowColor = 'rgba(46,104,255,0.50)';
-  c.shadowBlur = 20;
-  c.shadowOffsetY = 4;
-  c.fillStyle = 'rgba(30,70,200,0.85)';
+  c.globalAlpha = 0.055;
+  c.shadowColor = 'rgba(40,96,255,0.9)';
+  c.shadowBlur = 16;
+  c.shadowOffsetY = 13;
+  c.fillStyle = 'rgba(20,50,180,0.9)';
   c.fill(outer);
   c.restore();
   c.save();
@@ -175,88 +212,122 @@ function bakeChrome(ui, s) {
   c.fill(outer);
   c.restore();
 
-  // blue anodised frame
-  c.fillStyle = vgrad(c, 0, H, [
-    [0.00, rgba(lighten(BLUE, 0.55), 1)],
-    [0.14, rgba(mix(BLUE, BLUE_HI, 0.30), 1)],
-    [0.42, rgba(BLUE, 1)],
-    [0.72, rgba(mix(BLUE, BLUE_LO, 0.42), 1)],
-    [1.00, rgba(BLUE_LO, 1)],
-  ]);
+  // The rim: a thin anodised blue band, brightest along the BOTTOM LEFT.
+  const rg = c.createLinearGradient(0, H * 1.15, W * 0.66, -H * 0.22);
+  rg.addColorStop(0.00, rgba(lighten(BLUE, 0.46), 1));
+  rg.addColorStop(0.18, rgba(mix(BLUE, BLUE_HI, 0.18), 1));
+  rg.addColorStop(0.38, rgba(BLUE, 1));
+  rg.addColorStop(0.60, rgba(mix(BLUE, BLUE_LO, 0.72), 1));
+  rg.addColorStop(0.82, rgba(darken(BLUE_LO, 0.46), 1));
+  rg.addColorStop(1.00, rgba(darken(BLUE_LO, 0.66), 1));
+  c.fillStyle = rg;
   c.fill(outer);
-  brushed(c, outer, 0, 0, W, H, 0x3ad2, 0.9 * quality);
-  innerEdge(c, outer, 0, 1.7, 'rgba(214,234,255,0.72)', 'rgba(0,0,0,0.55)', 2.0);
-  c.strokeStyle = 'rgba(12,26,74,0.85)';
+  brushed(c, outer, 0, 0, W, H, 0x3ad2, 0.7 * quality);
+  innerEdge(c, outer, 0, 1.4, 'rgba(210,232,255,0.42)', 'rgba(0,0,0,0.5)', 1.6);
+  c.strokeStyle = 'rgba(5,11,42,0.92)';
   c.lineWidth = 1.2;
   c.stroke(outer);
 
-  // inner well — near-black gloss
-  const innerPts = inset(pts, 6);
-  const inner = poly(innerPts, 3);
+  // inner well — near-black glass, the word's ground
+  const innerPts = inset(pts, 4.6);
+  const inner = poly(innerPts, 6);
   c.fillStyle = vgrad(c, 0, H, [
-    [0.00, 'rgba(26,36,62,0.97)'],
-    [0.16, 'rgba(13,18,32,0.97)'],
-    [0.55, 'rgba(6,9,17,0.96)'],
-    [1.00, 'rgba(3,5,11,0.97)'],
+    [0.00, 'rgba(20,28,52,0.97)'],
+    [0.18, 'rgba(10,14,26,0.97)'],
+    [0.58, 'rgba(5,7,14,0.96)'],
+    [1.00, 'rgba(2,4,9,0.97)'],
   ]);
   c.fill(inner);
-  grain(c, inner, 0, 0, W, H, 0x11c4, 0.7 * quality);
-  gloss(c, inner, 0, 0, W, H * 0.55, 0.06, 0.45);
-  innerEdge(c, inner, 0, 1.2, 'rgba(0,0,0,0.75)', 'rgba(140,180,255,0.22)', 1.6);
+  grain(c, inner, 0, 0, W, H, 0x11c4, 0.6 * quality);
+  gloss(c, inner, 0, 0, W, H * 0.5, 0.05, 0.45);
+  innerEdge(c, inner, 0, 1.1, 'rgba(0,0,0,0.8)', 'rgba(150,190,255,0.20)', 1.5);
 
   // empty track well, under where the fill will land
   c.save();
   c.clip(inner);
   c.fillStyle = vgrad(c, TRK.y, TRK.y + TRK.h, [
-    [0.00, 'rgba(1,2,6,0.98)'],
-    [0.42, 'rgba(6,10,20,0.96)'],
-    [1.00, 'rgba(16,24,44,0.92)'],
+    [0.00, 'rgba(0,1,4,0.98)'],
+    [0.44, 'rgba(5,8,17,0.96)'],
+    [1.00, 'rgba(13,19,36,0.92)'],
   ]);
   c.fillRect(TRK.x, TRK.y, TRK.w, TRK.h);
   c.strokeStyle = 'rgba(0,0,0,0.85)';
-  c.lineWidth = 1.4;
-  c.strokeRect(TRK.x + 0.7, TRK.y + 0.7, TRK.w - 1.4, TRK.h - 1.4);
-  c.fillStyle = 'rgba(60,96,190,0.14)';
-  const seg = 4;
-  for (let i = 1; i < seg; i++) c.fillRect(TRK.x + Math.round((TRK.w * i) / seg) - 0.5, TRK.y + 2, 1, TRK.h - 4);
+  c.lineWidth = 1.3;
+  c.strokeRect(TRK.x + 0.65, TRK.y + 0.65, TRK.w - 1.3, TRK.h - 1.3);
+  c.fillStyle = 'rgba(52,86,180,0.16)';
+  c.fillRect(TRK.x + Math.round(TRK.w * 0.45), TRK.y + 2, 1, TRK.h - 4);
   c.restore();
 
-  // TURBO — blitz-techno, scaled to the plate's measured 0.60 width ratio
-  // The bar's lockup measures 0.61 of the plate WIDE and 0.375 of it TALL.
-  // blitz-techno is a wide face, so hitting both at once needs a horizontal
-  // squeeze: size up 1/XS, then scale the pen back down on x.
-  const TRACK = 0.018;                 // the face defaults to 0.10 — far looser
-  const XS = 0.87;                     // than the bar's tight, chunky lockup
-  let size = 47;
-  try {
-    const m = F.measure('TURBO', 'blitz-techno', 100, { tracking: TRACK });
-    if (m && m.w > 0) size = Math.min(62, (W * 0.615) / (m.w / 100) / XS);
-  } catch (e) { /* keep the default */ }
-  c.save();
-  c.translate(31, 38.5);
-  c.scale(XS, 1);
-  F.draw(c, 'TURBO', 0, 0, {
-    face: 'blitz-techno',
-    size,
-    tracking: TRACK,
-    gradient: [
+  // TURBO — oblique, packed ink-to-ink, filling its measured rect edge to edge.
+  inkSet(F, c, 'TURBO', 'blitz-techno', {
+    x: WORD.x, y: WORD.y, h: WORD.h, w: WORD.w, align: 'left',
+    gap: 2.2, slant: WORD.slant, minXs: 0.78, maxXs: 1.24,
+    keyline: { color: 'rgba(0,0,0,0.92)', k: 0.034 },
+    shadow: { color: 'rgba(0,3,14,0.95)', blur: 9, dy: 4, alpha: 0.95 },
+    grad: [
       [0.00, '#ffffff'],
-      [0.30, '#f2f7ff'],
-      [0.56, '#c4d4ec'],
-      [0.74, '#e8f1ff'],
-      [1.00, '#93a6c4'],
+      [0.46, '#ffffff'],
+      [0.80, '#e8eef8'],
+      [1.00, '#c3cede'],
     ],
-    outline: 'rgba(4,9,24,0.92)',
-    outlineWidth: size * 0.048,
-    shadow: { color: 'rgba(0,4,14,0.8)', blur: size * 0.22, dy: size * 0.06 },
-    glow: { color: 'rgba(120,170,255,0.35)', blur: size * 0.55, alpha: 0.5, reps: 1 },
-    emboss: 0.55 * quality,
-    grain: 0,
+    shade: { color: 'rgba(14,22,44,0.16)', dy: 2.4, alpha: 1 },
   });
-  c.restore();
 
   c.setTransform(1, 0, 0, 1, 0, 0);
   return chromeCv;
+}
+
+/** Overheat rim: baked once, blitted with a scalar alpha when heat > 0. */
+function bakeHeat(s) {
+  const W = PLATE.w, H = PLATE.h;
+  const CW = Math.round(BOX.w * s), CH = Math.round(BOX.h * s);
+  if (!heatCv) heatCv = mkCanvas(CW, CH);
+  if (heatCv.width !== CW) { heatCv.width = CW; heatCv.height = CH; }
+  const c = heatCv.getContext('2d');
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.clearRect(0, 0, CW, CH);
+  c.setTransform(s, 0, 0, s, 0, 0);
+  c.translate(MG, MG);
+  const pts = outlinePts(W, H);
+  const outer = poly(pts, 9);
+  const inner = poly(inset(pts, 4.6), 6);
+  c.save();
+  c.fillStyle = vgrad(c, 0, H, [
+    [0.00, 'rgba(255,214,120,0.95)'],
+    [0.35, 'rgba(255,110,26,0.95)'],
+    [1.00, 'rgba(176,18,12,0.95)'],
+  ]);
+  c.fill(outer);
+  c.globalCompositeOperation = 'destination-out';
+  c.fill(inner);
+  c.restore();
+  // additive bloom on the rim only. `destination-out` erases by SOURCE ALPHA, so
+  // the cut-out has to be filled opaque — cutting with the 0.55 tint is how the
+  // first pass at this leaked orange across the whole interior.
+  c.save();
+  c.globalCompositeOperation = 'lighter';
+  c.shadowColor = 'rgba(255,110,40,0.9)';
+  c.shadowBlur = 16;
+  c.fillStyle = 'rgba(255,90,30,0.5)';
+  c.fill(outer);
+  c.restore();
+  c.save();
+  c.globalCompositeOperation = 'destination-out';
+  c.fillStyle = '#000';
+  c.fill(inner);
+  c.restore();
+  // a restrained interior wash so the well reads hot without hiding the meter
+  c.save();
+  c.clip(inner);
+  c.fillStyle = vgrad(c, 0, H, [
+    [0.00, 'rgba(255,150,40,0.26)'],
+    [0.55, 'rgba(214,54,16,0.14)'],
+    [1.00, 'rgba(150,16,8,0.10)'],
+  ]);
+  c.fillRect(0, 0, W, H);
+  c.restore();
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  return heatCv;
 }
 
 /* ------------------------------------------------------------------ bake */
@@ -269,6 +340,7 @@ export function bake(ui, k) {
   bakeChrome(ui, s);
   bakeFill(PLATE.w, PLATE.h, s);
   bakeLead(s);
+  bakeHeat(s);
 }
 export function invalidate() { if (chromeCv) { chromeCv.width = 1; } }
 
@@ -276,11 +348,12 @@ export const ORIGIN = { x: PLATE.x - MG, y: PLATE.y - MG };
 export const BOX = { w: PLATE.w + MG * 2, h: PLATE.h + MG * 2, mg: MG };
 
 /**
- * Frame path. Three integer-rect drawImage calls plus, when the meter is full,
- * one alpha-modulated re-blit of the leading edge as an overcharge pulse.
- * `d` is the on-screen scale of the blit (1 in game; 2 on the state sheet crop).
+ * Frame path. Integer-rect drawImage calls plus, when the meter is full or the
+ * turbo is overheating, one alpha-modulated re-blit. `d` is the on-screen scale
+ * of the blit (1 in game; 2 on the state sheet crop). `heat` 0..1 is the overheat
+ * state the timing piece drives.
  */
-export function draw(c, ox, oy, v, t, d) {
+export function draw(c, ox, oy, v, t, d, heat) {
   if (!chromeCv || chromeCv.width < 4) return;
   const k = d || 1, s = bakedK;
   c.drawImage(chromeCv, ox, oy, BOX.w * k, BOX.h * k);
@@ -289,15 +362,21 @@ export function draw(c, ox, oy, v, t, d) {
   const tx = ox + (MG + TRK.x) * k, ty = oy + (MG + TRK.y) * k;
   if (fw > 0) c.drawImage(fillCv, 0, 0, fw * s, TRK.h * s, tx, ty, fw * k, TRK.h * k);
   if (fw > 2 && fw < TRK.w - 1) {
-    c.drawImage(leadCv, tx + (fw - 15) * k, ty - 8 * k, 30 * k, (TRK.h + 16) * k);
+    c.drawImage(leadCv, tx + (fw - 38) * k, ty - 5 * k, 46 * k, (TRK.h + 10) * k);
   } else if (val >= 0.999) {
-    // charged: the whole bar breathes instead of a single edge
-    const a = 0.30 + 0.26 * (0.5 + 0.5 * Math.sin(t * 6.0));
+    const a = 0.26 + 0.24 * (0.5 + 0.5 * Math.sin(t * 6.0));
     c.save();
     c.globalAlpha = a;
     c.globalCompositeOperation = 'lighter';
-    c.drawImage(leadCv, tx + (TRK.w - 22) * k, ty - 8 * k, 30 * k, (TRK.h + 16) * k);
-    c.drawImage(leadCv, tx + (TRK.w * 0.5 - 15) * k, ty - 8 * k, 30 * k, (TRK.h + 16) * k);
+    c.drawImage(leadCv, tx + (TRK.w - 40) * k, ty - 5 * k, 46 * k, (TRK.h + 10) * k);
+    c.drawImage(leadCv, tx + (TRK.w * 0.5 - 24) * k, ty - 5 * k, 46 * k, (TRK.h + 10) * k);
+    c.restore();
+  }
+  const hv = heat === undefined ? 0 : (heat < 0 ? 0 : heat > 1 ? 1 : heat);
+  if (hv > 0.001 && heatCv) {
+    c.save();
+    c.globalAlpha = hv * (0.62 + 0.38 * (0.5 + 0.5 * Math.sin(t * 9.0)));
+    c.drawImage(heatCv, ox, oy, BOX.w * k, BOX.h * k);
     c.restore();
   }
 }

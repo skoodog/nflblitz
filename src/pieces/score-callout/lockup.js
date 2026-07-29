@@ -33,38 +33,38 @@
 // and the points line is always gold, because it is gold in every bar panel.
 
 import { hash, seedFromString } from '../../foundation/rng.js';
-import { paintLine, layoutLine, linePath, newCanvas, releaseScratch } from './ink.js';
+import { paintLine, inkMask, inkPaint, layoutLine, linePath, newCanvas, releaseScratch } from './ink.js';
 import { GOLD_GLOW } from './palette.js';
 
 /* ------------------------------------------------------------- proportions */
 
 export const GEO = {
-  cap2: 98,           // line-2 cap height at scale 1, one-line lockup
-  duo: 0.86,          // x cap2 when line 1 is present — the bar shrinks the stack to fit
-  cap1: 0.700,        // x cap2eff   (bar: 19/27)
-  capNum: 0.575,      // x cap2eff   (bar: 17/33 truck, 16/27 midair)
+  cap2: 115,          // line-2 cap height at scale 1, one-line lockup.  bar: 33/310
+  duo: 0.75,          // x cap2 when line 1 is present — the bar shrinks the stack to fit
+  cap1: 0.725,        // x cap2eff   (bar: 19/27)
+  capNum: 0.585,      // x cap2eff   (bar: 17/33 truck, 16/27 midair)
   capPts: 0.680,      // x capNum
   dy1: -1.380,        // line-1 baseline, x cap2eff, relative to line-2 baseline
                       //   (bar: MID-AIR baseline 252, MURDER! baseline 290, cap 27)
   dyNum: 0.950,       // points baseline, x cap2eff  (bar: +32/33 truck, +25/27 midair)
-  ptsGap: 0.150,      // x capNum, between the last digit and P
+  ptsGap: 0.175,      // x capNum, between the last digit and P
   ptsLift: 0.030,     // x capNum, PTS baseline sits marginally above the numerals
-  liftSolo: 0.750,    // x cap2. A one-line lockup has less mass, so it is lifted to
+  liftSolo: 0.760,    // x cap2. A one-line lockup has less mass, so it is lifted to
                       //   sit in the same band of the frame as a two-line one.
   nudge1: -0.065,     // x line-2 width  (bar: MID-AIR centre is 10.5px left of MURDER!'s)
   nudgeNum: 0.004,
   rotation: -0.0435,  // rad, -2.5 deg. Measured: truck -1.7, midair -1.3, touchdown -2.9,
                       //   leveler -4.6. Rises to the right, as every panel does.
-  maxWidth: 620,      // TOUCHDOWN! is 10 glyphs; the bar shrinks it to 0.75 of TRUCK!'s
+  maxWidth: 600,      // TOUCHDOWN! is 10 glyphs; the bar shrinks it to 0.75 of TRUCK!'s
                       //   cap rather than letting it run the width of the frame.
 };
 
 /** Per-line ink recipes. Kept here so the whole look is legible in one place. */
 const INK = {
-  line1: { tracking: 0.090, xScale: 1.52, minor: 0.930, slimX: 0.044, grain: 0.10, fray: 0.9, halo: 0.70, jitter: 0.9 },
-  line2: { tracking: 0.030, xScale: 1.52, minor: 0.885, slimX: 0.048, grain: 0.10, fray: 1.0, jitter: 0.85 },
-  num: { tracking: 0.030, xScale: 1.34, minor: 1, excl: 1, slimX: 0.030, grain: 0.07, fray: 0.7, keyOut: 0.013, jitter: 0.45 },
-  pts: { tracking: 0.055, xScale: 1.34, minor: 1, slimX: 0.028, grain: 0.07, fray: 0.7, keyOut: 0.012, jitter: 0.5 },
+  line1: { tracking: 0.090, xScale: 1.36, minor: 0.930, slimX: 0.014, grain: 0.10, fray: 0.62, halo: 0.70, jitter: 0.9 },
+  line2: { tracking: 0.030, xScale: 1.36, minor: 0.885, slimX: 0.016, grain: 0.10, fray: 1.0, jitter: 0.85 },
+  num: { tracking: 0.030, xScale: 1.45, minor: 1, excl: 1, slimX: 0.014, grain: 0.07, fray: 0.7, keyOut: 0.013, jitter: 0.45 },
+  pts: { tracking: 0.055, xScale: 1.45, minor: 1, slimX: 0.012, grain: 0.07, fray: 0.7, keyOut: 0.012, jitter: 0.5 },
 };
 
 function accentFor(state) {
@@ -81,11 +81,16 @@ function accentFor(state) {
 /* -------------------------------------------------------------------- bake */
 
 /**
- * Bake the whole lockup into one offscreen canvas.
- * Returns { cv, ox, oy, w, h } where (ox,oy) is the pixel that carries the lockup's
- * anchor: line-2 centre-x, points-line baseline-y.
+ * Plan the lockup: allocate the plate, lay every line out, and return a record whose
+ * `jobs` array paints one line each. Nothing is rasterised yet.
+ *
+ * The plate is SLICED because a whole lockup cannot be painted inside this piece's 8 ms
+ * bake budget on a software canvas — measured on this box, a two-line lockup at 1:1 is
+ * 30-47 ms (round 1 was 65-148). Sliced by line it is four steps of which the largest is
+ * line 2, and at the runtime raster (fit*dpr*1.25, ~0.45 on a 390x844 phone) the whole
+ * bake is 11-18 ms, i.e. ~5 ms a step. `stepLockup` runs exactly one.
  */
-export function bakeLockup(faces, state, opts) {
+export function beginLockup(faces, state, opts) {
   const A = accentFor(state);
   const pts = state.pts | 0;
   const seed = hash(seedFromString('sc|' + A.l1 + '|' + A.l2 + '|' + pts + '|' + A.key), opts && opts.seed ? opts.seed | 0 : 7);
@@ -145,8 +150,8 @@ export function bakeLockup(faces, state, opts) {
 
   // Padding covers the drop shadow and the 0.34-cap halo, and nothing else. Round 1 used
   // 1.15C x 1.05C, roughly 40% of the plate's area spent on empty pixels.
-  const padX = Math.ceil(CC * 0.52);
-  const padY = Math.ceil(CC * 0.48);
+  const padX = Math.ceil(CC * 0.78);
+  const padY = Math.ceil(CC * 0.66);
   const W = Math.ceil(halfW * 2 + padX * 2);
   const H = Math.ceil(bot - top + padY * 2);
   const ox = Math.round(W * 0.5);
@@ -163,44 +168,55 @@ export function bakeLockup(faces, state, opts) {
   // and on clean turf it read as a smudge on the lens. No bar panel has one; the
   // legibility comes from each line's own halo, which follows the letters.
 
+  const jobs = [];
+
   /* ---- line 1: always warm white, quieter shadow ---- */
   if (l1) {
-    paintLine(g, faces, Object.assign({}, INK.line1, {
+    jobs.push(() => paintLine(g, faces, Object.assign({}, INK.line1, {
       text: A.l1, layout: l1, path: linePath(faces, l1), capH: cc1,
       x: x1, y: y1, rampKey: 'white', seed: hash(seed, 1),
-    }));
+    })));
   }
 
-  /* ---- line 2: the loud one ---- */
+  /* ---- line 2: the loud one ----
+     Split across TWO slices. It is the biggest line in the lockup and the only one that
+     on its own exceeds the 8 ms bake budget at 1:1 (measured 15-18 ms); silhouette,
+     long-hair fray and paint are three slices. The mask lives in ink.js's scratch pool between the two, which is safe
+     because these slices are strictly sequential and nothing else bakes in between. */
   if (l2) {
     const glow = A.key === 'goldLine' ? { color: GOLD_GLOW, blur: 0.22, alpha: 0.10, reps: 1 } : null;
-    paintLine(g, faces, Object.assign({}, INK.line2, {
+    const spec2 = Object.assign({}, INK.line2, {
       text: A.l2, layout: l2, path: linePath(faces, l2), capH: CC,
       x: x2, y: y2, rampKey: A.key, seed: hash(seed, 2), glow,
-    }));
+    });
+    let st2 = null;
+    jobs.push(() => { st2 = inkMask(faces, spec2); });
+    jobs.push(() => { st2.finish(); });
+    jobs.push(() => { inkPaint(g, faces, spec2, st2); st2 = null; });
   }
 
   /* ---- points line: gold numerals + smaller PTS ---- */
   if (ln) {
     const xNumLeft = xP - wPts2 * 0.5;
-    paintLine(g, faces, Object.assign({}, INK.num, {
+    jobs.push(() => paintLine(g, faces, Object.assign({}, INK.num, {
       text: numTxt, layout: ln, path: linePath(faces, ln), capH: ccN,
       x: xNumLeft + ln.width * 0.5, y: yNum, rampKey: 'gold', seed: hash(seed, 3),
       glow: { color: GOLD_GLOW, blur: 0.24, alpha: 0.13, reps: 1 },
       sweep: { at: 0.30, w: 0.80, a: 0.05 },
-    }));
+    })));
     if (lp) {
       const xPtsLeft = xNumLeft + ln.width + GEO.ptsGap * ccN;
-      paintLine(g, faces, Object.assign({}, INK.pts, {
+      jobs.push(() => paintLine(g, faces, Object.assign({}, INK.pts, {
         text: 'PTS', layout: lp, path: linePath(faces, lp), capH: ccP,
         x: xPtsLeft + lp.width * 0.5, y: yNum - GEO.ptsLift * ccN, rampKey: 'gold',
         seed: hash(seed, 4),
         glow: { color: GOLD_GLOW, blur: 0.24, alpha: 0.10, reps: 1 },
-      }));
+      })));
     }
   }
-
-  releaseScratch();
+  // The scratch surfaces are six plate-sized canvases; they are not part of the
+  // backing store the piece is budgeted for, so they go back at the end of every bake.
+  jobs.push(() => releaseScratch());
 
   return {
     cv, ox, oy, w: W, h: H,
@@ -209,27 +225,45 @@ export function bakeLockup(faces, state, opts) {
     halfW,
     top: top - padY * 0.5,
     bot: bot + padY * 0.5,
+    jobs, at: 0, done: false,
   };
+}
+
+/** Run exactly one slice of a planned lockup. Returns true when the plate is finished. */
+export function stepLockup(rec) {
+  if (!rec || rec.done) return true;
+  const j = rec.jobs[rec.at++];
+  if (j) j();
+  if (rec.at >= rec.jobs.length) { rec.done = true; rec.jobs = null; }
+  return rec.done;
+}
+
+/** Plan and paint in one go — the synchronous path, used when nobody pre-warmed. */
+export function bakeLockup(faces, state, opts) {
+  const rec = beginLockup(faces, state, opts);
+  while (!stepLockup(rec));
+  return rec;
 }
 
 /* ------------------------------------------------------------------- cache */
 //
-// Backing store <= 3 MB. A two-line plate is now ~0.9 MB (round 1's padding made it
-// 1.5-2.2), and the LRU holds three, not eight.
+// Backing store <= 3 MB. Round 1 held EIGHT plates at 1.5-2.2 MB, up to ~16 MB. The
+// padding is now 0.52C x 0.48C instead of 1.15C x 1.05C, which puts a one-line plate at
+// 584 x 441 (1.03 MB) and a two-line plate at ~1.0 MB, and the LRU holds two.
 
 const CACHE = new Map();
 const ORDER = [];
-const MAX = 3;
+const MAX = 2;
 
-export function lockupFor(faces, state, opts) {
+function keyOf(faces, state, opts) {
   const A = accentFor(state);
   const scale = (opts && opts.scale) || 1;
   const raster = (opts && opts.raster) || 1;
-  const key = `${faces && faces.piece}|${A.l1}|${A.l2}|${state.pts | 0}|${A.key}`
+  return `${faces && faces.piece}|${A.l1}|${A.l2}|${state.pts | 0}|${A.key}`
     + `|${scale.toFixed(3)}|${raster.toFixed(3)}|${(opts && opts.seed) | 0}`;
-  let v = CACHE.get(key);
-  if (v) return v;
-  v = bakeLockup(faces, state, opts);
+}
+
+function put(key, v) {
   CACHE.set(key, v);
   ORDER.push(key);
   while (ORDER.length > MAX) {
@@ -238,12 +272,35 @@ export function lockupFor(faces, state, opts) {
     if (old && old.cv) { old.cv.width = 1; old.cv.height = 1; }
     CACHE.delete(k);
   }
-  return v;
+}
+
+export function lockupFor(faces, state, opts) {
+  const key = keyOf(faces, state, opts);
+  const v = CACHE.get(key);
+  if (v) return v;
+  const rec = bakeLockup(faces, state, opts);
+  put(key, rec);
+  return rec;
+}
+
+/**
+ * One slice of a pre-warm. Returns true when this lockup's plate is complete and in the
+ * cache. Only FINISHED plates ever enter the cache, so `lockupFor` can never hand the
+ * frame path a half-painted lockup.
+ */
+let PENDING = null;
+export function warmStep(faces, state, opts) {
+  const key = keyOf(faces, state, opts);
+  if (CACHE.has(key)) { if (PENDING && PENDING.key === key) PENDING = null; return true; }
+  if (!PENDING || PENDING.key !== key) PENDING = { key, rec: beginLockup(faces, state, opts) };
+  if (stepLockup(PENDING.rec)) { put(key, PENDING.rec); PENDING = null; return true; }
+  return false;
 }
 
 export function clearCache() {
   CACHE.clear();
   ORDER.length = 0;
+  PENDING = null;
 }
 
-export default { bakeLockup, lockupFor, GEO };
+export default { bakeLockup, beginLockup, stepLockup, lockupFor, warmStep, GEO };

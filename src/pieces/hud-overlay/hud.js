@@ -1,312 +1,363 @@
 // PIECE hud-overlay — the top-left scoreboard cluster.
 //
-// GEOMETRY IS MEASURED, NOT GUESSED. bar/panel-qb_dropback.png is 553x338 for a
-// 1080-tall frame, so 1 panel px = 3.195 logical px. Every number below is a
-// bounding box read off that panel and converted:
+// EVERY NUMBER BELOW IS A MEASUREMENT, NOT A GUESS. bar/panel-qb_dropback.png is
+// 553x338 for a 1080-tall frame; the concept sheet's panel border sits at panel
+// x=30, so logical x = (panelX - 31) * 3.1953 and logical y = panelY * 3.1953.
+// Under that mapping the cluster reads:
 //
-//   plate            48,42  ->  629 x 106      (left edge == ui.safe.l exactly)
-//   clock ink        rel  51..118 x   12..70   ink height 58
-//   down+dist ink    rel  54..137 x   73..99   ink height 26
-//   abbr ink         rel 134..204 x   22..60   ink height 38
-//   score ink        rel 236..332 x    9..67   ink height 61
-//   crest chip       rel 358..399
-//   momentum strip   rel        y   86..97
+//   cluster bounds          45 .. 681  x  44.7 .. 146.9      (636 x 102)
+//   SIX tiles, black gutters ~6.4 wide:
+//     chips     45..93     clock   99..169    abbrA  179..275
+//     scoreA   281..390    teamB  396..553    scoreB 559..681
+//   ink boxes (logical, absolute)
+//     clock   99..169 x  54..105     h 51    yards  105..166 x 109..141  h 32
+//     NYC    182..256 x  59..105     h 46    22     284..383 x  51..112  h 61
+//     crest  403..451               CHI     454..514 x  56..105  h 49
+//     14     572..665 x  48..112     h 64    meters       y 128..144    h 16
 //
-// The bar gives the LEFT team no crest and the RIGHT team one; that asymmetry is
-// real and is reproduced. The left cap is the two bone-coloured chips the panel
-// shows: quarter above, timeouts below.
+// WHAT ROUND 1 GOT WRONG AND THIS FIXES.
+//   * There is NO carrier plate in the bar. No perimeter stroke, no outer halo,
+//     no 12 px radius. Six independently recessed near-black glass tiles butted
+//     against opaque black gutters, each with a light hairline on its TOP edge
+//     only. Sampled: tile interior rgb(13,17,23), gutter rgb(10,11,10), the top
+//     hairline rgb(16,18,20) — the chrome is nearly invisible and all the value
+//     is in the type, the chips, the crest and the meters.
+//   * The type has to FILL its cell. `NYC` is 74 x 46 in a 96-wide tile; `22` is
+//     99 x 61 in a 109-wide tile. That is why this file works in ink rectangles
+//     (see ink.js) instead of point sizes.
+//   * The palette has exactly three accents: an orange->red ramp, a steel blue
+//     with light segment pips, and a saturated GOLD meter which is the brightest
+//     thing in the cluster. No pink, no purple, no team wash: brand.colors never
+//     reaches a letterform at all (that is how round one got a magenta NYC), the
+//     abbreviation's cast is picked by SIDE — cool left, warm right — and the club
+//     identity is carried entirely by the crest, which is the right place for it.
 //
 // COST: baked to one offscreen canvas on state change, blitted once per frame.
 
 import {
-  mkCanvas, rr, vgrad, hgrad, rgba, mix, lighten, darken, brighten, hudColor,
-  grain, brushed, innerEdge, gloss,
+  mkCanvas, rr, vgrad, hgrad, rgba, mix, lighten, darken, hudColor, lum, chroma, vivid,
+  grain, innerEdge,
 } from './chrome.js';
+import { inkSet } from './ink.js';
 
 /* ------------------------------------------------------------- geometry */
 
-export const PLATE = { x: 48, y: 42, w: 632, h: 106, r: 12 };
-const MG = 24;
+export const PLATE = { x: 46, y: 44, w: 636, h: 103 };
+const MG = 22;
 
-const CT = 5, CB = 101;                 // sub-panel top / bottom inside the plate
+/** Tiles, plate-local. Gutters are the 6.4 px gaps BETWEEN these. */
+const T_CHIP = { x: 0, w: 48 };
+const T_CLK = { x: 54, w: 71 };
+const T_ABA = { x: 134, w: 96 };
+const T_SCA = { x: 236, w: 109 };
+const T_TMB = { x: 352, w: 157 };
+const T_SCB = { x: 515, w: 121 };
+const TILES = [T_CHIP, T_CLK, T_ABA, T_SCA, T_TMB, T_SCB];
 
-const CAP = { x: 4, w: 26 };
-const CLK = { x: 34, w: 108 };
-const A_AB = { x: 148, w: 76 };
-const A_SC = { x: 228, w: 116 };
-const DIV = 348;
-const B_CR = { x: 354, w: 48 };
-const B_AB = { x: 406, w: 76 };
-const B_SC = { x: 490, w: 138 };
+const TR = 3.5;                          // tile corner radius (bar: hard, ~3-4)
 
-const Y_CLOCK = 70;                     // baselines, plate-relative
-const Y_DD = 99;
-const Y_ABBR = 60;
-const Y_SCORE = 67;
-const MOM = { y: 85, h: 12 };
+/* ink rectangles, plate-local (y measured from the cluster's top edge) */
+const IH_CLOCK = 50, IY_CLOCK = 10;
+const IH_YARD = 27, IY_YARD = 66;
+const IH_ABBR = 46, IY_ABBR = 14;
+const IH_SCORE = 61, IY_SCORE = 6;
+const MOM = { y: 84, h: 14 };
 
-const SZ_CLOCK = 69;                    // blitz-num ink height ~= 0.84 * size
-const SZ_DD = 36;                       // blitz-block cap == 0.70 * size
-const SZ_ABBR = 55;
-const SZ_SCORE = 73;
+/** Per-glyph ink widths and ink-to-ink gaps, measured off the bar:
+ *   score digit  47 wide x 61 tall, 6 px between the ink   ("22" = 99 wide)
+ *   clock digit  33 wide x 51 tall, 4 px between            (":05" = 70)
+ *   yard digit   20 wide x 32 tall, 3 px between            ("167" = 61)
+ *   abbr cap     22 wide x 46 tall, 3.5 px between          ("NYC" = 74)
+ * A run solves ONE horizontal scale to land on those totals, which is what makes
+ * the type fill its cell instead of floating in it. */
+const G_SCORE = { cell: 47.0, gap: 6.0 };
+const G_CLOCK = { cell: 33.0, gap: 4.0 };
+const G_YARD = { cell: 20.0, gap: 3.0 };
+const G_ABBR = { cell: 22.5, gap: 3.5 };
+
+function runW(g, n) { return g.cell * n + g.gap * Math.max(0, n - 1); }
 
 /* --------------------------------------------------------------- palette */
 
-const PLATE_STOPS = [
-  [0.00, 'rgba(34,40,52,0.92)'],
-  [0.06, 'rgba(17,21,29,0.91)'],
-  [0.50, 'rgba(7,9,14,0.91)'],
-  [0.86, 'rgba(4,6,10,0.93)'],
-  [1.00, 'rgba(12,15,22,0.94)'],
+const BONE = '#e9e3d2';
+const GOLD_RAMP = ['#fff6b4', '#ffd21e', '#e0a010', '#a97505'];
+const FIRE_RAMP = ['#ffc24a', '#ff8a12', '#ef3a17', '#c0121b'];
+const STEEL = '#3d6b96';
+const STEEL_PIP = '#bcdcec';
+
+/* type treatments -------------------------------------------------------- */
+
+const NUM_GRAD = [
+  [0.00, '#ffffff'],
+  [0.52, '#ffffff'],
+  [0.84, '#f2f6fb'],
+  [1.00, '#dfe7f1'],
 ];
-const BONE = '#e7e2d4';
+const KEY = { color: '#000000', k: 0.052 };
+const HALO = { color: 'rgba(255,202,124,0.52)', blur: 8, alpha: 0.7, reps: 1 };
+const SHADOW = { color: 'rgba(0,3,9,0.92)', blur: 5, dy: 2.4, alpha: 0.62 };
 
 let cv = null, cx = null;
 let quality = 1;
 export function setQuality(q) { quality = q; }
 
-/* ------------------------------------------------------------- primitives */
+/* -------------------------------------------------------------- primitives */
 
-function shadowRing(c, path, blur, dy, alpha) {
-  c.save();
-  c.shadowColor = `rgba(2,5,11,${alpha})`;
-  c.shadowBlur = blur;
-  c.shadowOffsetY = dy;
-  c.fillStyle = 'rgba(0,0,0,0.99)';
-  c.fill(path);
-  c.restore();
-  c.save();
-  c.globalCompositeOperation = 'destination-out';
-  c.fill(path);
-  c.restore();
-}
-
-/** A sub-panel: barely-there fill, a lit top edge and a shadowed bottom edge. */
-function cellPlate(c, x, w, tint, tintA, r) {
-  const y = CT, h = CB - CT;
-  const p = rr(x, y, w, h, r === undefined ? 6 : r);
-  c.fillStyle = vgrad(c, y, y + h, [
-    [0, rgba(tint, tintA * 1.35)],
-    [0.55, rgba(tint, tintA * 0.62)],
-    [1, rgba(darken(tint, 0.5), tintA * 1.05)],
+/**
+ * One recessed glass tile. No outer stroke, no glow: a near-black fill, a lit
+ * hairline on the TOP edge only, and a black line under the bottom.
+ */
+function tile(c, t, h) {
+  const p = rr(t.x, 0, t.w, h, TR);
+  c.fillStyle = vgrad(c, 0, h, [
+    [0.00, 'rgba(26,33,46,0.26)'],
+    [0.16, 'rgba(11,14,20,0.17)'],
+    [0.68, 'rgba(5,7,11,0.12)'],
+    [1.00, 'rgba(9,12,17,0.18)'],
   ]);
   c.fill(p);
-  innerEdge(c, p, 0, 1.0, 'rgba(196,222,255,0.14)', 'rgba(0,0,0,0.34)', 1.3);
+  // top hairline, and the faintest wrap down the first fifth of each side
+  c.save();
+  c.clip(p);
+  c.fillStyle = hgrad(c, t.x, t.x + t.w, [
+    [0.00, 'rgba(150,180,222,0.05)'],
+    [0.07, 'rgba(184,210,246,0.24)'],
+    [0.91, 'rgba(172,198,232,0.18)'],
+    [1.00, 'rgba(150,180,222,0.05)'],
+  ]);
+  c.fillRect(t.x, 0, t.w, 1.1);
+  c.fillStyle = 'rgba(126,158,200,0.10)';
+  c.fillRect(t.x, 0, 1, h * 0.20);
+  c.fillRect(t.x + t.w - 1, 0, 1, h * 0.20);
+  c.fillStyle = 'rgba(0,0,0,0.55)';
+  c.fillRect(t.x, h - 1.2, t.w, 1.2);
+  c.restore();
   return p;
 }
 
-/**
- * The momentum strip. Inset track, saturated team-colour fill with a
- * longitudinal gloss and a hot leading edge. Never a flat rectangle.
- */
-function momentumSeg(c, x, w, v0, v1, fill, accent, primary) {
-  const y = MOM.y, h = MOM.h;
-  const track = rr(x, y, w, h, 2.5);
-  // The empty track is TINTED with the club colour rather than left near-black:
-  // in the bar the strip under each team reads as a solid coloured bar with a
-  // brighter lit portion, not as a bar sitting in a black slot.
-  c.fillStyle = vgrad(c, y, y + h, [
-    [0, rgba(darken(accent, 0.86), 0.96)],
-    [0.5, rgba(darken(accent, 0.76), 0.94)],
-    [1, rgba(darken(accent, 0.62), 0.92)],
-  ]);
-  c.fill(track);
-  innerEdge(c, track, 0, 1.0, 'rgba(0,0,0,0.6)', 'rgba(150,180,220,0.18)', 1.2);
-
-  // v0..v1 is this segment's slice of the team's 0..1 meter
-  const span = v1 - v0;
-  const frac = span <= 0 ? 0 : Math.max(0, Math.min(1, (fill - v0) / span));
-  const showLead = fill > v0 && fill < v1;
-  const fw = w * frac;
-  if (fw > 1) {
-    const hot = brighten(accent, 1.30);
-    const deep = mix(darken(primary, 0.25), accent, 0.42);
-    c.save();
-    c.clip(track);
-    c.fillStyle = hgrad(c, x, x + Math.max(4, fw), [
-      [0.00, rgba(deep, 1)],
-      [0.45, rgba(accent, 1)],
-      [1.00, rgba(hot, 1)],
-    ]);
-    c.fillRect(x, y, fw, h);
-    c.fillStyle = vgrad(c, y, y + h, [
-      [0.00, 'rgba(255,255,255,0.24)'],
-      [0.26, 'rgba(255,255,255,0.06)'],
-      [0.46, 'rgba(255,255,255,0.00)'],
-      [1.00, 'rgba(0,0,0,0.42)'],
-    ]);
-    c.fillRect(x, y, fw, h);
-    if (showLead && frac < 0.995) {
-      c.shadowColor = rgba(hot, 0.95);
-      c.shadowBlur = 8;
-      c.fillStyle = rgba(lighten(accent, 0.55), 0.95);
-      c.fillRect(x + fw - 2, y, 2, h);
-      c.shadowBlur = 0;
-    }
-    c.restore();
-  }
-  c.save();
-  c.clip(track);
-  c.fillStyle = 'rgba(0,0,0,0.38)';
-  const seg = Math.max(2, Math.round(w / 34));
-  for (let i = 1; i < seg; i++) c.fillRect(x + (w * i) / seg - 0.6, y, 1.2, h);
-  c.restore();
-  c.strokeStyle = 'rgba(160,190,230,0.13)';
-  c.lineWidth = 1;
-  c.stroke(track);
-}
-
-/* ------------------------------------------------------------------- type */
-
-function scoreType(F, c, txt, x, y, size, align) {
-  F.draw(c, txt, x, y, {
-    face: 'blitz-num',
-    size,
-    align,
-    gradient: [
-      [0.00, '#ffffff'],
-      [0.58, '#fdfeff'],
-      [0.82, '#e6ecf5'],
-      [0.95, '#c6d0de'],
-      [1.00, '#b4c0d0'],
-    ],
-    outline: 'rgba(3,6,12,0.95)',
-    outlineWidth: size * 0.052,
-    shadow: { color: 'rgba(0,4,11,0.80)', blur: size * 0.16, dy: size * 0.05 },
-    emboss: 0.15 * quality,
-    grain: 0,
-  });
-}
-
-const ABBR_G = [[0.00, '#ffffff'], [0.62, '#f3f7fc'], [1.00, '#c8d2e0']];
-
-function labelType(F, c, txt, x, y, size, align, tint, track) {
-  return F.draw(c, txt, x, y, {
-    face: 'blitz-block',
-    size,
-    align,
-    tracking: track,
-    gradient: tint || ABBR_G,
-    outline: 'rgba(3,6,12,0.90)',
-    outlineWidth: size * 0.058,
-    shadow: { color: 'rgba(0,4,11,0.66)', blur: size * 0.15, dy: size * 0.05 },
-    emboss: 0,
-    grain: 0,
-  });
-}
-
-/* ------------------------------------------------------------------ chips */
-
-/** A bone-coloured chip: the panel's two little light blocks at the far left. */
+/** A bone chip: the panel's two little cream blocks at the far left. */
 function boneChip(c, x, y, w, h) {
   const p = rr(x, y, w, h, 3);
   c.save();
-  c.shadowColor = 'rgba(0,2,6,0.7)';
+  c.shadowColor = 'rgba(0,2,6,0.85)';
   c.shadowBlur = 5;
   c.shadowOffsetY = 2;
   c.fillStyle = vgrad(c, y, y + h, [
-    [0, '#fbf8ef'],
-    [0.42, BONE],
-    [1, '#a9a496'],
+    [0.00, '#fdfaf1'],
+    [0.38, BONE],
+    [0.86, '#bdb7a6'],
+    [1.00, '#98917f'],
   ]);
   c.fill(p);
   c.restore();
-  innerEdge(c, p, 0, 1.0, 'rgba(255,255,255,0.85)', 'rgba(60,54,40,0.45)', 1.2);
-  c.strokeStyle = 'rgba(30,28,22,0.55)';
+  innerEdge(c, p, 0, 1.0, 'rgba(255,255,255,0.9)', 'rgba(58,52,38,0.5)', 1.2);
+  c.strokeStyle = 'rgba(22,20,15,0.7)';
   c.lineWidth = 1;
   c.stroke(p);
   return p;
 }
 
+/**
+ * A meter. Recessed track, a saturated ramp fill with a specular band and a hot
+ * leading edge, and a thin amber baseline rule under the whole cell — all three
+ * of those are in the bar and none of them is a flat rectangle.
+ */
+function meter(c, x, w, ramp, fill, opts) {
+  const y = MOM.y, h = MOM.h;
+  const o = opts || {};
+  const track = rr(x, y, w, h, 2);
+  c.fillStyle = vgrad(c, y, y + h, [
+    [0.00, 'rgba(2,3,5,0.95)'],
+    [0.34, 'rgba(16,19,24,0.92)'],
+    [1.00, 'rgba(30,35,42,0.88)'],
+  ]);
+  c.fill(track);
+  innerEdge(c, track, 0, 0.9, 'rgba(0,0,0,0.8)', 'rgba(150,172,200,0.16)', 1.1);
+
+  const v = Math.max(0, Math.min(1, fill));
+  const fw = Math.round(w * v);
+  if (fw > 1) {
+    c.save();
+    c.clip(track);
+    c.fillStyle = hgrad(c, x, x + Math.max(6, fw), [
+      [0.00, ramp[0]],
+      [0.34, ramp[1]],
+      [0.74, ramp[2]],
+      [1.00, ramp[3]],
+    ]);
+    c.fillRect(x, y, fw, h);
+    // glossy cylinder: bright lip near the top, deep foot
+    c.fillStyle = vgrad(c, y, y + h, [
+      [0.00, 'rgba(255,255,255,0.34)'],
+      [0.20, 'rgba(255,255,255,0.12)'],
+      [0.44, 'rgba(255,255,255,0.00)'],
+      [1.00, 'rgba(0,0,0,0.40)'],
+    ]);
+    c.fillRect(x, y, fw, h);
+    if (v < 0.995 && fw > 4) {
+      c.fillStyle = 'rgba(255,255,255,0.55)';
+      c.fillRect(x + fw - 1.6, y + 1, 1.6, h - 2);
+    }
+    c.restore();
+  }
+  if (o.pips) {
+    // the bar's steel-blue cell carries two bright segment pips
+    c.save();
+    c.clip(track);
+    for (let i = 0; i < o.pips; i++) {
+      const px = x + w * (0.56 + i * 0.13);
+      c.fillStyle = STEEL_PIP;
+      c.fillRect(px, y + 2.4, 7.5, h - 4.8);
+      c.fillStyle = 'rgba(255,255,255,0.45)';
+      c.fillRect(px, y + 2.4, 7.5, 1.6);
+      c.fillStyle = 'rgba(0,0,0,0.45)';
+      c.fillRect(px + 3.4, y + 2.4, 1, h - 4.8);
+    }
+    c.restore();
+  }
+  if (o.rule) {
+    c.fillStyle = hgrad(c, x, x + w, [
+      [0.00, rgba(o.rule, 0.85)],
+      [0.72, rgba(o.rule, 0.55)],
+      [1.00, rgba(o.rule, 0.10)],
+    ]);
+    c.fillRect(x, y + h + 1.4, w, 1.6);
+  }
+}
+
+/* -------------------------------------------------------------- the crest */
+
+let crestScratch = null, crestKeyed = null;
+/**
+ * The bar's crest is a saturated hard-edged red mark and one of the three
+ * brightest things in the cluster. `ui.brand.crest` at 42 px on near-black comes
+ * back a dark brown smudge, so: pull a 256 px source, key the chroma up through
+ * a source-atop pass, add an additive self-composite for luminance, and lay a
+ * true-black keyline under it built from the mark's own alpha.
+ */
+function drawCrest(c, ui, id, x, y, s, accent) {
+  let img = null;
+  try { img = ui.brand && ui.brand.crest ? ui.brand.crest(id, 256) : null; } catch (e) { img = null; }
+  if (!img) return;
+  const R = 128;
+  if (!crestScratch) { crestScratch = mkCanvas(R, R); crestKeyed = mkCanvas(R + 8, R + 8); }
+  const a = crestScratch.getContext('2d');
+  a.setTransform(1, 0, 0, 1, 0, 0);
+  a.clearRect(0, 0, R, R);
+  a.imageSmoothingEnabled = true;
+  a.imageSmoothingQuality = 'high';
+  a.drawImage(img, 0, 0, R, R);
+  // key the mark up: saturate toward the club accent, then lift luminance
+  a.globalCompositeOperation = 'source-atop';
+  const g = a.createLinearGradient(0, 0, 0, R);
+  g.addColorStop(0, rgba(lighten(accent, 0.30), 0.50));
+  g.addColorStop(0.55, rgba(accent, 0.44));
+  g.addColorStop(1, rgba(darken(accent, 0.22), 0.52));
+  a.fillStyle = g;
+  a.fillRect(0, 0, R, R);
+  a.globalCompositeOperation = 'source-over';
+
+  const b = crestKeyed.getContext('2d');
+  b.setTransform(1, 0, 0, 1, 0, 0);
+  b.clearRect(0, 0, R + 8, R + 8);
+  b.drawImage(crestScratch, 4, 4);
+  b.globalCompositeOperation = 'source-in';
+  b.fillStyle = '#000';
+  b.fillRect(0, 0, R + 8, R + 8);
+  b.globalCompositeOperation = 'source-over';
+
+  const k = s / R;
+  c.save();
+  // accent bloom so the mark never dies against near-black
+  const gx = x + s / 2, gy = y + s / 2;
+  const rg = c.createRadialGradient(gx, gy, 1, gx, gy, s * 0.72);
+  rg.addColorStop(0, rgba(accent, 0.26));
+  rg.addColorStop(0.55, rgba(accent, 0.08));
+  rg.addColorStop(1, rgba(accent, 0));
+  c.fillStyle = rg;
+  c.fillRect(x - s * 0.25, y - s * 0.2, s * 1.5, s * 1.4);
+  // black keyline from the mark's own silhouette
+  c.globalAlpha = 0.85;
+  for (let i = 0; i < 4; i++) {
+    const dx = (i === 0 ? -1 : i === 1 ? 1 : 0) * 1.4;
+    const dy = (i === 2 ? -1 : i === 3 ? 1 : 0) * 1.4;
+    c.drawImage(crestKeyed, x - 4 * k + dx, y - 4 * k + dy, (R + 8) * k, (R + 8) * k);
+  }
+  c.globalAlpha = 1;
+  c.drawImage(crestScratch, x, y, s, s);
+  c.globalCompositeOperation = 'lighter';
+  c.globalAlpha = 0.38;
+  c.drawImage(crestScratch, x, y, s, s);
+  c.restore();
+}
+
 /* ------------------------------------------------------------- team block */
 
-function teamBlock(c, ui, id, score, mom, crestCell, abbrCell, scoreCell, possess) {
-  const F = ui.faces;
+/** Club colour, clamped into the cluster's sanctioned family. */
+function castOf(ui, id) {
   const team = (ui.brand && ui.brand.byId) ? ui.brand.byId(id) : null;
-  const col = (team && team.colors) || { primary: '#20242c', accent: '#8fa8c8' };
-  const accent = hudColor(col);
-
-  const left = crestCell ? crestCell.x : abbrCell.x;
-  const right = scoreCell.x + scoreCell.w;
-
-  // ONE panel per team — the bar reads as four plates, not seven buttons.
-  const block = cellPlate(c, left, right - left, [34, 44, 62], 0.20, 7);
-  // internal hairlines where the crest and the score begin
-  c.save();
-  c.clip(block);
-  c.fillStyle = 'rgba(0,0,0,0.42)';
-  if (crestCell) c.fillRect(abbrCell.x - 3, CT + 4, 1, CB - CT - 8);
-  c.fillRect(scoreCell.x - 3, CT + 4, 1, CB - CT - 8);
-  c.fillStyle = 'rgba(176,204,244,0.13)';
-  if (crestCell) c.fillRect(abbrCell.x - 2, CT + 4, 1, CB - CT - 8);
-  c.fillRect(scoreCell.x - 2, CT + 4, 1, CB - CT - 8);
-
-  // team-colour wash across the block, strongest at its leading edge
-  c.fillStyle = hgrad(c, left, left + (right - left) * 0.46, [
-    [0, rgba(accent, 0.085)],
-    [0.5, rgba(accent, 0.025)],
-    [1, rgba(accent, 0)],
-  ]);
-  c.fillRect(left, CT, right - left, CB - CT);
-  c.restore();
-
-  if (crestCell && ui.brand && ui.brand.crest) {
-    try {
-      const img = ui.brand.crest(id, 128);
-      if (img) {
-        const s = 42;
-        // a soft accent bloom behind the mark so a dark crest does not read as
-        // a brown smudge at 42 px on a near-black plate
-        const gx = crestCell.x + crestCell.w / 2, gy = CT + 5 + s / 2;
-        const rg = c.createRadialGradient(gx, gy, 1, gx, gy, s * 0.62);
-        rg.addColorStop(0, rgba(accent, 0.20));
-        rg.addColorStop(0.6, rgba(accent, 0.06));
-        rg.addColorStop(1, rgba(accent, 0));
-        c.fillStyle = rg;
-        c.fillRect(crestCell.x, CT, crestCell.w, CB - CT);
-        c.save();
-        c.shadowColor = 'rgba(0,3,8,0.75)';
-        c.shadowBlur = 6;
-        c.shadowOffsetY = 2;
-        c.drawImage(img, crestCell.x + (crestCell.w - s) / 2, CT + 5, s, s);
-        c.restore();
-      }
-    } catch (e) { /* a brand that throws must not take the HUD with it */ }
+  const col = (team && team.colors) || null;
+  let a = col ? hudColor(col) : [150, 176, 214];
+  // A magenta or purple club must not paint a magenta HUD: push anything in the
+  // pink/violet wedge onto the nearest sanctioned hue (warm red or steel blue).
+  const mx = Math.max(a[0], a[1], a[2]);
+  if (mx > 0 && chroma(a) > 0.10) {
+    const r = a[0] / mx, g = a[1] / mx, b = a[2] / mx;
+    if (r > 0.55 && b > 0.55 && g < 0.72) {
+      a = b > r ? vivid(mix(a, [90, 150, 210], 0.72), 1.15) : vivid(mix(a, [214, 60, 40], 0.72), 1.15);
+    }
   }
+  if (lum(a) < 0.34) a = lighten(a, 0.24);
+  return a;
+}
 
-  labelType(F, c, String(id || '').toUpperCase(), abbrCell.x + 4, Y_ABBR, SZ_ABBR, 'left');
-  scoreType(F, c, String(score), scoreCell.x + scoreCell.w - 8, Y_SCORE, SZ_SCORE, 'right');
+/**
+ * ABBREVIATION COLOUR IS NOT THE CLUB COLOUR.
+ * The bar sets its left abbreviation cool white and its right one warm cream, and
+ * there is no pink and no purple anywhere in the cluster. Feeding brand.colors
+ * into the letterforms is exactly how round one ended up with a magenta NYC, so
+ * the club never touches the fill: the SIDE picks the cast, and that is all. The
+ * club identity is carried by the crest, which is the right place for it.
+ */
+const ABBR_COOL = [
+  [0.00, '#ffffff'],
+  [0.50, '#fdfeff'],
+  [0.88, '#eaf0f8'],
+  [1.00, '#ccd7e4'],
+];
+const ABBR_WARM = [
+  [0.00, '#fffdf4'],
+  [0.50, '#fff8e6'],
+  [0.88, '#f2e2bd'],
+  [1.00, '#d9c396'],
+];
 
+/** A three-letter club abbreviation, packed into its cell. */
+function abbr(F, c, id, x, maxW, grad, halo) {
+  const s = String(id || '').toUpperCase();
+  if (!s) return;
+  return inkSet(F, c, s, 'blitz-block', {
+    x, y: IY_ABBR, h: IH_ABBR, align: 'left',
+    w: Math.min(maxW, runW(G_ABBR, s.length)),
+    gap: G_ABBR.gap, maxXs: 1.9, minXs: 0.85,
+    keyline: { color: '#000000', k: 0.055 },
+    shadow: SHADOW,
+    halo: { color: halo, blur: 9, alpha: 0.7, reps: 1 },
+    grad,
+    shade: { color: 'rgba(10,16,28,0.14)', dy: 2.2, alpha: 1 },
+  });
+}
 
-  // momentum: one meter across the block, broken at the cell gaps so it reads
-  // segmented exactly the way the panel's strip does
-  const fill = Math.max(0, Math.min(1, mom));
-  const segs = crestCell
-    ? [[abbrCell.x - 1, abbrCell.w - 4], [scoreCell.x + 1, scoreCell.w - 8]]
-    : [[abbrCell.x + 3, abbrCell.w - 6], [scoreCell.x + 1, scoreCell.w - 8]];
-  let total = 0;
-  for (const s of segs) total += s[1];
-  let acc = 0;
-  for (const s of segs) {
-    const v0 = acc / total, v1 = (acc + s[1]) / total;
-    momentumSeg(c, s[0], s[1], v0, v1, fill, accent, col.primary);
-    acc += s[1];
-  }
-
-  // POSSESSION is carried by the accent hairline under the block: the team with
-  // the ball gets a lit 2.4 px rule, the other a dim 1 px one. A bright pip or
-  // bead at this size reads as a seam artefact rather than as information.
-  const aH = possess ? 2.4 : 1.0;
-  const aA = possess ? 0.92 : 0.26;
-  if (possess) { c.save(); c.shadowColor = rgba(accent, 0.85); c.shadowBlur = 7; }
-  c.fillStyle = hgrad(c, left, right, [
-    [0, rgba(accent, 0)],
-    [0.10, rgba(accent, aA)],
-    [0.90, rgba(accent, aA)],
-    [1, rgba(accent, 0)],
-  ]);
-  c.fillRect(left, CB - aH, right - left, aH);
-  if (possess) c.restore();
+/** A score numeral, right-aligned and packed to the cell. */
+function score(F, c, v, xRight, maxW) {
+  const s = String(v);
+  return inkSet(F, c, s, 'blitz-num', {
+    x: xRight, y: IY_SCORE, h: IH_SCORE, align: 'right',
+    w: Math.min(maxW, runW(G_SCORE, s.length)),
+    gap: G_SCORE.gap, maxXs: 1.85, minXs: 1.0,
+    keyline: KEY, halo: HALO, shadow: SHADOW, grad: NUM_GRAD,
+    shade: { color: 'rgba(12,20,34,0.15)', dy: 2.6, alpha: 1 },
+  });
 }
 
 /* ------------------------------------------------------------------ bake */
@@ -318,6 +369,7 @@ export function bake(ui, S, k) {
   if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
   const c = cx;
   const F = ui.faces;
+  const PH = PLATE.h;
   c.setTransform(1, 0, 0, 1, 0, 0);
   c.clearRect(0, 0, W, H);
   c.setTransform(s, 0, 0, s, 0, 0);
@@ -325,101 +377,229 @@ export function bake(ui, S, k) {
   c.lineJoin = 'round';
   c.miterLimit = 2;
 
-  const plate = rr(0, 0, PLATE.w, PLATE.h, PLATE.r);
-
-  shadowRing(c, plate, 20, 6, 0.74);
-  c.fillStyle = vgrad(c, 0, PLATE.h, PLATE_STOPS);
-  c.fill(plate);
-  brushed(c, plate, 0, 0, PLATE.w, PLATE.h, 0x51a7, 0.8 * quality);
-  grain(c, plate, 0, 0, PLATE.w, PLATE.h, 0x2c19, 0.7 * quality);
-  gloss(c, plate, 0, 0, PLATE.w, PLATE.h * 0.6, 0.05, 0.5);
-  innerEdge(c, plate, 0, 1.4, 'rgba(206,228,255,0.32)', 'rgba(0,0,0,0.55)', 1.6);
-  c.strokeStyle = 'rgba(126,156,196,0.24)';
-  c.lineWidth = 1.1;
-  c.stroke(plate);
-
-  /* ---- left cap: quarter chip over timeout chip ------------------------ */
-  const chipW = 20, chipX = CAP.x + (CAP.w - chipW) / 2;
-  boneChip(c, chipX, 10, chipW, 54);
+  /* ---- carrier: opaque black gutters, then six recessed tiles ----------- */
+  const bounds = rr(-1, -1, PLATE.w + 2, PH + 2, TR + 1);
   c.save();
-  c.translate(chipX + chipW / 2, 37);
-  c.rotate(-Math.PI / 2);
-  F.draw(c, S.quarter, 0, 5, {
-    face: 'blitz-block', size: 15, align: 'center', tracking: 0.07,
-    fill: '#191d26', grain: 0,
-  });
+  c.shadowColor = 'rgba(0,2,6,0.62)';
+  c.shadowBlur = 9;
+  c.shadowOffsetY = 3.5;
+  c.fillStyle = 'rgba(0,0,0,0.90)';
+  c.fill(bounds);
   c.restore();
+  for (const t of TILES) tile(c, t, PH);
+  grain(c, bounds, 0, 0, PLATE.w, PH, 0x2c19, 0.55 * quality);
 
-  boneChip(c, chipX, 72, chipW, 24);
-  for (let i = 0; i < 3; i++) {
-    c.fillStyle = i < S.timeouts ? '#1d222c' : 'rgba(29,34,44,0.28)';
-    c.beginPath();
-    c.arc(chipX + chipW / 2, 78.5 + i * 5.6, 1.8, 0, Math.PI * 2);
-    c.fill();
+  const castB = castOf(ui, S.teamB);
+
+  /* ---- left cap: two cream chips, each holding a tiny dark mark ----------
+     The bar's left chip is a TALL cream tile carrying two dark marks over a
+     SHORT one carrying a single mark. Round one rotated "2ND" -90 degrees into
+     this slot, which is illegible at 1x and appears nowhere in the art. Here the
+     tall chip is the DOWN as up-to-four dark bars and the short chip is the
+     quarter as an upright dark numeral. ----------------------------------- */
+  const chipX = 10, chipW = 28;
+  boneChip(c, chipX, 7, chipW, 55);
+  const down = Math.max(1, Math.min(4, parseInt(String(S.dist || '1'), 10) || 1));
+  for (let i = 0; i < 4; i++) {
+    const on = i < down;
+    c.fillStyle = on ? '#191d25' : 'rgba(124,118,102,0.30)';
+    c.fill(rr(chipX + 7, 12 + i * 11, 14, 6.4, 1.8));
+    if (on) {
+      c.fillStyle = 'rgba(255,255,255,0.26)';
+      c.fillRect(chipX + 7, 17.4 + i * 11, 14, 0.9);
+    }
   }
+  boneChip(c, chipX, 66, chipW, 30);
+  inkSet(F, c, String(S.quarter || '').replace(/[^0-9A-Z]/g, '').slice(0, 1) || '1',
+    'blitz-block', {
+      x: chipX + chipW / 2, y: 71, h: 19, align: 'center', gap: 2,
+      fill: '#14171d',
+    });
 
-  /* ---- clock cell ------------------------------------------------------ */
-  const clp = cellPlate(c, CLK.x, CLK.w, [46, 74, 120], 0.30);
-  c.save();
-  c.clip(clp);
-  c.fillStyle = vgrad(c, CT, CB, [
-    [0, 'rgba(102,152,224,0.15)'],
-    [0.55, 'rgba(40,70,120,0.04)'],
-    [1, 'rgba(6,12,24,0.28)'],
+  /* ---- clock cell ------------------------------------------------------- */
+  const ck = String(S.clock);
+  inkSet(F, c, ck, 'blitz-num', {
+    x: T_CLK.x + T_CLK.w - 2, y: IY_CLOCK, h: IH_CLOCK, align: 'right',
+    w: Math.min(T_CLK.w - 4, runW(G_CLOCK, ck.length) - (ck.indexOf(':') >= 0 ? 20 : 0)),
+    gap: G_CLOCK.gap, maxXs: 1.6, minXs: 0.95,
+    keyline: KEY, halo: { color: 'rgba(190,214,255,0.42)', blur: 8, alpha: 0.75, reps: 1 },
+    shadow: SHADOW, grad: NUM_GRAD,
+    shade: { color: 'rgba(12,20,34,0.15)', dy: 2.2, alpha: 1 },
+  });
+
+  /* ---- second line: the YARDAGE, white outlined, with a gold rule under it.
+     Round 1 had this inverted — small gold text at half the size. The bar sets it
+     in the same numeral face at ~63% of the clock's ink height and puts the gold
+     in a stripe beneath, not in the letterforms. ---------------------------- */
+  const yard = String(S.yards === undefined || S.yards === null ? '' : S.yards);
+  const yr = inkSet(F, c, yard, 'blitz-num', {
+    x: T_CLK.x + 6, y: IY_YARD, h: IH_YARD, align: 'left',
+    w: Math.min(T_CLK.w - 12, runW(G_YARD, yard.length)),
+    gap: G_YARD.gap, maxXs: 1.7, minXs: 0.9,
+    keyline: { color: '#000000', k: 0.06 },
+    shadow: { color: 'rgba(0,3,9,0.85)', blur: 5, dy: 2, alpha: 0.85 },
+    grad: NUM_GRAD,
+  });
+  const rw = Math.max(26, Math.min(T_CLK.w - 8, yr.w + 6));
+  c.fillStyle = hgrad(c, T_CLK.x + 4, T_CLK.x + 4 + rw, [
+    [0.00, 'rgba(255,246,180,0.95)'],
+    [0.42, 'rgba(255,210,30,0.92)'],
+    [1.00, 'rgba(170,118,10,0.55)'],
   ]);
-  c.fillRect(CLK.x, CT, CLK.w, CB - CT);
-  c.restore();
+  c.fillRect(T_CLK.x + 4, IY_YARD + IH_YARD + 2.5, rw, 3.2);
+  c.fillStyle = 'rgba(255,255,255,0.35)';
+  c.fillRect(T_CLK.x + 4, IY_YARD + IH_YARD + 2.5, rw, 1);
 
-  scoreType(F, c, S.clock, CLK.x + CLK.w - 6, Y_CLOCK, SZ_CLOCK, 'right');
+  /* ---- team A: abbreviation + score + fire meter ------------------------- */
+  abbr(F, c, S.teamA, T_ABA.x + 3, T_ABA.w - 20, ABBR_COOL, 'rgba(150,190,240,0.26)');
+  score(F, c, S.scoreA, T_SCA.x + T_SCA.w - 6, T_SCA.w - 8);
 
-  // Down and distance. The ordinal suffix is set SMALL AND RAISED: at 26 px ink
-  // height the block face's flat-topped S sits next to a leading numeral and
-  // reads as a 5 ("1ST" -> "15T"). Superscripting it removes the collision and
-  // is what a real scoreboard does anyway.
-  const GOLD = [[0.00, '#ffeaba'], [0.46, '#f3c452'], [1.00, '#c9932a']];
-  const COOL = [[0.00, '#ffffff'], [0.55, '#dce4ef'], [1.00, '#a3b1c5']];
-  const dnum = String(S.dist).replace(/[^0-9]/g, '') || S.dist;
-  const dord = String(S.dist).replace(/[0-9]/g, '');
-  let dx = CLK.x + 17;
-  const m1 = F.draw(c, dnum, dx, Y_DD, {
-    face: 'blitz-num', size: SZ_DD * 0.94, gradient: GOLD,
-    outline: 'rgba(3,6,12,0.9)', outlineWidth: SZ_DD * 0.05,
-    shadow: { color: 'rgba(0,4,11,0.6)', blur: 4, dy: 1.5 }, grain: 0,
-  });
-  dx += m1.w + 1;
-  if (dord) {
-    const m2 = labelType(F, c, dord, dx, Y_DD - SZ_DD * 0.30, SZ_DD * 0.56, 'left', GOLD, 0.02);
-    dx += m2.w + 2;
-  }
-  c.fillStyle = 'rgba(226,190,108,0.8)';
+  /* ---- team B: crest + abbreviation + possession mark + score + gold ----- */
+  drawCrest(c, ui, S.teamB, T_TMB.x + 5, 7, 50, castB);
+  abbr(F, c, S.teamB, T_TMB.x + 58, 78, ABBR_WARM, 'rgba(255,206,130,0.28)');
+  score(F, c, S.scoreB, T_SCB.x + T_SCB.w - 6, T_SCB.w - 8);
+
+  // possession: the bar's tiny amber mark tucked to the right of the crested
+  // team's abbreviation. Drawn on whichever side actually has the ball.
+  const pv = [
+    [T_ABA.x + T_ABA.w - 14, 24],
+    [T_TMB.x + 138, 24],
+  ][S.possess === 1 ? 1 : 0];
+  c.save();
+  c.shadowColor = 'rgba(255,140,26,0.8)';
+  c.shadowBlur = 6;
+  c.fillStyle = vgrad(c, pv[1], pv[1] + 17, [
+    [0, '#ffc663'], [0.45, '#f47c0c'], [1, '#b23c06'],
+  ]);
   c.beginPath();
-  c.arc(dx + 4, Y_DD - 8, 1.9, 0, Math.PI * 2);
+  c.moveTo(pv[0], pv[1]);
+  c.lineTo(pv[0] + 9, pv[1] + 8.5);
+  c.lineTo(pv[0], pv[1] + 17);
+  c.closePath();
   c.fill();
-  F.draw(c, S.yards, dx + 10, Y_DD, {
-    face: 'blitz-num', size: SZ_DD * 0.94, gradient: COOL,
-    outline: 'rgba(3,6,12,0.9)', outlineWidth: SZ_DD * 0.05,
-    shadow: { color: 'rgba(0,4,11,0.6)', blur: 4, dy: 1.5 }, grain: 0,
-  });
+  c.restore();
+  c.strokeStyle = 'rgba(0,0,0,0.85)';
+  c.lineWidth = 1.2;
+  c.beginPath();
+  c.moveTo(pv[0], pv[1]);
+  c.lineTo(pv[0] + 9, pv[1] + 8.5);
+  c.lineTo(pv[0], pv[1] + 17);
+  c.closePath();
+  c.stroke();
 
-  /* ---- teams ----------------------------------------------------------- */
-  teamBlock(c, ui, S.teamA, S.scoreA, S.momA, null, A_AB, A_SC, S.possess === 0);
-  teamBlock(c, ui, S.teamB, S.scoreB, S.momB, B_CR, B_AB, B_SC, S.possess === 1);
-
-  /* ---- divider --------------------------------------------------------- */
-  c.fillStyle = vgrad(c, CT, CB, [
-    [0, 'rgba(150,180,220,0.02)'],
-    [0.5, 'rgba(184,212,248,0.34)'],
-    [1, 'rgba(150,180,220,0.02)'],
-  ]);
-  c.fillRect(DIV - 0.7, CT + 5, 1.4, CB - CT - 10);
-  c.fillStyle = 'rgba(0,0,0,0.5)';
-  c.fillRect(DIV + 0.9, CT + 5, 1, CB - CT - 10);
+  /* ---- meters ----------------------------------------------------------- */
+  // Under the abbreviations: the timeout row, steel blue with light pips.
+  // Under the scores: momentum. Left team burns orange->red, right team gold —
+  // and the gold is the brightest accent in the whole cluster, exactly as in the
+  // bar. Neither is derived from brand.colors, because the bar's cluster has no
+  // pink and no purple in it anywhere.
+  meter(c, T_ABA.x + 1, T_ABA.w - 2, [STEEL, STEEL, STEEL, STEEL],
+    0.34 + 0.22 * Math.max(0, Math.min(3, S.timeouts | 0)), { pips: Math.max(0, Math.min(3, S.timeouts | 0)) });
+  meter(c, T_SCA.x + 1, T_SCA.w - 2, FIRE_RAMP, S.momA, { rule: '#e2a428' });
+  meter(c, T_TMB.x + 1, T_TMB.w - 2, [STEEL, STEEL, STEEL, STEEL],
+    0.30 + 0.20 * Math.max(0, Math.min(3, S.timeoutsB === undefined ? 2 : S.timeoutsB | 0)),
+    { pips: Math.max(0, Math.min(3, S.timeoutsB === undefined ? 2 : S.timeoutsB | 0)) });
+  meter(c, T_SCB.x + 1, T_SCB.w - 2, GOLD_RAMP, S.momB, { rule: '#e2a428' });
 
   c.setTransform(1, 0, 0, 1, 0, 0);
   return cv;
+}
+
+/* ------------------------------------------- timing-feedback surfaces (FX)
+ * The timing-windows piece emits PERFECT and MISSED events. Both are baked once
+ * into their own layer and blitted with a scalar alpha, so a 180 ms fade costs
+ * one extra drawImage and never re-rasterises anything.
+ */
+
+let fxA = null, fxB = null, fxK = -1;
+
+/** Scale-only: the timing surfaces do not depend on game state, so this is a
+ *  no-op after the first call at a given blit scale. */
+export function bakeFx(k) {
+  const s = k || 1;
+  if (fxA && fxK === s && fxA.width > 4) return;
+  fxK = s;
+  const W = Math.round(BOX.w * s), H = Math.round(BOX.h * s);
+  if (!fxA) { fxA = mkCanvas(W, H); fxB = mkCanvas(W, H); }
+  if (fxA.width !== W) { fxA.width = W; fxA.height = H; fxB.width = W; fxB.height = H; }
+  const h = PLATE.h;
+  const p = rr(-1, -1, PLATE.w + 2, h + 2, TR + 1);
+
+  // PERFECT: a white-hot rim plus a warm inner wash.
+  const a = fxA.getContext('2d');
+  a.setTransform(1, 0, 0, 1, 0, 0);
+  a.clearRect(0, 0, W, H);
+  a.setTransform(s, 0, 0, s, 0, 0);
+  a.translate(MG, MG);
+  a.save();
+  a.shadowColor = 'rgba(255,226,150,0.95)';
+  a.shadowBlur = 18;
+  a.strokeStyle = 'rgba(255,248,220,0.95)';
+  a.lineWidth = 2.8;
+  a.stroke(p);
+  a.stroke(p);
+  a.restore();
+  a.save();
+  a.clip(p);
+  a.fillStyle = vgrad(a, 0, h, [
+    [0, 'rgba(255,236,180,0.30)'],
+    [0.55, 'rgba(255,196,90,0.10)'],
+    [1, 'rgba(255,170,60,0.00)'],
+  ]);
+  a.fillRect(0, 0, PLATE.w, h);
+  a.restore();
+  a.setTransform(1, 0, 0, 1, 0, 0);
+
+  // MISSED: a hard red tick down the left cap plus a red rim on the clock tile.
+  const b = fxB.getContext('2d');
+  b.setTransform(1, 0, 0, 1, 0, 0);
+  b.clearRect(0, 0, W, H);
+  b.setTransform(s, 0, 0, s, 0, 0);
+  b.translate(MG, MG);
+  b.save();
+  b.shadowColor = 'rgba(240,60,40,0.95)';
+  b.shadowBlur = 13;
+  b.fillStyle = vgrad(b, 0, h, [
+    [0, 'rgba(255,120,90,0.95)'],
+    [0.5, 'rgba(226,32,28,0.95)'],
+    [1, 'rgba(120,10,10,0.92)'],
+  ]);
+  b.fillRect(-5, 3, 4, h - 6);
+  b.fillRect(-5, 3, 4, h - 6);
+  b.restore();
+  b.save();
+  b.strokeStyle = 'rgba(228,44,34,0.85)';
+  b.lineWidth = 1.8;
+  b.stroke(rr(T_CLK.x - 1, -1, T_CLK.w + 2, h + 2, TR + 1));
+  b.restore();
+  b.setTransform(1, 0, 0, 1, 0, 0);
+}
+
+/** Blit the timing surfaces. Two numeric-arg drawImage calls at most. */
+export function drawFx(c, ox, oy, flash, miss, k) {
+  const d = k || 1;
+  if (flash > 0.002 && fxA) {
+    c.save();
+    c.globalAlpha = flash > 1 ? 1 : flash;
+    c.globalCompositeOperation = 'lighter';
+    c.drawImage(fxA, ox, oy, BOX.w * d, BOX.h * d);
+    c.restore();
+  }
+  if (miss > 0.002 && fxB) {
+    c.save();
+    c.globalAlpha = miss > 1 ? 1 : miss;
+    c.drawImage(fxB, ox, oy, BOX.w * d, BOX.h * d);
+    c.restore();
+  }
 }
 
 export function canvas() { return cv; }
 export function invalidate() { if (cv) { cv.width = 1; cv.height = 1; } }
 export const ORIGIN = { x: PLATE.x - MG, y: PLATE.y - MG };
 export const BOX = { w: PLATE.w + MG * 2, h: PLATE.h + MG * 2, mg: MG };
+/**
+ * The six tile rects, plate-local. Exported so a dirty-rect caller can invalidate
+ * exactly the cell whose value changed — the clock ticks once a second and nothing
+ * else in the cluster moves with it — rather than the whole 636 x 103 strip.
+ */
+export const CELLS = { T_CHIP, T_CLK, T_ABA, T_SCA, T_TMB, T_SCB };

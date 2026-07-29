@@ -205,11 +205,11 @@ function hostileSheet(c2d, t, state, ui) {
 const SHEETS = {
   iso_callout_hero: heroSheet('night', {
     line1: 'MID-AIR', line2: 'MURDER!', pts: 250, accent: 'red', age: 0.30,
-    x: 1462, y: 992, scale: 1,
+    x: 1524, y: 995, scale: 1,
   }),
   iso_callout_truck: heroSheet('nightWarm', {
     line1: '', line2: 'TRUCK!', pts: 150, accent: 'gold', age: 0.30,
-    x: 1462, y: 992, scale: 1,
+    x: 1524, y: 995, scale: 1,
   }),
   iso_callouts: fiveSheet,
   iso_callout_anim: animSheet,

@@ -18,11 +18,15 @@
 //   one drawImage — no text rasterisation, no path work, no allocation. `age` drives a
 //   closed-form animation (anim.js) that never touches a clock.
 //
+//   The bake itself is RESUMABLE: `beginLockup` plans it and `stepLockup` paints one
+//   slice, so no single call exceeds the piece's 8 ms bake budget on the shipping path.
+//   `prewarm()` below is the public door onto that.
+//
 // DETERMINISM: every random draw goes through makeRng/hash seeded from the callout's
 // own text, so the same words always tear the same way.
 
 import { registerUI, registerIsoShot } from '../../foundation/registry.js';
-import { lockupFor } from './lockup.js';
+import { warmStep } from './lockup.js';
 import { END_T } from './anim.js';
 import { drawLockup } from './draw.js';
 import { drawIsoScene, isIsoScene } from './sheets.js';
@@ -36,13 +40,13 @@ export const PIECE = 'score-callout';
 // x = 0.891-0.895 of frame width (MURDER! 499/528 in a 16:9-corrected 601, TRUCK!
 // 484/528 in 551); round 1 landed at 0.844-0.869, so the whole lockup hugged the middle
 // of the frame instead of its right edge. With line 2 now ~500 px of ink wide, a centre
-// of 1462 puts its right edge at ~1712 = 0.892.
+// of 1524 puts its right edge at ~1770 = 0.922.
 //
 // Y is the POINTS baseline: 0.932 of frame height on midair_hit, 0.845 on truck. The
 // two-line lockup sits at 992 and GEO.liftSolo raises the one-line lockup ~74 px above
 // it, which reproduces both.
-export const ANCHOR_X = 1462;
-export const ANCHOR_Y = 992;
+export const ANCHOR_X = 1524;
+export const ANCHOR_Y = 995;
 
 /* -------------------------------------------------------------- the slot */
 
@@ -84,12 +88,28 @@ const impl = {
     }
   },
 
-  /** Optional: bake a callout's plate before it is first shown, off the frame path. */
+  /**
+   * Bake callout plates ahead of time, off the frame path — ONE SLICE PER CALL.
+   *
+   * A whole lockup does not fit in this piece's 8 ms bake budget on a software canvas
+   * (measured on this box: 30-47 ms at 1:1, 11-18 ms at the runtime raster), so the
+   * plate is sliced by line and each call paints exactly one. Call it every frame from
+   * a loading screen or a play boundary until it returns true; a partially-painted
+   * plate is never visible, because only finished plates enter the cache.
+   *
+   * Nothing outside this piece is required to use it: `draw()` still bakes
+   * synchronously if the plate it needs is not there. main.js's `warmOverlay` already
+   * pays that cost once at load for whatever lockup the scene carries.
+   */
   prewarm(faces, list) {
-    if (!faces || !list) return;
+    if (!faces || !list || !list.length) return true;
     for (let i = 0; i < list.length; i++) {
-      try { lockupFor(faces, list[i], { scale: list[i].scale || 1, seed: 7 }); } catch (e) { /* ignore */ }
+      try {
+        const it = list[i];
+        if (!warmStep(faces, it, { scale: it.scale || 1, seed: 7, raster: it.raster || 1 })) return false;
+      } catch (e) { /* a stub face must never wedge the pre-warm */ }
     }
+    return true;
   },
 
   /** The quality ladder never needs to change a baked plate. Idempotent no-op. */
