@@ -125,7 +125,7 @@ function fiveSheet(c2d, t, state, ui) {
       c2d.fillRect(cx0 + 22 + s * sw, y, sw - 3, 40);
     }
   }
-  label(c2d, faces, 'RAMPS SAMPLED OFF THE BAR PANELS', cx0 + 22, cy0 + ch - 22, 13, 'rgba(150,160,176,0.6)');
+  label(c2d, faces, 'FLAT INK · MEASURED MEANS OFF THE BAR PANELS', cx0 + 22, cy0 + ch - 22, 13, 'rgba(150,160,176,0.6)');
   c2d.restore();
   frame(c2d, cx0, cy0, cw, ch);
 }
@@ -175,7 +175,7 @@ function hostileSheet(c2d, t, state, ui) {
   c2d.fillStyle = '#0a0b0e';
   c2d.fillRect(0, 0, W, H);
   label(c2d, faces, 'LEGIBILITY OVER HOSTILE BACKGROUNDS', 34, 46, 26, 'rgba(232,236,244,0.92)');
-  label(c2d, faces, 'HALO + KEYLINE + TWO-PASS SHADOW · NO BACKGROUND SHOULD EAT THE LOCKUP',
+  label(c2d, faces, 'SOFT HALO + CONTACT SHADOW · FLAT MATTE INK, NO KEYLINE · NOTHING SHOULD EAT THE LOCKUP',
     700, 45, 14, 'rgba(150,160,176,0.72)');
 
   const BG = ['bright', 'crowd', 'grey', 'night'];

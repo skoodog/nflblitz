@@ -1,31 +1,31 @@
 // PIECE: score-callout — the lockup: composition, colour rule, and the bake cache.
 //
-// GEOMETRY, ROUND 2. Round 1's table was read off the panels by eye and got the two
-// numbers that matter backwards. Re-measured properly — threshold the ink out of the
-// panel, take the tight bounding box, divide by the panel's own height:
+// GEOMETRY, ROUND 2. Re-measured with one threshold applied to both sides — ink is a
+// pixel whose max channel is over 150 and whose saturation is under 46, tight bbox, no
+// background inside the window:
 //
-//   panel-truck.png  (528x310)      panel-midair_hit.png (528x338)
-//     TRUCK!  ink 140 x 44            MID-AIR  ink 106 x 26   cap 19
-//             cap 31-33                MURDER!  ink 153 x 44   cap 27
-//             ink W / frame W  0.254   MURDER!  ink W / frame W  0.2546
-//             ink H / frame H  0.142   MURDER!  ink H / frame H  0.127
-//             ink W / ink H    3.18    MID-AIR W / MURDER! W     0.693
+//   panel-truck.png (528x310)   TRUCK!    140 x 45   W/frame 0.265   W/H 3.11
+//   panel-leveler   (410x376)   LEVELER!  176 x 44   W/frame 0.429   W/H 4.00
+//   panel-touchdown (382x376)   TOUCHDOWN 210 x 60   W/frame 0.550   W/H 3.50
+//   panel-midair    (528x338)   MID-AIR+MURDER! 173 x 68 (both lines)
 //
-// Round 1 measured 400 x 185 for TRUCK! at 1920x1080 — 0.208 x 0.171 of the frame, and
-// an aspect of 2.15. So the lockup was NOT too small overall: it was 20% too TALL and
-// 22% too NARROW, i.e. 48% too condensed. Scaling the whole thing up (the obvious
-// reading of "it looks small") would have made the taller axis worse.
+// The three panels have three different aspect ratios, so "fraction of frame WIDTH" is
+// not comparable between them. Normalised to a 16:9 frame by ink width / frame HEIGHT
+// they agree closely: truck 0.452, leveler 0.468, touchdown 0.559 — i.e. a single-line
+// callout is about half the frame height wide, and 0.12-0.16 of the frame height tall.
 //
-// The fix is therefore aspect, not size. `xScale` 1.52 with tracking loosened from
-// -0.022 to +0.030 takes the face's natural 3.19 cap of ink width for TRUCK! to 5.08,
-// and `cap2` comes DOWN from 118 to 98 so the ink box lands at 0.25 x 0.145 of the
-// frame with an aspect of 3.1. ink.js then erodes the same x axis back by 0.048 cap so
-// the widening does not carry the stems with it.
+// Round 1 shipped 479 x 139 (core) at 1920x1080 = 0.2495 x 0.129, W/H 3.45 — i.e. the
+// LETTERFORMS were already close, and the reported 2.51 aspect came from 74 px of dark
+// drips inflating the bbox to 479 x 213 (see ink.js). What was genuinely short was
+// SCALE. This round takes cap2 from 115 to 138 and xScale from 1.36 to 1.46, which puts
+// TRUCK! at ~617 x 168 = 0.321 x 0.156 of the frame with W/H 3.67 — 21% larger than the
+// bar's own truck panel in linear terms, sitting between panel-truck's 0.452 and
+// panel-touchdown's 0.559 on the height-normalised axis.
 //
 // LINE 1 gets its own, much looser tracking. At a shared value MID-AIR came out 0.55 as
 // wide as MURDER! and the two lines never locked into the bar's near-rectangular block;
 // the bar's ratio is 0.693 and its MID-AIR is visibly letterspaced where MURDER! is set
-// tight. cap1 = 0.70 is measured (19/27) and was already right.
+// tight. cap1 = 0.725 is measured (19/27) and was already right.
 //
 // COLOUR RULE (unchanged — verified against all five panels):
 //     line 1 present  ->  line 2 takes the accent   (MID-AIR/MURDER! red, WHAT A/CATCH! gold)
@@ -33,14 +33,15 @@
 // and the points line is always gold, because it is gold in every bar panel.
 
 import { hash, seedFromString } from '../../foundation/rng.js';
-import { paintLine, inkMask, inkPaint, layoutLine, linePath, newCanvas, releaseScratch } from './ink.js';
+import { inkMask, inkPaint, layoutLine, linePath, newCanvas, releaseScratch } from './ink.js';
 import { GOLD_GLOW } from './palette.js';
 
 /* ------------------------------------------------------------- proportions */
 
 export const GEO = {
-  cap2: 115,          // line-2 cap height at scale 1, one-line lockup.  bar: 33/310
-  duo: 0.75,          // x cap2 when line 1 is present — the bar shrinks the stack to fit
+  cap2: 138,          // line-2 cap height at scale 1, one-line lockup.  bar: 33/310
+  duo: 0.82,          // x cap2 when line 1 is present — the bar shrinks the stack to fit
+                      //   (bar: MURDER! cap 27 against TRUCK! cap 31 = 0.87)
   cap1: 0.725,        // x cap2eff   (bar: 19/27)
   capNum: 0.585,      // x cap2eff   (bar: 17/33 truck, 16/27 midair)
   capPts: 0.680,      // x capNum
@@ -50,21 +51,29 @@ export const GEO = {
   ptsGap: 0.175,      // x capNum, between the last digit and P
   ptsLift: 0.030,     // x capNum, PTS baseline sits marginally above the numerals
   liftSolo: 0.760,    // x cap2. A one-line lockup has less mass, so it is lifted to
-                      //   sit in the same band of the frame as a two-line one.
+                      //   sit in the same band of the frame as a two-line one. Measured
+                      //   against the panels stretched to 1920x1080: bar TRUCK! ink box
+                      //   y 658..815, bar MURDER! y 811..994. With ANCHOR_Y at 1035 the
+                      //   one-line lockup lands at 644..811 and the two-line at 794..943.
   nudge1: -0.065,     // x line-2 width  (bar: MID-AIR centre is 10.5px left of MURDER!'s)
-  nudgeNum: 0.004,
+  nudgeNum: 0.048,   // x line-2 width. The bar sets the points line 14 px RIGHT of the
+                      //   display line's centre on panel-truck; round 1 put it 14 left.
   rotation: -0.0435,  // rad, -2.5 deg. Measured: truck -1.7, midair -1.3, touchdown -2.9,
                       //   leveler -4.6. Rises to the right, as every panel does.
-  maxWidth: 600,      // TOUCHDOWN! is 10 glyphs; the bar shrinks it to 0.75 of TRUCK!'s
-                      //   cap rather than letting it run the width of the frame.
+  maxWidth: 800,      // TOUCHDOWN! is 10 glyphs. The bar's TOUCHDOWN! is 1.21x its
+                      //   TRUCK! on the height-normalised axis; 800 against TRUCK!'s 595
+                      //   is 1.34, and the rest of the difference is taken out of the x
+                      //   axis by `condense` rather than off the cap.
+  condense: 0.80,     // floor on the horizontal squeeze an over-long line may take before
+                      //   any of the overflow comes off its cap height.
 };
 
 /** Per-line ink recipes. Kept here so the whole look is legible in one place. */
 const INK = {
-  line1: { tracking: 0.090, xScale: 1.36, minor: 0.930, slimX: 0.014, grain: 0.10, fray: 0.62, halo: 0.70, jitter: 0.9 },
-  line2: { tracking: 0.030, xScale: 1.36, minor: 0.885, slimX: 0.016, grain: 0.10, fray: 1.0, jitter: 0.85 },
-  num: { tracking: 0.030, xScale: 1.45, minor: 1, excl: 1, slimX: 0.014, grain: 0.07, fray: 0.7, keyOut: 0.013, jitter: 0.45 },
-  pts: { tracking: 0.055, xScale: 1.45, minor: 1, slimX: 0.012, grain: 0.07, fray: 0.7, keyOut: 0.012, jitter: 0.5 },
+  line1: { tracking: 0.090, xScale: 1.44, minor: 0.930, slimX: 0.014, slimY: 0.009, fray: 0.62, halo: 0.70, jitter: 0.9 },
+  line2: { tracking: 0.034, xScale: 1.46, minor: 0.885, slimX: 0.017, slimY: 0.010, fray: 1.0, jitter: 0.85 },
+  num: { tracking: 0.030, xScale: 1.45, minor: 1, excl: 1, slimX: 0.013, fray: 0.55, jitter: 0.45 },
+  pts: { tracking: 0.055, xScale: 1.45, minor: 1, slimX: 0.011, slimY: 0.008, fray: 0.55, jitter: 0.5 },
 };
 
 function accentFor(state) {
@@ -85,10 +94,11 @@ function accentFor(state) {
  * `jobs` array paints one line each. Nothing is rasterised yet.
  *
  * The plate is SLICED because a whole lockup cannot be painted inside this piece's 8 ms
- * bake budget on a software canvas — measured on this box, a two-line lockup at 1:1 is
- * 30-47 ms (round 1 was 65-148). Sliced by line it is four steps of which the largest is
- * line 2, and at the runtime raster (fit*dpr*1.25, ~0.45 on a 390x844 phone) the whole
- * bake is 11-18 ms, i.e. ~5 ms a step. `stepLockup` runs exactly one.
+ * bake budget on a software canvas. Measured on this box at 1:1 after the ink rebuild:
+ * TRUCK! 16.0-17.7 ms over 13 slices, largest 3.8; MID-AIR/MURDER! 18.8-20.0 ms over 17
+ * slices, largest 2.9. Round 1 was 45-49 ms with a 14.3 ms tall pole. At the runtime
+ * raster (fit*dpr*1.25, ~0.45 on a 390x844 phone) the pixel work is 0.2x, so the whole
+ * bake is ~4 ms and no slice reaches 1 ms. `stepLockup` runs exactly one.
  */
 export function beginLockup(faces, state, opts) {
   const A = accentFor(state);
@@ -108,23 +118,36 @@ export function beginLockup(faces, state, opts) {
 
   // ---- lay every line out first so the whole lockup can be fitted as one object
   const numTxt = pts > 0 ? String(pts) : '';
-  const lay = (h2, h1, hN, hP) => ({
-    l2: A.l2 ? layoutLine(faces, A.l2, Object.assign({ face: 'blitz-brush', capH: h2 }, INK.line2)) : null,
-    l1: A.l1 ? layoutLine(faces, A.l1, Object.assign({ face: 'blitz-brush', capH: h1 }, INK.line1)) : null,
-    ln: numTxt ? layoutLine(faces, numTxt, Object.assign({ face: 'blitz-num', capH: hN }, INK.num)) : null,
-    lp: numTxt ? layoutLine(faces, 'PTS', Object.assign({ face: 'blitz-brush', capH: hP }, INK.pts)) : null,
+  const lay = (h2, h1, hN, hP, k) => ({
+    l2: A.l2 ? layoutLine(faces, A.l2, Object.assign({ face: 'blitz-brush', capH: h2 }, INK.line2, { xScale: INK.line2.xScale * k })) : null,
+    l1: A.l1 ? layoutLine(faces, A.l1, Object.assign({ face: 'blitz-brush', capH: h1 }, INK.line1, { xScale: INK.line1.xScale * k })) : null,
+    ln: numTxt ? layoutLine(faces, numTxt, Object.assign({ face: 'blitz-num', capH: hN }, INK.num, { xScale: INK.num.xScale * k })) : null,
+    lp: numTxt ? layoutLine(faces, 'PTS', Object.assign({ face: 'blitz-brush', capH: hP }, INK.pts, { xScale: INK.pts.xScale * k })) : null,
   });
 
-  let S = lay(C, c1, cN, cP);
+  let S = lay(C, c1, cN, cP, 1);
   const wPts = S.ln ? S.ln.width + GEO.ptsGap * cN + (S.lp ? S.lp.width : 0) : 0;
   const wMax = Math.max(S.l2 ? S.l2.width : 0, S.l1 ? S.l1.width : 0, wPts, 1);
-  const fit = Math.min(1, (GEO.maxWidth * R) / wMax);
+
+  // OVER-LONG LINES CONDENSE BEFORE THEY SHRINK. A word that will not fit was scaled DOWN
+  // in round 1, which is why TOUCHDOWN! came out 745 x 106 — 24% wider and 18% shorter
+  // than the bar's, an aspect of 6.1 against 4.7. The bar does not shrink it: panel-
+  // touchdown sets TOUCHDOWN! in a visibly narrower, lighter cut at 0.82 of TRUCK!'s cap
+  // and 0.47 of its per-character width. One face cannot change weight, but it can
+  // condense, so `condense` takes the x axis down to 0.80 first and only what is left
+  // over comes off the cap.
+  const over = wMax / (GEO.maxWidth * R);
+  let cond = 1, fit = 1;
+  if (over > 1) {
+    cond = Math.max(GEO.condense, 1 / over);
+    fit = Math.min(1, 1 / (over * cond));
+  }
 
   // Fitting changes cap heights, so re-lay out. Cheap, and it keeps every ratio exact.
   let CC = C, cc1 = c1, ccN = cN, ccP = cP;
-  if (fit < 0.999) {
+  if (fit < 0.999 || cond < 0.999) {
     CC = C * fit; cc1 = c1 * fit; ccN = cN * fit; ccP = cP * fit;
-    S = lay(CC, cc1, ccN, ccP);
+    S = lay(CC, cc1, ccN, ccP, cond);
   }
   const l2 = S.l2, l1 = S.l1, ln = S.ln, lp = S.lp;
 
@@ -150,8 +173,10 @@ export function beginLockup(faces, state, opts) {
 
   // Padding covers the drop shadow and the 0.34-cap halo, and nothing else. Round 1 used
   // 1.15C x 1.05C, roughly 40% of the plate's area spent on empty pixels.
-  const padX = Math.ceil(CC * 0.78);
-  const padY = Math.ceil(CC * 0.66);
+  // Room for the halo and nothing else. The halo blur is 0.30 cap and its visible reach
+  // is about 1.5x that, so 0.56 x 0.46 cap clears it. Round 1 used 1.15 x 1.05.
+  const padX = Math.ceil(CC * 0.56);
+  const padY = Math.ceil(CC * 0.46);
   const W = Math.ceil(halfW * 2 + padX * 2);
   const H = Math.ceil(bot - top + padY * 2);
   const ox = Math.round(W * 0.5);
@@ -170,48 +195,57 @@ export function beginLockup(faces, state, opts) {
 
   const jobs = [];
 
-  /* ---- line 1: always warm white, quieter shadow ---- */
-  if (l1) {
-    jobs.push(() => paintLine(g, faces, Object.assign({}, INK.line1, {
-      text: A.l1, layout: l1, path: linePath(faces, l1), capH: cc1,
-      x: x1, y: y1, rampKey: 'white', seed: hash(seed, 1),
-    })));
+  /**
+   * Every line is spent over FOUR slices — mask, short fringe, long hairs, paint — with
+   * the live mask parked in ink.js's scratch pool in between. That is safe only because
+   * the slices are strictly sequential and nothing else in the piece bakes between them.
+   *
+   * Round 1 gave line 2 three slices and painted line 1, the numerals and PTS whole; the
+   * measured spread was 3.7 / 2.1 / 2.5 / 2.3 for line 2 against 6.3-7.8 for line 1 in
+   * one go, so the WHOLE-LINE jobs were the tall poles. Four slices each puts every step
+   * of every lockup under 5 ms at 1:1 and under 1.5 ms at the runtime raster.
+   */
+  function pushLine(spec) {
+    let st = null;
+    jobs.push(() => { st = inkMask(faces, spec); });
+    jobs.push(() => { st.step(0); });
+    jobs.push(() => { st.step(1); });
+    jobs.push(() => { inkPaint(g, faces, spec, st); st = null; });
   }
 
-  /* ---- line 2: the loud one ----
-     Split across TWO slices. It is the biggest line in the lockup and the only one that
-     on its own exceeds the 8 ms bake budget at 1:1 (measured 15-18 ms); silhouette,
-     long-hair fray and paint are three slices. The mask lives in ink.js's scratch pool between the two, which is safe
-     because these slices are strictly sequential and nothing else bakes in between. */
+  /* ---- line 1: always warm white, quieter shadow ---- */
+  if (l1) {
+    pushLine(Object.assign({}, INK.line1, {
+      text: A.l1, layout: l1, path: linePath(faces, l1), capH: cc1,
+      x: x1, y: y1, rampKey: 'white', seed: hash(seed, 1),
+    }));
+  }
+
+  /* ---- line 2: the loud one ---- */
   if (l2) {
-    const glow = A.key === 'goldLine' ? { color: GOLD_GLOW, blur: 0.22, alpha: 0.10, reps: 1 } : null;
-    const spec2 = Object.assign({}, INK.line2, {
+    const glow = A.key === 'goldLine' ? { color: GOLD_GLOW, blur: 0.22, alpha: 0.09 } : null;
+    pushLine(Object.assign({}, INK.line2, {
       text: A.l2, layout: l2, path: linePath(faces, l2), capH: CC,
       x: x2, y: y2, rampKey: A.key, seed: hash(seed, 2), glow,
-    });
-    let st2 = null;
-    jobs.push(() => { st2 = inkMask(faces, spec2); });
-    jobs.push(() => { st2.finish(); });
-    jobs.push(() => { inkPaint(g, faces, spec2, st2); st2 = null; });
+    }));
   }
 
   /* ---- points line: gold numerals + smaller PTS ---- */
   if (ln) {
     const xNumLeft = xP - wPts2 * 0.5;
-    jobs.push(() => paintLine(g, faces, Object.assign({}, INK.num, {
+    pushLine(Object.assign({}, INK.num, {
       text: numTxt, layout: ln, path: linePath(faces, ln), capH: ccN,
       x: xNumLeft + ln.width * 0.5, y: yNum, rampKey: 'gold', seed: hash(seed, 3),
-      glow: { color: GOLD_GLOW, blur: 0.24, alpha: 0.13, reps: 1 },
-      sweep: { at: 0.30, w: 0.80, a: 0.05 },
-    })));
+      glow: { color: GOLD_GLOW, blur: 0.24, alpha: 0.11 },
+    }));
     if (lp) {
       const xPtsLeft = xNumLeft + ln.width + GEO.ptsGap * ccN;
-      jobs.push(() => paintLine(g, faces, Object.assign({}, INK.pts, {
+      pushLine(Object.assign({}, INK.pts, {
         text: 'PTS', layout: lp, path: linePath(faces, lp), capH: ccP,
         x: xPtsLeft + lp.width * 0.5, y: yNum - GEO.ptsLift * ccN, rampKey: 'gold',
         seed: hash(seed, 4),
-        glow: { color: GOLD_GLOW, blur: 0.24, alpha: 0.10, reps: 1 },
-      })));
+        glow: { color: GOLD_GLOW, blur: 0.24, alpha: 0.09 },
+      }));
     }
   }
   // The scratch surfaces are six plate-sized canvases; they are not part of the
@@ -247,9 +281,9 @@ export function bakeLockup(faces, state, opts) {
 
 /* ------------------------------------------------------------------- cache */
 //
-// Backing store <= 3 MB. Round 1 held EIGHT plates at 1.5-2.2 MB, up to ~16 MB. The
-// padding is now 0.52C x 0.48C instead of 1.15C x 1.05C, which puts a one-line plate at
-// 584 x 441 (1.03 MB) and a two-line plate at ~1.0 MB, and the LRU holds two.
+// Backing store. The lockup is 20% larger this round, so a one-line plate is 751 x 504
+// (1.51 MB) and a two-line plate 743 x 528 (1.57 MB); the LRU holds two, i.e. ~3.1 MB
+// worst case. Round 1 held EIGHT plates at 1.5-2.2 MB, up to ~16 MB.
 
 const CACHE = new Map();
 const ORDER = [];

@@ -135,16 +135,18 @@ export function drawStates(c, t, state, ui) {
   const ex = 760, ey = 448;
   label(c, ui, 'MEASURED OFF BAR/PANEL-QB_DROPBACK.PNG — 3.1953 LOGICAL PX PER PANEL PX, PANEL BORDER AT X=31', ex, ey, 17, 'rgba(232,186,90,0.92)');
   const facts = [
-    'CLUSTER        45..681 X 44.7..146.9      636 X 102, NO OUTER PLATE EDGE',
-    'TILES          45..93  99..169  179..275  281..390  396..553  559..681',
-    'GUTTERS        6.4 WIDE, OPAQUE BLACK     TILE FILL RGB(13,17,23)',
-    'CLOCK INK      99..169  X 54..105         INK HEIGHT 51',
-    'YARDAGE INK    105..166 X 109..141        INK HEIGHT 32 + GOLD RULE',
-    'ABBREVIATION   182..256 X 59..105         INK HEIGHT 46, 74 WIDE',
-    'SCORE INK      284..383 X 51..112         INK HEIGHT 61, 99 WIDE',
-    'METERS         Y 128..144                 FIRE / STEEL+PIPS / GOLD',
-    'TURBO PLATE    288 X 82 AT 48,954         ROUNDED SLAB, ONE RIGHT CHOP',
-    'TURBO WORD     178 X 37 INK               OBLIQUE 0.34 (~19 DEG)',
+    'CLUSTER        45..681 X 44.7..147          636 X 103, NO OUTER PLATE EDGE',
+    'TILES          45..93  99..169  179..275    281..390  396..553  559..681',
+    'GUTTERS        6.4 WIDE, OPAQUE BLACK       TILE FILL RGB(13,17,23)',
+    'CLOCK  :05     70.3 X 47.9 INK   OURS 69 X 46',
+    'YARD   167     63.9 X 32.0 INK   OURS 67 X 30   + GOLD ON THE METER ROW',
+    'ABBR L NYC     73.5 X 41.5 INK   OURS 74 X 42   0.54 CAP ASPECT',
+    'ABBR R CHI     63.9 X 47.9 INK   OURS 64 X 46   0.40 CAP ASPECT',
+    'SCORE  22      99.1 X 60.7 INK   OURS 99 X 62',
+    'SCORE  14      92.7 X 63.9 INK   OURS 99 X 62',
+    'METERS         Y 83..102, FLUSH TO THE FOOT  FIRE / STEEL+PIPS / GOLD',
+    'TURBO PLATE    288 X 82 AT 48,954           ROUNDED SLAB, ONE RIGHT CHOP',
+    'TURBO WORD     170.6 X 30.1 INK  OURS 169 X 30   OBLIQUE 0.24 (13.5 DEG)',
   ];
   for (let i = 0; i < facts.length; i++) label(c, ui, facts[i], ex, ey + 34 + i * 26, 17, 'rgba(158,184,216,0.85)');
 
@@ -159,7 +161,7 @@ export function drawStates(c, t, state, ui) {
 
 export function drawTurbo(c, t, state, ui) {
   backdrop(c, ui, 'rgba(40,72,150,0.30)');
-  header(c, ui, 'TURBO METER', 'ROUNDED SLAB / ONE CHOP / OBLIQUE WORD / OVERHEAT');
+  header(c, ui, 'TURBO METER', 'ROUNDED SLAB / ONE CHOP / OBLIQUE 13.5 DEG / OVERHEAT');
 
   TURBO.bake(ui, 1);
   const fills = [0, 0.14, 0.45, 0.68, 0.88, 1.0, 0.34];
@@ -192,7 +194,7 @@ export function drawTurbo(c, t, state, ui) {
   label(c, ui, 'OVERHEAT  ·  ONE EXTRA ALPHA-MODULATED BLIT OF A BAKED RIM', dx, 892, 18, 'rgba(255,150,90,0.95)');
 
   label(c, ui,
-    'PLATE 288 X 82 AT 48,954 LOGICAL  ·  (0.055,0) (0.877,0) (1,0.64) (0.976,1) (0.032,1) (0,0.42)  ·  TRACED OFF PANEL-TRUCK AT 12X',
+    'PLATE 288 X 82 AT 48,954  ·  WORD INK 169 X 30 AT OBLIQUE 0.24 (13.5 DEG)  ·  BAR MEASURES 177.7 X 31.4 IN A 300-WIDE PLATE, TRACED OFF PANEL-TRUCK AT 16X',
     48, ui.H - 34, 18, 'rgba(120,148,184,0.85)');
 
   TURBO.bake(ui, 1);

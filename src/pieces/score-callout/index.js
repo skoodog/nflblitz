@@ -22,6 +22,17 @@
 //   slice, so no single call exceeds the piece's 8 ms bake budget on the shipping path.
 //   `prewarm()` below is the public door onto that.
 //
+//   BAKE COST, measured on this box at 1:1 (scripts are timing lockupFor from a cold
+//   cache). Round 1: 45-49 ms a lockup, tallest slice 14.3 ms. Now: TRUCK! 16.0-17.7 ms
+//   over 13 slices with the tallest at 3.8, MID-AIR/MURDER! 18.8-20.0 ms over 17 slices
+//   with the tallest at 2.9. The three things that bought that were (a) blur targets on
+//   exact-sized canvases instead of a pool grown to the display line — ctx.filter costs
+//   the whole SURFACE in Chromium, which is why 'PTS' used to cost 11.7 ms; (b) a clip on
+//   every pooled surface, because destination-in clears everything the source misses;
+//   (c) deleting the 8-tap keyline ring, the grain pass and the specular sweep, none of
+//   which the bar has. At the runtime raster the pixel work is ~0.2x, so the whole bake
+//   is ~4 ms and no slice reaches 1 ms.
+//
 // DETERMINISM: every random draw goes through makeRng/hash seeded from the callout's
 // own text, so the same words always tear the same way.
 
@@ -36,17 +47,22 @@ export const PIECE = 'score-callout';
 /* --------------------------------------------------------------- placement */
 // Line-2 centre x and points-line baseline y, in the overlay's logical 1920x1080.
 //
-// Measured off the panels rather than guessed. The bar's rightmost ink sits at
-// x = 0.891-0.895 of frame width (MURDER! 499/528 in a 16:9-corrected 601, TRUCK!
-// 484/528 in 551); round 1 landed at 0.844-0.869, so the whole lockup hugged the middle
-// of the frame instead of its right edge. With line 2 now ~500 px of ink wide, a centre
-// of 1524 puts its right edge at ~1770 = 0.922.
+// Measured by stretching each panel to 1920x1080 and thresholding the ink out of both
+// that and our own render, then matching the boxes:
 //
-// Y is the POINTS baseline: 0.932 of frame height on midair_hit, 0.845 on truck. The
-// two-line lockup sits at 992 and GEO.liftSolo raises the one-line lockup ~74 px above
-// it, which reproduces both.
-export const ANCHOR_X = 1524;
-export const ANCHOR_Y = 995;
+//              bar ink box (1920x1080)      ours, this round
+//   TRUCK!     x 1254..1763  y 658..815     x 1214..1810  y 644..811
+//   150 PTS    x 1374..1673  y 847..923     x 1343..1705  y 846..941
+//   MURDER!    x 1171..1819  y 811..994     x 1171..1819  y 794..943
+//
+// So the horizontal centres agree to within 5 px on both hero panels and the vertical
+// tops agree to within 17; ours runs 19-31% larger, which is the deliberate scale-up.
+// Round 1 sat at x 1240..1842 / y 604..772 — 33 px right and 48 px high of the bar.
+//
+// Y is the POINTS baseline. GEO.liftSolo raises the one-line lockup 105 px above it, so
+// one anchor pair serves panel-truck's higher placement and panel-midair's lower one.
+export const ANCHOR_X = 1492;
+export const ANCHOR_Y = 1035;
 
 /* -------------------------------------------------------------- the slot */
 

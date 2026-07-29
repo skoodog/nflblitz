@@ -41,7 +41,27 @@ const BLUE = '#1f57ef';
 const BLUE_HI = '#8fb6ff';
 const BLUE_LO = '#0b1d68';
 
-const WORD = { x: 31, y: 4, w: 178, h: 37, slant: 0.34 };
+/* THE WORD, RE-MEASURED IN ROUND 2.
+ * Thresholding panel-truck.png at 16x over a band that excludes the meter puts
+ * the TURBO ink at panel x 30..80, y 273..281 — 51 x 9 panel px, and at 3.484
+ * logical per panel px that is 177.7 x 31.4 LOGICAL, sitting 7 logical below the
+ * plate's top edge. Two corrections fall out:
+ *
+ *   HEIGHT.  Round 1 set h = 37 in the same 178-wide box. Taller ink in a fixed
+ *            width means NARROWER letters, so the run solved to five 28-wide
+ *            glyphs separated by 10 px of air. The bar's five glyphs are ~33 wide
+ *            with ~3.5 px between them: nearly square, packed, moulded. Dropping
+ *            to h = 32 and opening the gap to 3.4 lets the solver widen the
+ *            letters instead of stretching them.
+ *   SLANT.   Tracing the U and R stems in the art gives dx/dy = 0.19..0.23, i.e.
+ *            11-13 degrees off vertical. Round 1 used 0.34 (18.8 deg), which past
+ *            about 15 degrees stops reading as a moulded oblique and starts
+ *            reading as a skewed rectangle. 0.24 = 13.5 degrees. */
+// x/w carry the oblique's overhang: the run box is anchored on the UPRIGHT boxes,
+// and a sheared 'T' puts its real left edge about 10 px right of that anchor while
+// the final 'O' leans ~8 px past its right, so the box is opened at both ends to
+// land the DRAWN ink on the bar's 0.128..0.71 of the plate width.
+const WORD = { x: 27, y: 7, w: 182, h: 32, slant: 0.24 };
 
 let chromeCv = null, fillCv = null, leadCv = null, heatCv = null;
 let quality = 1;
@@ -261,7 +281,11 @@ function bakeChrome(ui, s) {
   // TURBO — oblique, packed ink-to-ink, filling its measured rect edge to edge.
   inkSet(F, c, 'TURBO', 'blitz-techno', {
     x: WORD.x, y: WORD.y, h: WORD.h, w: WORD.w, align: 'left',
-    gap: 2.2, slant: WORD.slant, minXs: 0.78, maxXs: 1.24,
+    // maxXs 2.05: the techno cap is naturally ~0.56 of its height and the bar's is
+    // 33 x 31, so the run genuinely needs to be widened almost 2x to sit as square
+    // and as heavy as the art. Round 2's first pass clamped at 1.70 and silently
+    // gave back a run 11% narrower than asked for.
+    gap: 2.4, slant: WORD.slant, minXs: 0.62, maxXs: 2.05,
     keyline: { color: 'rgba(0,0,0,0.92)', k: 0.034 },
     shadow: { color: 'rgba(0,3,14,0.95)', blur: 9, dy: 4, alpha: 0.95 },
     grad: [
