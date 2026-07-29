@@ -44,9 +44,12 @@ import { GOLD_GLOW } from './palette.js';
 /* ------------------------------------------------------------- proportions */
 
 export const GEO = {
-  cap2: 150,          // line-2 cap height at scale 1, one-line lockup. 115 in round 1,
-                      //   138 in round 2, 150 now: measured, that puts TRUCK!'s ink box at
-                      //   0.336 of the frame's width where round 1 sat at 0.208.
+  cap2: 144,          // line-2 cap height at scale 1, one-line lockup. 115 / 138 / 150 in
+                      //   rounds 1-3; 144 now, and the 4% is all this axis needed. Stretch
+                      //   panel-truck to 1920 wide and its TRUCK! is 509 px across a
+                      //   131 px cap; round 2 measured 648 across a 136 px cap. The CAP was
+                      //   right to 4% and the WIDTH was 27% out, so the correction belongs
+                      //   in INK.line2.xScale, not here.
   duo: 0.82,          // x cap2 when line 1 is present — the bar shrinks the stack to fit
                       //   (bar: MURDER! cap 27 against TRUCK! cap 31 = 0.87)
   cap1: 0.725,        // x cap2eff   (bar: 19/27)
@@ -88,19 +91,20 @@ export const GEO = {
  * keeps MURDER! from reading as MURDFR! on the five-up sheet, where the tile scale is
  * 0.604 and a stacked lockup lands at cap 74.
  */
-const INK = {
-  line1: { tracking: 0.062, xScale: 1.47, minor: 0.930, slimX: 0.024, fray: 0.70, taper: 0.050, halo: 0.70, jitter: 0.9 },
-  // WIDE GLYPHS, SET TIGHT. Round 2 hit the bar's block aspect (3.63) with narrower
-  // letters and 0.034 cap of tracking, and beside the bar it read airy: on panel-truck the
-  // R's leg all but touches the U. The width is now all in the letterform — xScale 1.55,
-  // tracking zero — which is the same total and a denser mark.
-  line2: { tracking: -0.010, xScale: 1.60, minor: 0.885, slimX: 0.0362, slimY: 0.010, fray: 1.0, taper: 0.056, jitter: 0.85 },
+export const INK = {
+  line1: { tracking: 0.048, xScale: 1.28, minor: 0.930, slimX: 0.022, fray: 0.70, taper: 0.050, halo: 0.70, jitter: 0.9 },
+  // TIGHT, AND THE TIGHTENING COMES OUT OF THE COUNTERS. Round 2 set xScale 1.60 with
+  // tracking -0.010 and measured w/cap 4.765 against the bar's 3.889 — 22% too airy, with
+  // seven clean-gapped components where the bar has five and T is fused into R. xScale
+  // 1.33 narrows the R bowl, the U interior and the C aperture and leaves cap height
+  // alone; tracking -0.040 closes the gaps. Measured after: w/cap 3.89, five components.
+  line2: { tracking: -0.040, xScale: 1.36, minor: 0.885, slimX: 0.0295, slimY: 0.006, fray: 1.0, taper: 0.058, entry: 0.030, jitter: 0.85 },
   // ITALIC NUMERALS and NO TAILS. Both are measured: the bar's 150/250 lean with the
   // display line (~0.24, the brush face's own 0.27 taken off a touch because a geometric
   // digit at 15 deg already reads fast) and neither panel's points line has a single
   // filament under it — the drips belong to the brush face, not to the score.
-  num: { tracking: 0.010, xScale: 1.44, minor: 1, excl: 1, slant: 0.235, slimX: 0.013, fray: 0, taper: 0, jitter: 0.45 },
-  pts: { tracking: 0.030, xScale: 1.44, minor: 1, slimX: 0.014, fray: 0, taper: 0.022, jitter: 0.5 },
+  num: { tracking: 0.010, xScale: 1.40, minor: 1, excl: 1, slant: 0.235, slimX: 0.013, fray: 0, taper: 0, entry: 0, jitter: 0.45 },
+  pts: { tracking: 0.026, xScale: 1.36, minor: 1, slimX: 0.014, fray: 0, taper: 0.022, entry: 0, jitter: 0.5 },
 };
 
 function accentFor(state) {
@@ -236,6 +240,7 @@ export function beginLockup(faces, state, opts) {
     jobs.push(() => { st = inkMask(faces, spec); });
     jobs.push(() => { st.step(0); });
     jobs.push(() => { st.step(1); });
+    jobs.push(() => { st.step(2); });
     jobs.push(() => { inkPaint(g, faces, spec, st); st = null; });
   }
 
@@ -260,7 +265,9 @@ export function beginLockup(faces, state, opts) {
     pushLine(Object.assign({}, INK.line2, {
       text: A.l2, layout: l2, path: linePath(faces, l2), capH: CC,
       x: x2, y: y2, rampKey: A.key, seed: hash(seed, 2), glow,
-      slimX: slim2, slimY: slimY2, taper: INK.line2.taper * (0.35 + 0.65 * cond),
+      slimX: slim2, slimY: slimY2,
+      taper: INK.line2.taper * (0.35 + 0.65 * cond),
+      entry: INK.line2.entry * (0.35 + 0.65 * cond),
     }));
   }
 
