@@ -39,7 +39,11 @@ for (const id of Object.keys(RAW)) {
   RAW_STATS[id] = {
     speed: topMean(skill, 'spd', 6),
     hitPower: topMean(front, 'pow', 6),
-    turbo: topMean(carry, 'acc', 6) * 0.5 + topMean(skill, 'agi', 6) * 0.5,
+    // Turbo is what a club DOES with a burst, so it leans on run strength —
+    // power through contact — with speed only a minority term. Reading it from
+    // acc/agi made it 0.89-correlated with the speed bar, i.e. the same bar
+    // drawn twice: the Blitz rating set has no separate acceleration axis.
+    turbo: topMean(carry, 'rst', 6) * 0.65 + topMean(skill, 'spd', 6) * 0.35,
   };
 }
 

@@ -60,8 +60,12 @@ ATTRS = {
     "Pass_Rush": "prs",
 }
 
-# A few pieces already read older key names; alias rather than break them.
-LEGACY = {"str": "rst", "car": "bal", "acc": "spd", "agi": "spd", "trk": "rst",
+# A few pieces read older key names. Alias ONLY where the old key means the same
+# thing as a real Blitz attribute. Deliberately NOT aliased: acc and agi, because
+# this rating set has no acceleration or agility axis -- pointing them at spd
+# manufactures a second speed column, and a consumer averaging acc and agi then
+# gets a bar 0.89-correlated with its own speed bar.
+LEGACY = {"str": "rst", "car": "bal", "trk": "rst",
           "mcv": "cov", "zcv": "cov", "pur": "tak", "thp": "pas", "rbk": "blk"}
 
 
