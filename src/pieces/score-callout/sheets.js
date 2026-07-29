@@ -203,13 +203,17 @@ function hostileSheet(c2d, t, state, ui) {
 /* ------------------------------------------------------------------ table */
 
 const SHEETS = {
+  // The two hero sheets pose the lockup at the SHIPPING anchor, so a critic's A/B against
+  // panel-truck / panel-midair_hit measures the placement the game actually uses. The
+  // numbers are duplicated from index.js rather than imported because index.js imports
+  // this file; ANCHOR_X / ANCHOR_Y and these two must move together.
   iso_callout_hero: heroSheet('night', {
     line1: 'MID-AIR', line2: 'MURDER!', pts: 250, accent: 'red', age: 0.30,
-    x: 1524, y: 995, scale: 1,
+    x: 1492, y: 1035, scale: 1,
   }),
   iso_callout_truck: heroSheet('nightWarm', {
     line1: '', line2: 'TRUCK!', pts: 150, accent: 'gold', age: 0.30,
-    x: 1524, y: 995, scale: 1,
+    x: 1492, y: 1035, scale: 1,
   }),
   iso_callouts: fiveSheet,
   iso_callout_anim: animSheet,

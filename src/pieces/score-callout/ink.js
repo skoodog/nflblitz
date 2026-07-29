@@ -330,7 +330,7 @@ export function inkMask(faces, spec) {
   // LETTER, so it is sampled here and the tails are added afterwards.
   const q = 0.26, iq = 1 / q;
   const blurH = capH * 0.30;
-  const mb = Math.ceil(blurH * q * 1.9) + 2;
+  const mb = Math.ceil(blurH * q * 1.6) + 2;
   const sw = Math.max(8, Math.round(W * q) + mb * 2), sh = Math.max(8, Math.round(H * q) + mb * 2);
   const A = exact(0, sw, sh);
   A.ctx.drawImage(M.cv, 0, 0, W, H, mb, mb, W * q, H * q);
@@ -459,43 +459,48 @@ export function inkPaint(target, faces, spec, st) {
   const dw = sw * iq, dh = sh * iq;
 
   /* ---------------------------------------------- 1. shadow + halo + glow */
-  // All three come off the same quarter-scale silhouette `A`, on EXACT-sized canvases so
-  // ctx.filter costs the ~25k pixels it is actually blurring instead of the pool's
-  // largest line. `A` is still white here; each pass tints its own blurred copy.
+  // Both shadow passes come off the same quarter-scale silhouette `A`, are ASSEMBLED ON
+  // A CANVAS THAT IS ALSO QUARTER SCALE, and reach the plate as ONE scaled blit.
+  //
+  // That last part is the whole point. A blur target is 25k pixels, but a blit of it onto
+  // the plate is (W + 2*margin) x (H + 2*margin) = ~310k — by a distance the most
+  // expensive operation left in this file. Round 1 did four of them per line (halo twice,
+  // shadow twice); the compounded-alpha rewrite got that to two; assembling at quarter
+  // scale gets it to one. Every canvas here is EXACT-sized, because ctx.filter costs the
+  // whole SURFACE in Chromium, not the drawn rectangle.
   const shA = spec.shadow === undefined ? 1 : spec.shadow;
   if (shA > 0) {
+    const SH = exact(1, sw, sh);
+    const B = exact(2, sw, sh);
     const haA = spec.halo === undefined ? 1 : spec.halo;
     if (haA > 0) {
-      const Bh = exact(1, sw, sh);
-      Bh.ctx.filter = `blur(${Math.max(1, blurH * q).toFixed(2)}px)`;
-      Bh.ctx.drawImage(A.cv, 0, 0, sw, sh, 0, 0, sw, sh);
-      Bh.ctx.filter = 'none';
-      Bh.ctx.globalCompositeOperation = 'source-in';
-      Bh.ctx.fillStyle = `rgb(${SHADOW_RGB})`;
-      Bh.ctx.fillRect(0, 0, sw, sh);
-      // ONE draw at the compounded alpha, not two at half. A blit of the halo is a
-      // full-plate scaled composite — the most expensive single operation left in the
-      // file — and 1-(1-0.34)^2 = 0.564 is the same picture for half the fill rate.
-      target.save();
-      target.globalAlpha = 0.42 * haA;
-      target.drawImage(Bh.cv, 0, 0, sw, sh, dx - mx + capH * 0.02, dy - mx + capH * 0.07, dw, dh);
-      target.restore();
+      B.ctx.filter = `blur(${Math.max(1, blurH * q).toFixed(2)}px)`;
+      B.ctx.drawImage(A.cv, 0, 0, sw, sh, 0, 0, sw, sh);
+      B.ctx.filter = 'none';
+      B.ctx.globalCompositeOperation = 'source-in';
+      B.ctx.fillStyle = `rgb(${SHADOW_RGB})`;
+      B.ctx.fillRect(0, 0, sw, sh);
+      // 0.42 in one draw, not 0.34 twice. Round 1's compounded 0.564 put a dark band
+      // exactly where the tails hang and the gaps between the filaments read as the mark.
+      SH.ctx.globalAlpha = 0.42 * haA;
+      SH.ctx.drawImage(B.cv, 0, 0, sw, sh, capH * 0.02 * q, capH * 0.07 * q, sw, sh);
     }
-    const Bt = exact(2, sw, sh);
-    Bt.ctx.filter = `blur(${Math.max(0.8, capH * 0.055 * q).toFixed(2)}px)`;
-    Bt.ctx.drawImage(A.cv, 0, 0, sw, sh, 0, 0, sw, sh);
-    Bt.ctx.filter = 'none';
-    Bt.ctx.globalCompositeOperation = 'source-in';
-    Bt.ctx.fillStyle = `rgb(${SHADOW_RGB})`;
-    Bt.ctx.fillRect(0, 0, sw, sh);
-    target.save();
-    target.globalAlpha = 0.986 * shA;
-    target.drawImage(Bt.cv, 0, 0, sw, sh, dx - mx + capH * 0.026, dy - mx + capH * 0.050, dw, dh);
-    target.restore();
+    const B2 = exact(3, sw, sh);
+    B2.ctx.filter = `blur(${Math.max(0.8, capH * 0.055 * q).toFixed(2)}px)`;
+    B2.ctx.drawImage(A.cv, 0, 0, sw, sh, 0, 0, sw, sh);
+    B2.ctx.filter = 'none';
+    B2.ctx.globalCompositeOperation = 'source-in';
+    B2.ctx.fillStyle = `rgb(${SHADOW_RGB})`;
+    B2.ctx.fillRect(0, 0, sw, sh);
+    SH.ctx.globalAlpha = 0.986 * shA;
+    SH.ctx.drawImage(B2.cv, 0, 0, sw, sh, capH * 0.026 * q, capH * 0.050 * q, sw, sh);
+    SH.ctx.globalAlpha = 1;
+
+    target.drawImage(SH.cv, 0, 0, sw, sh, dx - mx, dy - mx, dw, dh);
   }
 
   if (spec.glow) {
-    const G = exact(3, sw, sh);
+    const G = exact(2, sw, sh);
     G.ctx.filter = `blur(${Math.max(1, capH * (spec.glow.blur === undefined ? 0.24 : spec.glow.blur) * q).toFixed(2)}px)`;
     G.ctx.drawImage(A.cv, 0, 0, sw, sh, 0, 0, sw, sh);
     G.ctx.filter = 'none';

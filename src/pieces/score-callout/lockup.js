@@ -68,12 +68,21 @@ export const GEO = {
                       //   any of the overflow comes off its cap height.
 };
 
-/** Per-line ink recipes. Kept here so the whole look is legible in one place. */
+/**
+ * Per-line ink recipes. Kept here so the whole look is legible in one place.
+ *
+ * slimY — the thick/thin contrast lever — is on LINE 2 ONLY. It costs a fixed 2 px off
+ * every horizontal, so what matters is the cap it is spent against, and line 1 is the
+ * SMALL line: on the hostile sheet (k 0.74) line 1 lands at cap 61 and 2 px took the arm
+ * off the T, so "WHAT A" captured as "WHAI A" in all four tiles. Line 2 at its smallest
+ * shipped scale is cap 84 and CATCH! survives it; below cap 100 the erosion rounds to
+ * zero on its own. This is the same trap round 1 documented and it is real.
+ */
 const INK = {
-  line1: { tracking: 0.090, xScale: 1.44, minor: 0.930, slimX: 0.014, slimY: 0.009, fray: 0.62, halo: 0.70, jitter: 0.9 },
+  line1: { tracking: 0.090, xScale: 1.44, minor: 0.930, slimX: 0.014, fray: 0.62, halo: 0.70, jitter: 0.9 },
   line2: { tracking: 0.034, xScale: 1.46, minor: 0.885, slimX: 0.017, slimY: 0.010, fray: 1.0, jitter: 0.85 },
   num: { tracking: 0.030, xScale: 1.45, minor: 1, excl: 1, slimX: 0.013, fray: 0.55, jitter: 0.45 },
-  pts: { tracking: 0.055, xScale: 1.45, minor: 1, slimX: 0.011, slimY: 0.008, fray: 0.55, jitter: 0.5 },
+  pts: { tracking: 0.055, xScale: 1.45, minor: 1, slimX: 0.011, fray: 0.55, jitter: 0.5 },
 };
 
 function accentFor(state) {
@@ -171,10 +180,9 @@ export function beginLockup(faces, state, opts) {
   const top = (l1 ? y1 + l1.top : y2 + (l2 ? l2.top : 0)) - CC * 0.18;
   const bot = (ln ? yNum + ln.bot : y2 + (l2 ? l2.bot : 0)) + CC * 0.18;
 
-  // Padding covers the drop shadow and the 0.34-cap halo, and nothing else. Round 1 used
-  // 1.15C x 1.05C, roughly 40% of the plate's area spent on empty pixels.
   // Room for the halo and nothing else. The halo blur is 0.30 cap and its visible reach
-  // is about 1.5x that, so 0.56 x 0.46 cap clears it. Round 1 used 1.15 x 1.05.
+  // is about 1.5x that, so 0.56 x 0.46 cap clears it. Round 1 used 1.15 x 1.05, roughly
+  // 40% of the plate's area spent on empty pixels — and the plate is blitted every frame.
   const padX = Math.ceil(CC * 0.56);
   const padY = Math.ceil(CC * 0.46);
   const W = Math.ceil(halfW * 2 + padX * 2);
