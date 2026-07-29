@@ -534,11 +534,21 @@ export function inkText(F, c, text, face, o) {
   // requested height and the drawn ink still lands on the measured rectangle.
   const hEff = Math.max(1, o.h - fuse);
   const size = sizeForInk(F, face, s, hEff, topt);
-  const b = inkBox(F, face, s, size, topt);
+  // Same slant/xs compensation as inkSet — see the note there. Measure upright,
+  // add the shear overhang (which does not scale with xs), then emit at
+  // `slant / xs` so the DRAWN lean is the one that was asked for.
+  const fSlant = fontOf(F, face);
+  const slantWant = topt.slant !== undefined
+    ? topt.slant : (fSlant ? (fSlant.defaultSlant || 0) : 0);
+  topt.slant = 0;
+  const b0 = inkBox(F, face, s, size, topt);
+  const shear = Math.abs(slantWant) * (b0.y1 - b0.y0);
   let xs = o.xs === undefined ? 1 : o.xs;
-  if (o.w !== undefined && b.w > 0.01) xs = Math.max(0.05, o.w - fuse) / b.w;
+  if (o.w !== undefined && b0.w > 0.01) xs = Math.max(0.05, o.w - fuse - shear) / b0.w;
   if (o.maxXs !== undefined && xs > o.maxXs) xs = o.maxXs;
   if (o.minXs !== undefined && xs < o.minXs) xs = o.minXs;
+  topt.slant = xs > 0.001 ? slantWant / xs : slantWant;
+  const b = inkBox(F, face, s, size, topt);
 
   const inkW = b.w * xs + fuse;
   let ix = o.x;
@@ -606,14 +616,37 @@ export function inkSet(F, c, text, face, o) {
   const fuse = fuseOf(o);
   const hEff = Math.max(1, o.h - fuse);
   const size = sizeForInk(F, face, s, hEff, topt);
+
+  /* THE SLANT / xs BUG, FOUND IN ROUND 3.
+   * `xs` is applied to the PATH, and the path is already sheared, so scaling it
+   * scales the shear too: a glyph emitted at slant `t` and then scaled by xs is
+   * drawn at slant `t * xs`. TURBO solves xs ≈ 1.96 to reach the bar's letter
+   * width, so `slant: 0.24` was DRAWING 0.47 — 25 degrees, not the 13.5 the
+   * constant claims. MEASURED, by fitting dx/dy down the right edge of the final
+   * 'O': ours 0.481; the bar's TURBO over four panels 0.171 / 0.190 / 0.211 /
+   * 0.229, mean 0.200. That is the single biggest reason our word read as
+   * crammed — at 25 degrees adjacent letters interlock, and it is also why the
+   * round-2 gap numbers never reproduced: they were measured against an upright
+   * column projection of a word leaning twice as far as anyone thought.
+   *
+   * So the run is PACKED UPRIGHT (positions never depend on the shear anyway),
+   * xs is solved against the upright width plus the shear overhang — which is
+   * `slant * inkHeight` and does NOT scale with xs — and the glyphs are then
+   * emitted at `slant / xs`, so what lands on the plate is exactly `slant`. */
+  const fSlant = fontOf(F, face);
+  const slantWant = topt.slant !== undefined
+    ? topt.slant : (fSlant ? (fSlant.defaultSlant || 0) : 0);
+  topt.slant = 0;
   const nat1 = inkRun(F, face, s, size, gap, 1, topt);
   const gaps = gap * Math.max(0, nat1.items.length - 1);
+  const shear = Math.abs(slantWant) * (nat1.y1 - nat1.y0);
   let xs = o.xs === undefined ? 1 : o.xs;
-  if (o.w !== undefined && nat1.w - gaps > 0.01) {
-    xs = Math.max(0.05, o.w - fuse - gaps) / (nat1.w - gaps);
+  if (o.w !== undefined && nat1.packed - gaps > 0.01) {
+    xs = Math.max(0.05, o.w - fuse - gaps - shear) / (nat1.packed - gaps);
   }
   if (o.maxXs !== undefined && xs > o.maxXs) xs = o.maxXs;
   if (o.minXs !== undefined && xs < o.minXs) xs = o.minXs;
+  topt.slant = xs > 0.001 ? slantWant / xs : slantWant;
 
   const run = inkRun(F, face, s, size, gap, xs, topt);
   const rp = runPath(F, face, run, topt);
