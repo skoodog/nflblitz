@@ -80,7 +80,11 @@ export const GEO = {
  */
 const INK = {
   line1: { tracking: 0.078, xScale: 1.47, minor: 0.930, slimX: 0.024, fray: 0.70, taper: 0.050, halo: 0.70, jitter: 0.9 },
-  line2: { tracking: 0.016, xScale: 1.50, minor: 0.885, slimX: 0.029, slimY: 0.010, fray: 1.0, taper: 0.058, jitter: 0.85 },
+  // WIDE GLYPHS, SET TIGHT. Round 2 hit the bar's block aspect (3.63) with narrower
+  // letters and 0.034 cap of tracking, and beside the bar it read airy: on panel-truck the
+  // R's leg all but touches the U. The width is now all in the letterform — xScale 1.55,
+  // tracking zero — which is the same total and a denser mark.
+  line2: { tracking: 0.000, xScale: 1.55, minor: 0.885, slimX: 0.029, slimY: 0.010, fray: 1.0, taper: 0.058, jitter: 0.85 },
   // ITALIC NUMERALS and NO TAILS. Both are measured: the bar's 150/250 lean with the
   // display line (~0.24, the brush face's own 0.27 taken off a touch because a geometric
   // digit at 15 deg already reads fast) and neither panel's points line has a single
