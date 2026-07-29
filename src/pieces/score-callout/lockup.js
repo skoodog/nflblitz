@@ -92,13 +92,31 @@ export const GEO = {
  * 0.604 and a stacked lockup lands at cap 74.
  */
 export const INK = {
-  line1: { tracking: 0.048, xScale: 1.28, minor: 0.930, slimX: 0.022, fray: 0.70, taper: 0.050, halo: 0.70, jitter: 0.9 },
-  // TIGHT, AND THE TIGHTENING COMES OUT OF THE COUNTERS. Round 2 set xScale 1.60 with
-  // tracking -0.010 and measured w/cap 4.765 against the bar's 3.889 — 22% too airy, with
-  // seven clean-gapped components where the bar has five and T is fused into R. xScale
-  // 1.33 narrows the R bowl, the U interior and the C aperture and leaves cap height
-  // alone; tracking -0.040 closes the gaps. Measured after: w/cap 3.89, five components.
-  line2: { tracking: -0.040, xScale: 1.36, minor: 0.885, slimX: 0.0295, slimY: 0.006, fray: 1.0, taper: 0.058, entry: 0.030, jitter: 0.85 },
+  line1: { tracking: 0.048, xScale: 1.28, minor: 0.930, slimX: 0.022, fray: 0.70, taper: 0.050, halo: 0.70, jitter: 0.9,
+    tailReach: 0.14, tailW: 1.4 },
+  // TIGHT, AND THE TIGHTENING COMES OUT OF THE COUNTERS. Every value below was chosen by
+  // rendering TRUCK! at this cap, resampling it to the bar's own cap of 36, and measuring
+  // it with the identical code that measured bar/panel-truck.png. Final state, ours -> bar:
+  //
+  //   ink bbox / cap        3.889 -> 3.889      interior mean       185.2 -> 174.1
+  //   bbox coverage        0.2663 -> 0.2875     interior std        13.08 -> 13.92
+  //   letter components         5 -> 5          interior corr      -0.507 -> -0.505
+  //   run width med / cap  0.1667 -> 0.1389     ring 2 px vs bg     -23.5 -> -21.9
+  //   run width p99          27.3 -> 27.0       below-baseline rows     6 -> 6
+  //
+  // `jitter` 0.85 -> 1.6 is the one that is easy to mistake for a cosmetic. It is not: the
+  // bar BOUNCES its glyphs much harder than we did, which is measurable without looking at
+  // a single letter. Take the cap two ways — median letter-component height, and the height
+  // of the band where row ink density clears 35% of its peak — and the ratio of the second
+  // to the first is 0.917 for the bar and was 0.982 for us. Bouncing spreads the same ink
+  // over more rows, which is what finally brought the median run width and the ink box
+  // height onto the bar's numbers when erosion could only trade one against the other.
+  line2: {
+    tracking: -0.040, xScale: 1.44, minor: 0.885, slimX: 0.026, slimY: 0, fray: 1.0,
+    taper: 0.058, entry: 0.030, jitter: 1.6,
+    swash: 0.34, swashSel: 0.14,
+    tailReach: 0.20, tailW: 2.2, tailDecay: 0.98,
+  },
   // ITALIC NUMERALS and NO TAILS. Both are measured: the bar's 150/250 lean with the
   // display line (~0.24, the brush face's own 0.27 taken off a touch because a geometric
   // digit at 15 deg already reads fast) and neither panel's points line has a single
@@ -241,6 +259,10 @@ export function beginLockup(faces, state, opts) {
     jobs.push(() => { st.step(0); });
     jobs.push(() => { st.step(1); });
     jobs.push(() => { st.step(2); });
+    // A line may have up to four resumable passes (swash, entries, exits, tails);
+    // `step(i)` is a no-op for a line that has fewer, so the slice count is fixed and
+    // the plan does not have to know which passes a given recipe turned on.
+    jobs.push(() => { st.step(3); });
     jobs.push(() => { inkPaint(g, faces, spec, st); st = null; });
   }
 

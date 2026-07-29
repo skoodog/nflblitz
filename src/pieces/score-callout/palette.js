@@ -62,8 +62,23 @@ export const FLAT = {
  * The top stop is deliberately BRIGHTER than the round-2 flat colour, because the chalk
  * only ever darkens: the mean has to be built from above.
  */
+// RE-DERIVED IN ROUND 3 from the render rather than from the stops, because what the two
+// controls actually buy is not obvious. Decompose the interior luminance: the RAMP
+// contributes a std of |corr| x total, the CHALK the rest in quadrature.
+//
+//                        total std   ramp std   chalk std   mean
+//   bar TRUCK!             13.92       7.03       12.00     174.1
+//   ours, stops as set     15.65       6.42       14.27     189.0
+//
+// So the ramp was 9% too shallow and the chalk 19% too strong — the mark was mottling
+// more than it was shading. `chalk` 0.46 -> 0.40 takes the breakup down; widening the two
+// stops by ~10% while dropping both takes the ramp up and the mean with it. The chalk only
+// ever darkens, and lightening it raises the mean, so the stops carry both corrections.
 export const MODEL = {
-  white:    { top: '#f4eee2', bot: '#cec6b6', tint: '#6d675c', chalk: 0.46 },
+// Measured after the first correction: mean 184.8, std 14.45, corr -0.596 — mean and std
+// on the nose, but the ramp overshot, so the stops close from 43.9 lum apart to 36.0 about
+// the same midpoint. corr scales with the gap, and 0.596 x (36.0/43.9) = 0.489.
+  white:    { top: '#e9e3d7', bot: '#c7bfb0', tint: '#6d675c', chalk: 0.43 },
   red:      { top: '#c81d19', bot: '#8f1210', tint: '#4a0f0d', chalk: 0.42 },
   goldLine: { top: '#f0c405', bot: '#c69c01', tint: '#7a5f04', chalk: 0.38 },
   // Numerals: no ramp (top === bot), lighter chalk. Measured mean must stay at 225,188,3.

@@ -415,8 +415,8 @@ export function inkMask(faces, spec) {
    *
    * Computed over the terminal zone only, which is a third of the plate.
    */
-  function barsMask(zTop, zH) {
-    const hr = Math.max(2, Math.round(capH * 0.15));
+  function barsMask(zTop, zH, hrFrac) {
+    const hr = Math.max(2, Math.round(capH * (hrFrac || 0.15)));
     const A1 = scratch(6, W, zH);
     A1.ctx.drawImage(M.cv, 0, zTop, W, zH, 0, 0, W, zH);
     A1.ctx.globalCompositeOperation = 'destination-in';
@@ -430,6 +430,69 @@ export function inkMask(faces, spec) {
     A2.ctx.globalCompositeOperation = 'destination-in';
     A2.ctx.drawImage(M.cv, 0, zTop, W, zH, 0, 0, W, zH);
     return A2;
+  }
+
+  /* ------------------------------------------- 3b. SWASH: the crossbar flies */
+  /**
+   * THE SINGLE BIGGEST PIECE OF THE MISSING THICK/THIN, and it is not an erosion at all.
+   *
+   * Re-measured this round off bar/panel-truck.png at cap 36, one rule both sides
+   * (max channel >= 150, saturation <= 46), horizontal run lengths per row:
+   *
+   *                    p50   p75   p90   p95   p99   max   runs >= 2x median
+   *     bar TRUCK!     5.0   6.0   9.0  12.8  27.0    46   31
+   *     ours, before   6.0   7.0   8.0  10.0  14.0    17   10
+   *
+   * The bar's whole upper tail — 46 / 42 / 36 / 30 px, every one of them at u 0.81..0.89,
+   * i.e. a fifth of a cap under the cap line — is ONE feature: the T's crossbar running
+   * on into the R's shoulder as a single unbroken horizontal band 1.28 cap long. That is
+   * also why the bar segments into five components with T and R fused where ours segments
+   * into seven with clean gaps. Ours has no run over 0.47 cap anywhere.
+   *
+   * No amount of erosion can produce that, because erosion only ever REMOVES; and the
+   * previous round's attempt to buy the ratio with a uniform slimX is measurable as a
+   * straight trade of coverage for ratio — at slimX 0.042 the ratio reaches 1.75 but the
+   * median stroke falls to 0.113 cap against the bar's 0.139 and coverage to 0.232
+   * against 0.287. The mark goes skeletal, which is the opposite note.
+   *
+   * So the fix ADDS ink, and only where the bar has it. `barsMask` already isolates
+   * exactly the pixels that belong to a horizontal run longer than 0.30 cap — crossbars,
+   * arms, the flat apex of a bowl — and drops every stem. Dilating THAT along +x lets a
+   * broad stroke fly on to the right the way a loaded brush does, closes the 0.19 cap gap
+   * between the T's crossbar and the R, and leaves every stem width untouched.
+   *
+   * Right only, and only in the top band. Rightward because the face's crossbars are drawn
+   * left-to-right and already taper that way (T is c:['chisel','taper']), and because the
+   * italic leans the next glyph's top toward the swash rather than away from it. Top band
+   * because that is where the bar's fusion is; a baseline arm flying right would bridge
+   * feet, which no panel does.
+   *
+   * Dilation by DOUBLING: shifts of 1, 1, 2, 4, 8... reach R in ceil(log2 R) + 1 draws
+   * rather than R of them, and for solid horizontal runs the shift form is exact.
+   */
+  function swash(uTop, uBot, reach, hrFrac) {
+    const zTop = Math.max(0, Math.floor(oy - capH * uTop));
+    const zBot = Math.min(H, Math.ceil(oy - capH * uBot));
+    const zH = zBot - zTop;
+    const R = Math.round(capH * reach);
+    if (zH < 4 || R < 1) return;
+    const B = barsMask(zTop, zH, hrFrac);
+    let si = 8, di = 9;
+    let src = scratch(si, W, zH);
+    src.ctx.drawImage(B.cv, 0, 0, W, zH, 0, 0, W, zH);
+    let cur = 0;
+    while (cur < R) {
+      const s = Math.min(cur || 1, R - cur);
+      const dst = scratch(di, W, zH);
+      dst.ctx.drawImage(src.cv, 0, 0, W, zH, 0, 0, W, zH);
+      dst.ctx.drawImage(src.cv, 0, 0, W, zH, s, 0, W, zH);
+      src = dst;
+      const t = si; si = di; di = t;
+      cur += s;
+    }
+    M.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    M.ctx.globalCompositeOperation = 'source-over';
+    M.ctx.drawImage(src.cv, 0, 0, W, zH, 0, zTop, W, zH);
   }
 
   /* ------------------------------------------- 4. SHAPE: entries, exits, terminals */
@@ -623,13 +686,35 @@ export function inkMask(faces, spec) {
   const fr = spec.fray === undefined ? 1 : spec.fray;
   const tp = spec.taper === undefined ? 0.048 : spec.taper;
   const en = spec.entry === undefined ? tp * 0.62 : spec.entry;
+  const swR = spec.swash === undefined ? 0 : spec.swash;
   const steps = [];
 
-  // [0] ENTRIES. Thinning run down from the cap line. X only — an entry is a chisel edge,
+  // [0] THE SWASH. Before every shaping pass, so the extension is part of the letter by
+  //     the time `barsMask` protects broad horizontals and the shadow is sampled off it.
+  //     NOT gated on `fine`: fusion is a property of the mark at every size — the bar's
+  //     own T and R are fused at cap 36 — and a swash that only appears on the hero
+  //     capture would be a different letterform on the sheet.
+  //     AND IT HAS TO BE NARROW, WHICH COST A ROUND OF LOOKING TO LEARN. A permissive
+  //     version of this pass — qualifying radius 0.15 cap, band u 1.02..0.70, reach 0.20
+  //     cap, plus a second band at the feet — matched the bar on w/cap, h/cap, coverage,
+  //     component count, median run AND p90/median all at once, and rendered an illegible
+  //     mark: every letter top qualifies as a broad horizontal, so the extensions chained
+  //     T-R-U-C-K into one unbroken bar across the cap line and the counters filled in.
+  //     Metrics are a check, not the target.
+  //
+  //     What the bar actually fuses is ONE pair. Its T crossbar is the only horizontal in
+  //     the word longer than half a cap; the tops of U, C and K are 0.3-0.4 cap and stay
+  //     separate, with clear gaps. So the qualifying radius goes to 0.26 cap — keeping only
+  //     runs over 0.52 cap, which the crossbar clears at 0.73 and nothing else does — the
+  //     band narrows to the top eighth of the cap, and the reach is cut to just what closes
+  //     the 0.19 cap gap to the R.
+  if (swR > 0) steps.push(() => swash(1.06, 0.84, swR, spec.swashSel === undefined ? 0.26 : spec.swashSel));
+
+  // [1] ENTRIES. Thinning run down from the cap line. X only — an entry is a chisel edge,
   //     not a point — and through `barsMask`, so a crossbar keeps its length.
   steps.push(() => shape(Math.min(4, Math.round(en * capH * fine)), 1.16, 0.62, 1.35, 0, true));
 
-  // [1] EXITS AND TERMINALS, then the shadow off the shaped letter. Order matters twice
+  // [2] EXITS AND TERMINALS, then the shadow off the shaped letter. Order matters twice
   //     over: the shadow has to follow the pointed stroke, and it has to be taken before
   //     a single filament exists.
   steps.push(() => {
@@ -641,16 +726,50 @@ export function inkMask(faces, spec) {
     sampleShadow();
   });
 
-  // [2] the split tails, off the shaped mask. Composited under 1.0: a filament carries
+  // [3] the split tails, off the shaped mask. Composited under 1.0: a filament carries
   //     less paint than the stroke it leaves, and it has to READ that way under a
   //     threshold as well as to the eye — the bar's tails vanish at a 205 cut and appear
   //     at 150. A tail baked at full alpha survives the 205 cut and drags the measured
   //     aspect down with it, which was the artefact behind the round-1 verdict.
   //     The gate also kills them at tile scale: a 0.008 cap wedge is 0.5 px there, and a
   //     sub-pixel filament is not a filament, it is speckle.
+  //
+  //     RE-MEASURED THIS ROUND, because both neighbouring rounds got it wrong in opposite
+  //     directions. Ink pixels per row below the baseline, threshold 150, cap 36:
+  //
+  //       bar panel-truck      8  4  4  2  1  1                     6 rows, 0.167 cap
+  //       round 2 (a comb)   100 92 85 68 ...                      16 rows — a picket fence
+  //       round 3 in flight    6                                    1 row  — no tail at all
+  //
+  //     Round 2's fence read as scanline dropout; the in-flight fix deleted it outright and
+  //     took the mark's whole bottom edge with it (ink-box h/cap 1.194 against the bar's
+  //     1.306). What the bar actually has is a SHORT, FAST-DECAYING tail: half the ink in
+  //     the first row, gone by the sixth. `tailReach` is that 0.167 cap and `tailAlpha` is
+  //     what keeps the last rows just above the 150 cut rather than well under it.
+  //
+  //     AND THE REASON THE PREVIOUS SETTINGS PRODUCED NOTHING, which is worth writing down
+  //     because it is not obvious: a tail row only COUNTS if it clears the same threshold
+  //     the bar was measured at. Over a background at lum ~42 with ink at ~190, a pixel
+  //     reaches lum 150 only above mask alpha 0.73. The in-flight settings multiplied a
+  //     0.66 line alpha by a 0.60^k decay by a 0.55..1.0 per-hair alpha, so nothing past
+  //     the first step could ever clear the cut however far it reached — which is why
+  //     sweeping `reach` moved the measured tail by exactly zero rows. The hairs were also
+  //     0.007..0.016 cap wide, i.e. a quarter of a pixel at cap 36, so they antialiased
+  //     away as well. The bar's tail is the opposite shape: VERY FEW hairs, each of them
+  //     nearly opaque and 2-3 px wide at cap 36. Hence wide stations, fat roots, slow decay.
   if (fr > 0 && fine > 0.05) {
-    steps.push(() => tails(-0.30, 0.26, 3, 0.060 * fr, 0.60, 0.66 * (0.30 + 0.70 * fine),
-      [0.95, 0.007, 0.016, 0.55, 0.20, 0.16]));
+    const tR = (spec.tailReach === undefined ? 0.17 : spec.tailReach) * fr;
+    const tA = spec.tailAlpha === undefined ? 1.0 : spec.tailAlpha;
+    const tD = spec.tailDecay === undefined ? 0.93 : spec.tailDecay;
+    const tW = spec.tailW === undefined ? 1 : spec.tailW;
+    const tS = spec.tailSpacing === undefined ? 1.30 : spec.tailSpacing;
+    // Hair ROOT width, sized from the bar's own pixel counts rather than guessed. Its
+    // first tail row carries 8 px of ink across the whole word; two hairs is 4 px each,
+    // i.e. 0.11 cap — and the wedge is already half-tapered by the time it crosses the
+    // baseline, so the root has to be about twice that again.
+    const tN = Math.max(2, Math.min(6, Math.round(tR / 0.034)));
+    steps.push(() => tails(-0.30, tR + 0.12, tN, tR / tN, tD, tA * (0.45 + 0.55 * fine),
+      [tS, 0.045 * tW, 0.125 * tW, 0.90, 0.20, 0.16]));
   }
 
   return {
@@ -692,25 +811,86 @@ export function inkPaint(target, faces, spec, st) {
   if (shA > 0) {
     const SH = exact(1, sw, sh);
     const B = exact(2, sw, sh);
+    // THE POOL. Measured falloff of the mean luminance in the ring r px outside the ink,
+    // against the local background, at matched cap 36:
+    //
+    //                    r1     r2     r3     r4     r6     r9
+    //   bar truck      +19.4  -21.9  -18.0  -16.2  -11.3   -7.9
+    //   bar leveler    +16.4  -27.7  -22.3  -22.4  -18.8  -16.7
+    //   ours, before   +23.4  -10.6   -4.0   -2.8   -1.4   -0.5
+    //
+    // Ours did not merely sit light at r2 — it fell off a cliff. The bar still carries 8 to
+    // 17 lum of shadow NINE pixels out at cap 36, so what it has is a broad dark pool the
+    // lettering sits in, and the single-number "ring at 2 px" the previous rounds argued
+    // over was reading the near edge of it. Tightening the contact pass, which is what that
+    // number invites, makes the mismatch worse.
+    //
+    // So the halo is now two blurs rather than one: a MID pass at 0.13 cap, which is the
+    // bar's own measured half-life (-21.9 at r2 to -11.3 at r6), carrying most of the
+    // weight, and the original 0.30 cap SPREAD behind it for the far field.
+    //
+    // AND THE THING THAT WAS ACTUALLY MISSING: SPREAD. A blur alone cannot make a heavy
+    // wide shadow, it can only make a faint one — blurring a 5 px silhouette (the stroke at
+    // the quarter scale these plates work at) by 11 px leaves a peak alpha near 0.18, which
+    // is why the 0.30 cap pass was measuring -0.5 lum nine pixels out however hard its
+    // alpha was driven. A drop shadow with a broad heavy skirt is a silhouette GROWN and
+    // then blurred. So the halo blurs a dilated copy: eight shifted draws on the quarter-
+    // scale plate, which is 25k pixels, not the plate's 310k.
     const haA = spec.halo === undefined ? 1 : spec.halo;
     if (haA > 0) {
+      const hb = spec.haloBlur === undefined ? 0.13 : spec.haloBlur;
+      const sp = Math.max(1, Math.round(capH * (spec.haloSpread === undefined ? 0.075 : spec.haloSpread) * q));
+      const SP = exact(6, sw, sh);
+      SP.ctx.drawImage(A.cv, 0, 0, sw, sh, 0, 0, sw, sh);
+      SP.ctx.drawImage(A.cv, 0, 0, sw, sh, sp, 0, sw, sh);
+      SP.ctx.drawImage(A.cv, 0, 0, sw, sh, -sp, 0, sw, sh);
+      SP.ctx.drawImage(A.cv, 0, 0, sw, sh, 0, sp, sw, sh);
+      SP.ctx.drawImage(A.cv, 0, 0, sw, sh, 0, -sp, sw, sh);
+      SP.ctx.drawImage(A.cv, 0, 0, sw, sh, sp, sp, sw, sh);
+      SP.ctx.drawImage(A.cv, 0, 0, sw, sh, -sp, sp, sw, sh);
+      SP.ctx.drawImage(A.cv, 0, 0, sw, sh, sp, -sp, sw, sh);
+      SP.ctx.drawImage(A.cv, 0, 0, sw, sh, -sp, -sp, sw, sh);
       B.ctx.filter = `blur(${Math.max(1, blurH * q).toFixed(2)}px)`;
-      B.ctx.drawImage(A.cv, 0, 0, sw, sh, 0, 0, sw, sh);
+      B.ctx.drawImage(SP.cv, 0, 0, sw, sh, 0, 0, sw, sh);
       B.ctx.filter = 'none';
       B.ctx.globalCompositeOperation = 'source-in';
       B.ctx.fillStyle = `rgb(${SHADOW_RGB})`;
       B.ctx.fillRect(0, 0, sw, sh);
-      SH.ctx.globalAlpha = 0.40 * haA;
+      SH.ctx.globalAlpha = Math.min(1, 0.32 * haA);
       SH.ctx.drawImage(B.cv, 0, 0, sw, sh, capH * 0.02 * q, capH * 0.07 * q, sw, sh);
+
+      // Slot 5, not 4: 4 is the chalk plate, which is 1/8 scale, and `exact` reallocates
+      // whenever the requested size differs from the last tenant's.
+      const B3 = exact(5, sw, sh);
+      B3.ctx.filter = `blur(${Math.max(1, capH * hb * q).toFixed(2)}px)`;
+      B3.ctx.drawImage(SP.cv, 0, 0, sw, sh, 0, 0, sw, sh);
+      B3.ctx.filter = 'none';
+      B3.ctx.globalCompositeOperation = 'source-in';
+      B3.ctx.fillStyle = `rgb(${SHADOW_RGB})`;
+      B3.ctx.fillRect(0, 0, sw, sh);
+      SH.ctx.globalAlpha = Math.min(1, (spec.haloMid === undefined ? 0.56 : spec.haloMid) * haA);
+      SH.ctx.drawImage(B3.cv, 0, 0, sw, sh, capH * 0.012 * q, capH * 0.030 * q, sw, sh);
     }
+    // THE CONTACT RING, and it is a ring, not a drop. Measured 2 px outside the ink at
+    // matched cap 36 against the local background: bar panel-truck -21.9 lum, panel-leveler
+    // -20.8, panel-touchdown -7.1. Round 2 sat at -33 (a bruise); the in-flight round-3 fix
+    // over-corrected to -9.3 (no seat at all).
+    //
+    // Raising the OFFSET pass could not close that gap — measured, an offset shadow at any
+    // alpha darkens one side of the ring and leaves the other at background, so the mean
+    // over the whole ring saturates near -14 however hard it is driven. What the bar has is
+    // a tight shadow that surrounds the letter, so this pass is now drawn TWICE: once
+    // un-offset and close in, which seats the mark, and once offset, which throws it.
     const B2 = exact(3, sw, sh);
-    B2.ctx.filter = `blur(${Math.max(0.8, capH * 0.055 * q).toFixed(2)}px)`;
+    B2.ctx.filter = `blur(${Math.max(0.8, capH * 0.042 * q).toFixed(2)}px)`;
     B2.ctx.drawImage(A.cv, 0, 0, sw, sh, 0, 0, sw, sh);
     B2.ctx.filter = 'none';
     B2.ctx.globalCompositeOperation = 'source-in';
     B2.ctx.fillStyle = `rgb(${SHADOW_RGB})`;
     B2.ctx.fillRect(0, 0, sw, sh);
-    SH.ctx.globalAlpha = 0.62 * shA;
+    SH.ctx.globalAlpha = Math.min(1, 0.55 * shA);
+    SH.ctx.drawImage(B2.cv, 0, 0, sw, sh, 0, 0, sw, sh);
+    SH.ctx.globalAlpha = Math.min(1, 0.62 * shA);
     SH.ctx.drawImage(B2.cv, 0, 0, sw, sh, capH * 0.026 * q, capH * 0.050 * q, sw, sh);
     SH.ctx.globalAlpha = 1;
 

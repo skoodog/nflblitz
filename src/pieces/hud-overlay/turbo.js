@@ -32,10 +32,29 @@ import {
 } from './chrome.js';
 import { inkSet } from './ink.js';
 
-export const PLATE = { x: 48, y: 954, w: 288, h: 82 };
+/* PLATE PROPORTION, RE-MEASURED IN ROUND 3.
+ * Round 2 shipped 288 x 82 = 3.51. Re-derived from the art by masking the blue
+ * rim (B > 90, B-R > 45, B-G > 22) in the bottom-left of every panel that shows
+ * the meter whole — panel-catch is cropped at x=0 and cannot be used — and taking
+ * the bounding box of the rim component, GLOW INCLUDED:
+ *
+ *     qb_dropback  89 x 23  = 3.87        leveler    89 x 23 = 3.87
+ *     truck        87 x 24  = 3.63        touchdown  91 x 22 = 4.14
+ *     midair_hit   87 x 22  = 3.95
+ *
+ * The two hero panels give 3.87 and 3.63, mean 3.75; the five-panel median is
+ * 3.87. The spread is real — the plate's right end tapers into its own glow, so
+ * where you cut the tip moves the width by a few per cent — but every panel is
+ * above 3.6 and ours was 3.51. Shipping 3.79.
+ *
+ * The BOTTOM EDGE does not move: layout.turboTop() derives the top from
+ * (frame bottom - TURBO_BOTTOM_INSET - plateH - mg), so the plate's bottom stays
+ * pinned at 1036 logical whatever h is. Only the top edge comes down.
+ * The interior (word, track) is rescaled by 76/82 so nothing overflows. */
+export const PLATE = { x: 48, y: 960, w: 288, h: 76 };
 const MG = 24;
 
-export const TRK = { x: 4, y: 49, w: 277, h: 28 };
+export const TRK = { x: 4, y: 45.4, w: 277, h: 26 };
 
 const BLUE = '#1f57ef';
 const BLUE_HI = '#8fb6ff';
@@ -61,7 +80,7 @@ const BLUE_LO = '#0b1d68';
 // and a sheared 'T' puts its real left edge about 10 px right of that anchor while
 // the final 'O' leans ~8 px past its right, so the box is opened at both ends to
 // land the DRAWN ink on the bar's 0.128..0.71 of the plate width.
-const WORD = { x: 27, y: 7, w: 182, h: 32, slant: 0.24 };
+const WORD = { x: 27, y: 6.5, w: 182, h: 29.6, slant: 0.24 };
 
 let chromeCv = null, fillCv = null, leadCv = null, heatCv = null;
 let quality = 1;
@@ -285,7 +304,22 @@ function bakeChrome(ui, s) {
     // 33 x 31, so the run genuinely needs to be widened almost 2x to sit as square
     // and as heavy as the art. Round 2's first pass clamped at 1.70 and silently
     // gave back a run 11% narrower than asked for.
-    gap: 2.4, slant: WORD.slant, minXs: 0.62, maxXs: 2.05,
+    // gap 3.4, not 2.4: MEASURED off the art. Thresholding panel-truck.png over
+    // the word band and reading the letter edges row by row puts the bar's
+    // inter-letter gaps at 1 panel px = 3.5 logical for U-R, R-B and B-O, and
+    // 5 panel px = 17.4 logical for T-U — the T's crossbar sets its own spacing
+    // there, in the art exactly as here. So the four gaps are NOT meant to match
+    // each other; the three that do not involve a 'T' are.
+    //
+    // capBand 0.50 / clear 0.15: blitz-techno's 'R' throws its leg ~12 px right of
+    // its bowl at this size, so a full-height packing rule spaced 'B' off the toe
+    // of that leg and left a 6.3 px hole beside the bowl — "TUR BO". Spacing on
+    // the middle 50% of the ink and holding the toe off with a small clearance
+    // instead closes it. (The bar's own 'R' does not splay: its widest point is
+    // the bowl, 59 panel px, against a foot at 58 — which is why the art can hold
+    // one uniform gap at every height and this face cannot.)
+    gap: 3.4, capBand: 0.50, clear: 0.15,
+    slant: WORD.slant, minXs: 0.62, maxXs: 2.05,
     keyline: { color: 'rgba(0,0,0,0.92)', k: 0.034 },
     shadow: { color: 'rgba(0,3,14,0.95)', blur: 9, dy: 4, alpha: 0.95 },
     grad: [
