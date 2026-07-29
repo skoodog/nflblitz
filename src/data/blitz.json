@@ -1,0 +1,664 @@
+{
+ "meta": {
+  "offSlots": [
+   "QB",
+   "REC1",
+   "REC2",
+   "REC3",
+   "OL1",
+   "OL2",
+   "OL3"
+  ],
+  "defSlots": [
+   "RUSH1",
+   "RUSH2",
+   "ROVER",
+   "DB1",
+   "DB2",
+   "DB3",
+   "DB4"
+  ]
+ },
+ "byTeam": {
+  "BUF": {
+   "OFF": {
+    "QB": "Jim Kelly",
+    "REC1": "O.J. Simpson",
+    "REC2": "Andre Reed",
+    "REC3": "James Lofton",
+    "OL1": "Joe DeLamielleure",
+    "OL2": "Billy Shaw",
+    "OL3": "Kent Hull"
+   },
+   "DEF": {
+    "RUSH1": "Bruce Smith",
+    "RUSH2": "Aaron Schobel",
+    "ROVER": "Cornelius Bennett",
+    "DB1": "Butch Byrd",
+    "DB2": "Nate Odomes",
+    "DB3": "George Saimes",
+    "DB4": "Jairus Byrd"
+   }
+  },
+  "MIA": {
+   "OFF": {
+    "QB": "Dan Marino",
+    "REC1": "Larry Csonka",
+    "REC2": "Paul Warfield",
+    "REC3": "Mark Clayton",
+    "OL1": "Jim Langer",
+    "OL2": "Larry Little",
+    "OL3": "Richmond Webb"
+   },
+   "DEF": {
+    "RUSH1": "Jason Taylor",
+    "RUSH2": "Bill Stanfill",
+    "ROVER": "Nick Buoniconti",
+    "DB1": "Sam Madison",
+    "DB2": "Patrick Surtain",
+    "DB3": "Jake Scott",
+    "DB4": "Dick Anderson"
+   }
+  },
+  "NE": {
+   "OFF": {
+    "QB": "Tom Brady",
+    "REC1": "Rob Gronkowski",
+    "REC2": "Randy Moss",
+    "REC3": "Stanley Morgan",
+    "OL1": "John Hannah",
+    "OL2": "Bruce Armstrong",
+    "OL3": "Logan Mankins"
+   },
+   "DEF": {
+    "RUSH1": "Andre Tippett",
+    "RUSH2": "Willie McGinest",
+    "ROVER": "Tedy Bruschi",
+    "DB1": "Ty Law",
+    "DB2": "Mike Haynes",
+    "DB3": "Devin McCourty",
+    "DB4": "Rodney Harrison"
+   }
+  },
+  "NYJ": {
+   "OFF": {
+    "QB": "Joe Namath",
+    "REC1": "Curtis Martin",
+    "REC2": "Don Maynard",
+    "REC3": "Al Toon",
+    "OL1": "Winston Hill",
+    "OL2": "Kevin Mawae",
+    "OL3": "Nick Mangold"
+   },
+   "DEF": {
+    "RUSH1": "Joe Klecko",
+    "RUSH2": "Mark Gastineau",
+    "ROVER": "Mo Lewis",
+    "DB1": "Darrelle Revis",
+    "DB2": "Aaron Glenn",
+    "DB3": "Victor Green",
+    "DB4": "Bill Baird"
+   }
+  },
+  "BAL": {
+   "OFF": {
+    "QB": "Lamar Jackson",
+    "REC1": "Jamal Lewis",
+    "REC2": "Derrick Mason",
+    "REC3": "Mark Andrews",
+    "OL1": "Jonathan Ogden",
+    "OL2": "Marshal Yanda",
+    "OL3": "Ronnie Stanley"
+   },
+   "DEF": {
+    "RUSH1": "Terrell Suggs",
+    "RUSH2": "Haloti Ngata",
+    "ROVER": "Ray Lewis",
+    "DB1": "Ed Reed",
+    "DB2": "Rod Woodson",
+    "DB3": "Chris McAlister",
+    "DB4": "Marlon Humphrey"
+   }
+  },
+  "CIN": {
+   "OFF": {
+    "QB": "Ken Anderson",
+    "REC1": "Corey Dillon",
+    "REC2": "A.J. Green",
+    "REC3": "Chad Johnson",
+    "OL1": "Anthony Mu\u00f1oz",
+    "OL2": "Max Montoya",
+    "OL3": "Willie Anderson"
+   },
+   "DEF": {
+    "RUSH1": "Geno Atkins",
+    "RUSH2": "Carlos Dunlap",
+    "ROVER": "Reggie Williams",
+    "DB1": "Ken Riley",
+    "DB2": "Lemar Parrish",
+    "DB3": "David Fulcher",
+    "DB4": "Jessie Bates III"
+   }
+  },
+  "CLE": {
+   "OFF": {
+    "QB": "Otto Graham",
+    "REC1": "Jim Brown",
+    "REC2": "Paul Warfield",
+    "REC3": "Dante Lavelli",
+    "OL1": "Joe Thomas",
+    "OL2": "Gene Hickerson",
+    "OL3": "Lou Groza"
+   },
+   "DEF": {
+    "RUSH1": "Myles Garrett",
+    "RUSH2": "Len Ford",
+    "ROVER": "Bill Willis",
+    "DB1": "Frank Minnifield",
+    "DB2": "Hanford Dixon",
+    "DB3": "Thom Darden",
+    "DB4": "Felix Wright"
+   }
+  },
+  "PIT": {
+   "OFF": {
+    "QB": "Terry Bradshaw",
+    "REC1": "Franco Harris",
+    "REC2": "Lynn Swann",
+    "REC3": "John Stallworth",
+    "OL1": "Mike Webster",
+    "OL2": "Dermontti Dawson",
+    "OL3": "Alan Faneca"
+   },
+   "DEF": {
+    "RUSH1": "Joe Greene",
+    "RUSH2": "T.J. Watt",
+    "ROVER": "Jack Lambert",
+    "DB1": "Mel Blount",
+    "DB2": "Rod Woodson",
+    "DB3": "Troy Polamalu",
+    "DB4": "Donnie Shell"
+   }
+  },
+  "HOU": {
+   "OFF": {
+    "QB": "Matt Schaub",
+    "REC1": "Arian Foster",
+    "REC2": "Andre Johnson",
+    "REC3": "DeAndre Hopkins",
+    "OL1": "Duane Brown",
+    "OL2": "Chris Myers",
+    "OL3": "Laremy Tunsil"
+   },
+   "DEF": {
+    "RUSH1": "J.J. Watt",
+    "RUSH2": "Mario Williams",
+    "ROVER": "Brian Cushing",
+    "DB1": "Johnathan Joseph",
+    "DB2": "A.J. Bouye",
+    "DB3": "Kareem Jackson",
+    "DB4": "Glover Quin"
+   }
+  },
+  "IND": {
+   "OFF": {
+    "QB": "Peyton Manning",
+    "REC1": "Edgerrin James",
+    "REC2": "Marvin Harrison",
+    "REC3": "Reggie Wayne",
+    "OL1": "Jim Parker",
+    "OL2": "Tarik Glenn",
+    "OL3": "Jeff Saturday"
+   },
+   "DEF": {
+    "RUSH1": "Dwight Freeney",
+    "RUSH2": "Gino Marchetti",
+    "ROVER": "Shaquille Leonard",
+    "DB1": "Bobby Boyd",
+    "DB2": "Eugene Daniel",
+    "DB3": "Bob Sanders",
+    "DB4": "Antoine Bethea"
+   }
+  },
+  "JAX": {
+   "OFF": {
+    "QB": "Mark Brunell",
+    "REC1": "Fred Taylor",
+    "REC2": "Jimmy Smith",
+    "REC3": "Keenan McCardell",
+    "OL1": "Tony Boselli",
+    "OL2": "Brad Meester",
+    "OL3": "Maurice Williams"
+   },
+   "DEF": {
+    "RUSH1": "Tony Brackens",
+    "RUSH2": "Calais Campbell",
+    "ROVER": "Paul Posluszny",
+    "DB1": "Jalen Ramsey",
+    "DB2": "Rashean Mathis",
+    "DB3": "Aaron Beasley",
+    "DB4": "Donovin Darius"
+   }
+  },
+  "TEN": {
+   "OFF": {
+    "QB": "Warren Moon",
+    "REC1": "Earl Campbell",
+    "REC2": "Derrick Mason",
+    "REC3": "Delanie Walker",
+    "OL1": "Bruce Matthews",
+    "OL2": "Mike Munchak",
+    "OL3": "Brad Hopkins"
+   },
+   "DEF": {
+    "RUSH1": "Elvin Bethea",
+    "RUSH2": "Curley Culp",
+    "ROVER": "Robert Brazile",
+    "DB1": "Ken Houston",
+    "DB2": "Samari Rolle",
+    "DB3": "Blaine Bishop",
+    "DB4": "Michael Griffin"
+   }
+  },
+  "DEN": {
+   "OFF": {
+    "QB": "John Elway",
+    "REC1": "Terrell Davis",
+    "REC2": "Shannon Sharpe",
+    "REC3": "Rod Smith",
+    "OL1": "Gary Zimmerman",
+    "OL2": "Tom Nalen",
+    "OL3": "Mark Schlereth"
+   },
+   "DEF": {
+    "RUSH1": "Von Miller",
+    "RUSH2": "Karl Mecklenburg",
+    "ROVER": "Randy Gradishar",
+    "DB1": "Champ Bailey",
+    "DB2": "Steve Atwater",
+    "DB3": "Louis Wright",
+    "DB4": "Dennis Smith"
+   }
+  },
+  "KC": {
+   "OFF": {
+    "QB": "Patrick Mahomes",
+    "REC1": "Jamaal Charles",
+    "REC2": "Tony Gonzalez",
+    "REC3": "Tyreek Hill",
+    "OL1": "Willie Roaf",
+    "OL2": "Will Shields",
+    "OL3": "Mitchell Schwartz"
+   },
+   "DEF": {
+    "RUSH1": "Derrick Thomas",
+    "RUSH2": "Buck Buchanan",
+    "ROVER": "Bobby Bell",
+    "DB1": "Emmitt Thomas",
+    "DB2": "Johnny Robinson",
+    "DB3": "Albert Lewis",
+    "DB4": "Deron Cherry"
+   }
+  },
+  "LV": {
+   "OFF": {
+    "QB": "Ken Stabler",
+    "REC1": "Marcus Allen",
+    "REC2": "Tim Brown",
+    "REC3": "Cliff Branch",
+    "OL1": "Art Shell",
+    "OL2": "Gene Upshaw",
+    "OL3": "Jim Otto"
+   },
+   "DEF": {
+    "RUSH1": "Howie Long",
+    "RUSH2": "Khalil Mack",
+    "ROVER": "Ted Hendricks",
+    "DB1": "Charles Woodson",
+    "DB2": "Mike Haynes",
+    "DB3": "Lester Hayes",
+    "DB4": "Jack Tatum"
+   }
+  },
+  "LAC": {
+   "OFF": {
+    "QB": "Dan Fouts",
+    "REC1": "LaDainian Tomlinson",
+    "REC2": "Lance Alworth",
+    "REC3": "Antonio Gates",
+    "OL1": "Ron Mix",
+    "OL2": "Walt Sweeney",
+    "OL3": "Nick Hardwick"
+   },
+   "DEF": {
+    "RUSH1": "Junior Seau",
+    "RUSH2": "Leslie O'Neal",
+    "ROVER": "Fred Dean",
+    "DB1": "Eric Weddle",
+    "DB2": "Gill Byrd",
+    "DB3": "Quentin Jammer",
+    "DB4": "Rodney Harrison"
+   }
+  },
+  "DAL": {
+   "OFF": {
+    "QB": "Roger Staubach",
+    "REC1": "Emmitt Smith",
+    "REC2": "Michael Irvin",
+    "REC3": "Bob Hayes",
+    "OL1": "Larry Allen",
+    "OL2": "Rayfield Wright",
+    "OL3": "Travis Frederick"
+   },
+   "DEF": {
+    "RUSH1": "DeMarcus Ware",
+    "RUSH2": "Bob Lilly",
+    "ROVER": "Chuck Howley",
+    "DB1": "Deion Sanders",
+    "DB2": "Mel Renfro",
+    "DB3": "Cliff Harris",
+    "DB4": "Darren Woodson"
+   }
+  },
+  "NYG": {
+   "OFF": {
+    "QB": "Eli Manning",
+    "REC1": "Tiki Barber",
+    "REC2": "Frank Gifford",
+    "REC3": "Mark Bavaro",
+    "OL1": "Roosevelt Brown",
+    "OL2": "Mel Hein",
+    "OL3": "Chris Snee"
+   },
+   "DEF": {
+    "RUSH1": "Lawrence Taylor",
+    "RUSH2": "Michael Strahan",
+    "ROVER": "Harry Carson",
+    "DB1": "Emlen Tunnell",
+    "DB2": "Dick Lynch",
+    "DB3": "Jimmy Patton",
+    "DB4": "Mark Collins"
+   }
+  },
+  "PHI": {
+   "OFF": {
+    "QB": "Donovan McNabb",
+    "REC1": "Steve Van Buren",
+    "REC2": "Harold Carmichael",
+    "REC3": "Pete Pihos",
+    "OL1": "Jason Kelce",
+    "OL2": "Bob Brown",
+    "OL3": "Tra Thomas"
+   },
+   "DEF": {
+    "RUSH1": "Reggie White",
+    "RUSH2": "Chuck Bednarik",
+    "ROVER": "Seth Joyner",
+    "DB1": "Brian Dawkins",
+    "DB2": "Eric Allen",
+    "DB3": "Troy Vincent",
+    "DB4": "Bill Bradley"
+   }
+  },
+  "WAS": {
+   "OFF": {
+    "QB": "Sammy Baugh",
+    "REC1": "John Riggins",
+    "REC2": "Art Monk",
+    "REC3": "Charley Taylor",
+    "OL1": "Russ Grimm",
+    "OL2": "Joe Jacoby",
+    "OL3": "Trent Williams"
+   },
+   "DEF": {
+    "RUSH1": "Dexter Manley",
+    "RUSH2": "Chris Hanburger",
+    "ROVER": "London Fletcher",
+    "DB1": "Darrell Green",
+    "DB2": "Ken Houston",
+    "DB3": "Sean Taylor",
+    "DB4": "Champ Bailey"
+   }
+  },
+  "CHI": {
+   "OFF": {
+    "QB": "Sid Luckman",
+    "REC1": "Walter Payton",
+    "REC2": "Mike Ditka",
+    "REC3": "Devin Hester",
+    "OL1": "Jimbo Covert",
+    "OL2": "Stan Jones",
+    "OL3": "Jay Hilgenberg"
+   },
+   "DEF": {
+    "RUSH1": "Richard Dent",
+    "RUSH2": "Dan Hampton",
+    "ROVER": "Dick Butkus",
+    "DB1": "Night Train Lane",
+    "DB2": "Charles Tillman",
+    "DB3": "Gary Fencik",
+    "DB4": "Dave Duerson"
+   }
+  },
+  "DET": {
+   "OFF": {
+    "QB": "Bobby Layne",
+    "REC1": "Barry Sanders",
+    "REC2": "Calvin Johnson",
+    "REC3": "Herman Moore",
+    "OL1": "Lou Creekmur",
+    "OL2": "Dick Stanfel",
+    "OL3": "Lomas Brown"
+   },
+   "DEF": {
+    "RUSH1": "Alex Karras",
+    "RUSH2": "Robert Porcher",
+    "ROVER": "Chris Spielman",
+    "DB1": "Night Train Lane",
+    "DB2": "Lem Barney",
+    "DB3": "Yale Lary",
+    "DB4": "Jack Christiansen"
+   }
+  },
+  "GB": {
+   "OFF": {
+    "QB": "Aaron Rodgers",
+    "REC1": "Jim Taylor",
+    "REC2": "Don Hutson",
+    "REC3": "Sterling Sharpe",
+    "OL1": "Forrest Gregg",
+    "OL2": "Jerry Kramer",
+    "OL3": "Jim Ringo"
+   },
+   "DEF": {
+    "RUSH1": "Reggie White",
+    "RUSH2": "Willie Davis",
+    "ROVER": "Ray Nitschke",
+    "DB1": "Herb Adderley",
+    "DB2": "Willie Wood",
+    "DB3": "LeRoy Butler",
+    "DB4": "Charles Woodson"
+   }
+  },
+  "MIN": {
+   "OFF": {
+    "QB": "Fran Tarkenton",
+    "REC1": "Adrian Peterson",
+    "REC2": "Randy Moss",
+    "REC3": "Cris Carter",
+    "OL1": "Ron Yary",
+    "OL2": "Steve Hutchinson",
+    "OL3": "Mick Tingelhoff"
+   },
+   "DEF": {
+    "RUSH1": "Alan Page",
+    "RUSH2": "Carl Eller",
+    "ROVER": "Jared Allen",
+    "DB1": "Paul Krause",
+    "DB2": "Bobby Bryant",
+    "DB3": "Antoine Winfield",
+    "DB4": "Joey Browner"
+   }
+  },
+  "ATL": {
+   "OFF": {
+    "QB": "Matt Ryan",
+    "REC1": "William Andrews",
+    "REC2": "Julio Jones",
+    "REC3": "Tony Gonzalez",
+    "OL1": "Mike Kenn",
+    "OL2": "Jeff Van Note",
+    "OL3": "Bill Fralic"
+   },
+   "DEF": {
+    "RUSH1": "Claude Humphrey",
+    "RUSH2": "John Abraham",
+    "ROVER": "Jessie Tuggle",
+    "DB1": "Deion Sanders",
+    "DB2": "Rolland Lawrence",
+    "DB3": "Scott Case",
+    "DB4": "Ray Buchanan"
+   }
+  },
+  "CAR": {
+   "OFF": {
+    "QB": "Cam Newton",
+    "REC1": "Christian McCaffrey",
+    "REC2": "Steve Smith Sr.",
+    "REC3": "Greg Olsen",
+    "OL1": "Jordan Gross",
+    "OL2": "Ryan Kalil",
+    "OL3": "Trai Turner"
+   },
+   "DEF": {
+    "RUSH1": "Julius Peppers",
+    "RUSH2": "Kevin Greene",
+    "ROVER": "Luke Kuechly",
+    "DB1": "Josh Norman",
+    "DB2": "Chris Gamble",
+    "DB3": "Mike Minter",
+    "DB4": "Eric Davis"
+   }
+  },
+  "NO": {
+   "OFF": {
+    "QB": "Drew Brees",
+    "REC1": "Alvin Kamara",
+    "REC2": "Marques Colston",
+    "REC3": "Jimmy Graham",
+    "OL1": "Willie Roaf",
+    "OL2": "Jahri Evans",
+    "OL3": "Stan Brock"
+   },
+   "DEF": {
+    "RUSH1": "Rickey Jackson",
+    "RUSH2": "Cameron Jordan",
+    "ROVER": "Sam Mills",
+    "DB1": "Marshon Lattimore",
+    "DB2": "Dave Waymer",
+    "DB3": "Tommy Myers",
+    "DB4": "Sammy Knight"
+   }
+  },
+  "TB": {
+   "OFF": {
+    "QB": "Tom Brady",
+    "REC1": "Mike Alstott",
+    "REC2": "Mike Evans",
+    "REC3": "Jimmie Giles",
+    "OL1": "Paul Gruber",
+    "OL2": "Davin Joseph",
+    "OL3": "Tristan Wirfs"
+   },
+   "DEF": {
+    "RUSH1": "Lee Roy Selmon",
+    "RUSH2": "Warren Sapp",
+    "ROVER": "Derrick Brooks",
+    "DB1": "Ronde Barber",
+    "DB2": "John Lynch",
+    "DB3": "Aqib Talib",
+    "DB4": "Donnie Abraham"
+   }
+  },
+  "ARI": {
+   "OFF": {
+    "QB": "Kurt Warner",
+    "REC1": "Ottis Anderson",
+    "REC2": "Larry Fitzgerald",
+    "REC3": "Jackie Smith",
+    "OL1": "Dan Dierdorf",
+    "OL2": "Luis Sharpe",
+    "OL3": "Conrad Dobler"
+   },
+   "DEF": {
+    "RUSH1": "Simeon Rice",
+    "RUSH2": "Calais Campbell",
+    "ROVER": "Larry Wilson",
+    "DB1": "Aeneas Williams",
+    "DB2": "Roger Wehrli",
+    "DB3": "Pat Tillman",
+    "DB4": "Adrian Wilson"
+   }
+  },
+  "LAR": {
+   "OFF": {
+    "QB": "Kurt Warner",
+    "REC1": "Eric Dickerson",
+    "REC2": "Isaac Bruce",
+    "REC3": "Torry Holt",
+    "OL1": "Orlando Pace",
+    "OL2": "Jackie Slater",
+    "OL3": "Tom Mack"
+   },
+   "DEF": {
+    "RUSH1": "Aaron Donald",
+    "RUSH2": "Deacon Jones",
+    "ROVER": "Jack Youngblood",
+    "DB1": "Night Train Lane",
+    "DB2": "Aeneas Williams",
+    "DB3": "Nolan Cromwell",
+    "DB4": "Rod Perry"
+   }
+  },
+  "SF": {
+   "OFF": {
+    "QB": "Joe Montana",
+    "REC1": "Roger Craig",
+    "REC2": "Jerry Rice",
+    "REC3": "Terrell Owens",
+    "OL1": "Trent Williams",
+    "OL2": "Bob St. Clair",
+    "OL3": "Randy Cross"
+   },
+   "DEF": {
+    "RUSH1": "Charles Haley",
+    "RUSH2": "Fred Dean",
+    "ROVER": "Patrick Willis",
+    "DB1": "Deion Sanders",
+    "DB2": "Ronnie Lott",
+    "DB3": "Jimmy Johnson",
+    "DB4": "Merton Hanks"
+   }
+  },
+  "SEA": {
+   "OFF": {
+    "QB": "Russell Wilson",
+    "REC1": "Shaun Alexander",
+    "REC2": "Steve Largent",
+    "REC3": "DK Metcalf",
+    "OL1": "Walter Jones",
+    "OL2": "Steve Hutchinson",
+    "OL3": "Max Unger"
+   },
+   "DEF": {
+    "RUSH1": "Cortez Kennedy",
+    "RUSH2": "Jacob Green",
+    "ROVER": "Bobby Wagner",
+    "DB1": "Richard Sherman",
+    "DB2": "Kenny Easley",
+    "DB3": "Earl Thomas",
+    "DB4": "Kam Chancellor"
+   }
+  }
+ }
+}
