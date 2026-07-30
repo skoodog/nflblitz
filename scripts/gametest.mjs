@@ -1,5 +1,13 @@
 #!/usr/bin/env node
-// THE GAMEPLAY TEST SUITE. Plain node, no browser, no renderer, ~50 ms.
+// THE GAMEPLAY TEST SUITE. Plain node, no browser, no renderer, ~40 s.
+//
+// It was ~50 ms when it only checked the rule set, the kick model and the control scheme,
+// all of which are cheap pure functions. The play-sim section runs about fifty thousand
+// simulated downs, because that is what its claims actually need: measured over eight
+// clubs, "a faster receiving corps gains more" read 3.8 < 3.6 < 4.5 and failed, and over
+// all thirty-two it reads 5.2 < 5.5 < 6.4 and holds. The sim is deterministic, so that gap
+// was not statistical noise -- it was a sample small enough for a few matchups to decide
+// the answer. Forty seconds is the price of the claim being true.
 //
 // This exists because the rule set, the control scheme and the kick model are all PURE
 // FUNCTIONS of state and ticks. That makes them testable in a way the visual pieces are
@@ -12,10 +20,15 @@
 // points, exact overlay strings, exact target indices -- rather than merely checking that
 // something happened.
 //
-// NOT YET DONE, and stated here rather than implied away: there is no automated mutation
-// battery. A sister piece in this project shipped a suite where 20 of 38 deliberate
-// mutations left it green, so "the assertions look specific" is not evidence. Until a
-// battery exists, treat this suite as unproven against that standard.
+// THE STANDARD THIS IS HELD TO. "The assertions look specific" is not evidence -- a sister
+// piece in this project shipped a suite where 20 of 38 deliberate mutations left it green.
+// The play-sim section is now backed by an automated battery that reintroduces sixteen
+// real defects and requires each to be caught:
+//
+//   node scripts/simmutate.mjs
+//
+// The rule set, kick and control-scheme sections above it are NOT yet covered by a battery,
+// and are stated here as unproven against that standard rather than implied away.
 //
 //   node scripts/gametest.mjs
 import { pathToFileURL } from 'node:url';
@@ -295,6 +308,313 @@ L('\n=== THE CONTROL SCHEME: XBOX, WITH ITS N64 LINEAGE ===');
   L(`    ${padActs.size} actions bound across ${P.PHASE_NAME.length} phases; touch parity holds`);
 }
 
+L('\n=== THE PLAY SIMULATION ===');
+{
+  const S = await imp('src/pieces/play-sim/sim.js');
+  const players = JSON.parse((await import('node:fs')).readFileSync(path.join(ROOT, 'src/data/players.json'), 'utf8'));
+  const clubs = Object.keys(players.byTeam);
+  const KC = players.byTeam.KC, BUF = players.byTeam.BUF;
+  const runOnce = (offIdx, defIdx, seed, off, def) => S.runPlay(S.createPlay(
+    seed, playbook.offense[offIdx], playbook.defense[defIdx],
+    off || KC, def || BUF, playbook.formation));
+
+  // Sweep a statistic over MANY clubs rather than one matchup. Every rating-sensitivity
+  // claim in this section used to be measured on KC against BUF alone, and that is how a
+  // false one got through: Mahomes is rated 92 for speed, so he scrambles clear of a
+  // six-man rush that flattens most of the league, and the six-versus-two comparison read
+  // 0% against 0% on that matchup while reading 43% against 0% across the league. One
+  // matchup is an anecdote regardless of how many seeds it is run with.
+  const league = (fn, stride) => {
+    let hit = 0, n = 0;
+    for (let t = 0; t < clubs.length; t += (stride || 1)) {
+      const off = players.byTeam[clubs[t]], def = players.byTeam[clubs[(t + 7) % clubs.length]];
+      for (let o = 0; o < playbook.offense.length; o++) {
+        const st = S.runPlay(S.createPlay(9000 + t * 131 + o * 41, playbook.offense[o],
+          playbook.defense[fn.d], off, def, playbook.formation));
+        if (fn.test(st)) hit++;
+        n++;
+      }
+    }
+    return { rate: hit / n, n };
+  };
+  const dIdx = (id) => playbook.defense.findIndex((x) => x.id === id);
+  const isSack = (st) => st.result === S.RESULT.SACK;
+
+  // DETERMINISM. Same seed and same inputs must give the same play, tick for tick.
+  // Everything downstream (replays, the 60-vs-30 invariance the engine already proved)
+  // depends on this, so it is asserted before anything else.
+  const a = runOnce(0, 0, 4242), b = runOnce(0, 0, 4242);
+  eq(a.yards, b.yards, 'same seed gives the same yardage');
+  eq(a.result, b.result, 'same seed gives the same result');
+  eq(a.tick, b.tick, 'same seed gives the same tick count');
+
+  // AND THE SEED HAS TO REACH THE FIELD. Measured across the sheet, not on one pair: the
+  // generator is only consulted to break a contested catch, an interception or a broken
+  // tackle, so a play that resolves cleanly never touches it. Before the passer's read was
+  // given a seeded jitter, the same call against the same call replayed byte-identically
+  // forever, and a single-pair check of this happened to sit on one of the plays that did
+  // draw. One pair is a coin toss dressed as a test.
+  let seedDiff = 0, seedN = 0;
+  for (let o = 0; o < playbook.offense.length; o++) {
+    for (let d = 0; d < playbook.defense.length; d++) {
+      const p1 = runOnce(o, d, 400 + o * 13 + d), p2 = runOnce(o, d, 90000 + o * 13 + d);
+      if (p1.yards !== p2.yards || p1.result !== p2.result || p1.tick !== p2.tick) seedDiff++;
+      seedN++;
+    }
+  }
+  ok(seedDiff > seedN * 0.35, 'a different seed gives a different play',
+    `${seedDiff}/${seedN} pairs differ`);
+
+  // Plays terminate. A sim that can hang is unusable regardless of how it looks.
+  let hung = 0, live = 0;
+  for (let o = 0; o < playbook.offense.length; o++) {
+    for (let d = 0; d < playbook.defense.length; d++) {
+      const st = runOnce(o, d, 1000 + o * 31 + d);
+      if (st.tick >= 600) hung++;
+      if (st.result === S.RESULT.LIVE) live++;
+    }
+  }
+  eq(hung, 0, 'no play hits the tick cap', `${hung} of 162`);
+  eq(live, 0, 'every play reaches a terminal result');
+
+  // Nobody may run off the map. A scrambling passer is steered at the sideline, so this is
+  // a live risk rather than a theoretical one -- and an earlier version of that steering
+  // sent him seventy-five yards BACKWARDS on the tenth percentile because no rule ended
+  // the down while his escape lane stayed shut.
+  let offField = 0;
+  for (let o = 0; o < playbook.offense.length; o++) {
+    for (let d = 0; d < playbook.defense.length; d++) {
+      const st = runOnce(o, d, 1700 + o * 31 + d);
+      if (st.yards < -25 || st.yards > 100) offField++;
+      for (const m of st.off.concat(st.def)) if (Math.abs(m.x) > 30 || m.y < -30) offField++;
+    }
+  }
+  eq(offField, 0, 'no player or result leaves the field of play');
+
+  // THE REQUIREMENT THAT MATTERS: different plays must actually behave differently.
+  // Measured as the spread of mean yardage across the eighteen offensive calls, each
+  // averaged over every defence and several seeds so one lucky roll cannot carry it.
+  const meanFor = (o) => {
+    let t = 0, n = 0;
+    for (let d = 0; d < playbook.defense.length; d++) {
+      for (let s2 = 0; s2 < 6; s2++) { t += runOnce(o, d, 7000 + o * 977 + d * 31 + s2 * 7).yards; n++; }
+    }
+    return t / n;
+  };
+  const means = playbook.offense.map((_, o) => meanFor(o));
+  const lo = Math.min(...means), hi = Math.max(...means);
+  ok(hi - lo >= 6, 'offensive calls produce a real spread of yardage', `${lo.toFixed(1)} .. ${hi.toFixed(1)}`);
+
+  // And the defensive calls must matter too, or the playcall screen is decoration.
+  const dMeanFor = (d) => {
+    let t = 0, n = 0;
+    for (let o = 0; o < playbook.offense.length; o++) {
+      for (let s2 = 0; s2 < 3; s2++) { t += runOnce(o, d, 5000 + o * 13 + d * 101 + s2 * 5).yards; n++; }
+    }
+    return t / n;
+  };
+  const dMeans = playbook.defense.map((_, d) => dMeanFor(d));
+  const dlo = Math.min(...dMeans), dhi = Math.max(...dMeans);
+  ok(dhi - dlo >= 3, 'defensive calls produce a real spread of yardage', `${dlo.toFixed(1)} .. ${dhi.toFixed(1)}`);
+
+  // THE PASS RUSH, MONOTONE IN THE NUMBER OF RUSHERS. This is the assertion this piece
+  // failed four separate times, each failure a different mechanism: blockers slowing every
+  // rusher at once (a six-man and a two-man rush both sacked 67%), a block that decayed
+  // back to full speed before it mattered (72% and 72%, identical to the tick), an
+  // unconditional flush that let the extra rushers WARN the passer into an early throw (0%
+  // against 61% -- backwards), and a scramble with no sack rule on it (0% against 0%).
+  // Three blockers is the hinge: up to three rushers are blocked and the rest come free.
+  const rush6 = league({ d: dIdx('all_out'), test: isSack });
+  const rush4 = league({ d: dIdx('blitz_2'), test: isSack });
+  const rush3 = league({ d: dIdx('blitz_1'), test: isSack });
+  const rush2 = league({ d: dIdx('deep_zone'), test: isSack });
+  const pc = (r) => `${(r.rate * 100).toFixed(0)}%`;
+  ok(rush6.rate > rush2.rate, 'a six-man rush sacks more than a two-man rush',
+    `${pc(rush6)} vs ${pc(rush2)} over ${rush6.n} downs`);
+  ok(rush6.rate > rush4.rate && rush4.rate > rush3.rate && rush3.rate > rush2.rate,
+    'sack rate is monotone in the number of rushers',
+    `6r ${pc(rush6)} > 4r ${pc(rush4)} > 3r ${pc(rush3)} > 2r ${pc(rush2)}`);
+
+  // The mechanism behind the bottom of that ladder: with fewer rushers than blockers the
+  // spare blocker DOUBLES, and a doubled rusher is held about twice as long. Asserted on
+  // the assignment itself, not on the outcome, so it cannot be satisfied by luck.
+  {
+    const two = S.createPlay(1, playbook.offense[0], playbook.defense[dIdx('deep_zone')], KC, BUF, playbook.formation);
+    const six = S.createPlay(1, playbook.offense[0], playbook.defense[dIdx('all_out')], KC, BUF, playbook.formation);
+    S.step(two); S.step(six);
+    const held = (st) => st.def.filter((d) => d.blocked > 0);
+    const freeMen = (st) => st.def.filter((d) => st.defense.assign[d.slot] === 'rush' && !d.blocked);
+    eq(freeMen(two).length, 0, 'a two-man rush is fully blocked');
+    eq(freeMen(six).length, 3, 'a six-man rush leaves three men unblocked', 'three blockers, six rushers');
+    const twoHold = Math.min(...held(two).map((d) => d.holdTicks));
+    const sixHold = Math.min(...held(six).map((d) => d.holdTicks));
+    ok(twoHold > sixHold * 1.3, 'the spare blocker doubles rather than idling',
+      `${twoHold.toFixed(0)} vs ${sixHold.toFixed(0)} ticks of hold`);
+  }
+
+  // RATINGS HAVE TO REACH THE FIELD. Each of these is swept over the league, and each one
+  // is a rating that was at some point read off the roster and then consulted by nothing.
+  const sweep = (mutate, label) => {
+    const out = [];
+    for (const v of [30, 65, 99]) {
+      let tot = 0, n = 0;
+      // The whole league at every point. An eight-club stride reported this curve as
+      // 3.8 < 3.6 < 4.5 -- non-monotone -- where all thirty-two clubs give 5.2 < 5.5 < 6.4.
+      // The sim is deterministic, so that was not statistical noise: it was a subsample
+      // small enough for a handful of matchups to set the answer.
+      for (let t = 0; t < clubs.length; t += 1) {
+        const off = mutate(players.byTeam[clubs[t]], v);
+        const def = players.byTeam[clubs[(t + 7) % clubs.length]];
+        for (let o = 0; o < playbook.offense.length; o++) {
+          for (let d = 0; d < playbook.defense.length; d += 1) {
+            tot += S.runPlay(S.createPlay(9000 + t * 131 + o * 41 + d, playbook.offense[o],
+              playbook.defense[d], off, def, playbook.formation)).yards;
+            n++;
+          }
+        }
+      }
+      out.push(tot / n);
+    }
+    return out;
+  };
+  const bySpeed = sweep((r, v) => r.map((p) => (p.slot.startsWith('REC') ? { ...p, spd: v } : p)));
+  ok(bySpeed[0] < bySpeed[1] && bySpeed[1] < bySpeed[2],
+    'a faster receiving corps gains more, monotonically',
+    bySpeed.map((x) => x.toFixed(1)).join(' < '));
+
+  // The passer's arm. `pas` sat on the roster unread until the throw was given an error
+  // term -- Mahomes threw exactly the ball a third-stringer threw.
+  const byArm = sweep((r, v) => r.map((p) => (p.slot === 'QB' ? { ...p, pas: v } : p)));
+  ok(byArm[0] < byArm[1] && byArm[1] < byArm[2], 'a better passer gains more, monotonically',
+    byArm.map((x) => x.toFixed(1)).join(' < '));
+
+  // And the passer's legs, which only started meaning anything when he was allowed to run.
+  const byLegs = sweep((r, v) => r.map((p) => (p.slot === 'QB' ? { ...p, spd: v } : p)));
+  ok(byLegs[2] > byLegs[0], 'a faster passer gains more than a slow one',
+    byLegs.map((x) => x.toFixed(1)).join(' -> '));
+
+  // A FAST RECEIVER MUST NOT BE HARDER TO THROW TO. The throw used to be led along the
+  // receiver's instantaneous heading, which overshoots the moment he breaks -- and the
+  // faster he was, the further past the break the ball landed. Measured, a corps at 99
+  // threw 36% incomplete against 18% for the same routes at 25: the sim was punishing its
+  // best receivers for their best attribute. Leading along the ROUTE instead is exact.
+  const incAt = (spd) => {
+    let inc = 0, n = 0;
+    const off = KC.map((p) => (p.slot.startsWith('REC') ? { ...p, spd } : p));
+    for (let o = 0; o < playbook.offense.length; o++) {
+      for (let d = 0; d < playbook.defense.length; d++) {
+        const st = S.runPlay(S.createPlay(600 + o * 41 + d * 7, playbook.offense[o],
+          playbook.defense[d], off, BUF, playbook.formation));
+        if (st.result === S.RESULT.INCOMPLETE) inc++;
+        n++;
+      }
+    }
+    return inc / n;
+  };
+  const incSlow = incAt(30), incFast = incAt(99);
+  ok(incFast <= incSlow + 0.05, 'a fast receiving corps is not harder to complete to',
+    `${(incFast * 100).toFixed(0)}% incomplete at 99 vs ${(incSlow * 100).toFixed(0)}% at 30`);
+
+  // THE SCRAMBLE, AND THE RULE ON IT. A passer who runs is still a passer until he crosses
+  // the line: dropped behind it he is sacked, past it he is a runner. Leaving that out
+  // turned every sack against an all-out rush into a tackle for loss and made the rush
+  // count unmeasurable.
+  {
+    let scr = 0, behind = 0, beyond = 0, n = 0;
+    for (let t = 0; t < clubs.length; t += 2) {
+      const off = players.byTeam[clubs[t]], def = players.byTeam[clubs[(t + 7) % clubs.length]];
+      for (let o = 0; o < playbook.offense.length; o++) {
+        const st = S.runPlay(S.createPlay(9000 + t * 131 + o * 41, playbook.offense[o],
+          playbook.defense[dIdx('all_out')], off, def, playbook.formation));
+        if (!st.events.some((e) => e.kind === 'scramble')) { n++; continue; }
+        scr++; n++;
+        if (st.result === S.RESULT.SACK) { behind++; ok(st.yards < 0, 'a sack loses ground'); }
+        else if (st.result === S.RESULT.TACKLED || st.result === S.RESULT.TOUCHDOWN) beyond++;
+      }
+    }
+    ok(scr > n * 0.15, 'the passer runs when the pocket goes', `${scr}/${n} downs`);
+    ok(behind > 0 && beyond > 0, 'a scramble can end either side of the line',
+      `${behind} sacked, ${beyond} past the line`);
+  }
+
+  // THREE MECHANISM-LEVEL CHECKS, each added because the mutation battery proved the
+  // outcome-level assertions above could not see the mechanism at all. Deleting any of the
+  // three behaviours below changed no yardage bound, no sack rate and no completion rate
+  // this suite checks -- they survived as silent no-ops. That is precisely the failure mode
+  // the battery exists to expose, and the fix is to assert where the thing happens.
+
+  // (1) A fully blocked front must not panic the passer. Three blockers means at most three
+  // rushers are held at once, so the held-pressure weight must stay under a third of the
+  // flush threshold, or blocked men alone trip it -- the defect that once made a six-man
+  // rush sack LESS than a two-man one.
+  {
+    const dz = playbook.defense[dIdx('deep_zone')];
+    let flushed = 0, n = 0;
+    for (let o = 0; o < playbook.offense.length; o++) {
+      for (let s2 = 0; s2 < 6; s2++) {
+        const st = S.runPlay(S.createPlay(500 + o * 31 + s2, playbook.offense[o], dz, KC, BUF, playbook.formation));
+        if (st.flushedAt !== undefined) flushed++;
+        n++;
+      }
+    }
+    eq(flushed, 0, 'a front with nobody unblocked never flushes the passer', `${flushed} of ${n}`);
+  }
+
+  // (2) The release tick has to move. Ball placement already varies by seed through the
+  // throw error, so an outcome check cannot tell whether the passer's TIMING varies at all.
+  {
+    const ticks = new Set();
+    for (let s2 = 0; s2 < 40; s2++) {
+      const st = S.runPlay(S.createPlay(7000 + s2 * 97, playbook.offense[0],
+        playbook.defense[dIdx('deep_zone')], KC, BUF, playbook.formation));
+      const th = st.events.find((e) => e.kind === 'throw');
+      if (th) ticks.add(th.tick);
+    }
+    ok(ticks.size >= 8, 'the passer does not release on the same tick every time',
+      `${ticks.size} distinct ticks over 40 seeds`);
+  }
+
+  // (3) The separation floor. He declines a covered receiver rather than forcing it.
+  {
+    let min = Infinity, n = 0;
+    for (let o = 0; o < playbook.offense.length; o++) {
+      for (let d = 0; d < playbook.defense.length; d++) {
+        for (let s2 = 0; s2 < 3; s2++) {
+          const st = S.runPlay(S.createPlay(300 + o * 41 + d * 7 + s2, playbook.offense[o],
+            playbook.defense[d], KC, BUF, playbook.formation));
+          for (const e of st.events) if (e.kind === 'throw') { min = Math.min(min, e.sep); n++; }
+        }
+      }
+    }
+    ok(n > 100, 'the sim throws the ball', `${n} throws`);
+    ok(min >= 1.85, 'no throw leaves into blanket coverage', `closest was ${min.toFixed(2)} yd`);
+  }
+
+  // THE LEAGUE-WIDE SHAPE, reported rather than asserted tightly: these are balance
+  // numbers, and pinning them would freeze a judgement call as if it were a requirement.
+  const mix = {};
+  let tot = 0, nAll = 0;
+  for (let t = 0; t < clubs.length; t++) {
+    const off = players.byTeam[clubs[t]], def = players.byTeam[clubs[(t + 7) % clubs.length]];
+    for (let o = 0; o < playbook.offense.length; o++) {
+      for (let d = 0; d < playbook.defense.length; d++) {
+        const st = S.runPlay(S.createPlay(9000 + t * 131 + o * 41 + d * 7, playbook.offense[o],
+          playbook.defense[d], off, def, playbook.formation));
+        mix[S.RESULT_NAME[st.result]] = (mix[S.RESULT_NAME[st.result]] || 0) + 1;
+        tot += st.yards; nAll++;
+      }
+    }
+  }
+  // Sanity bounds only -- wide enough that they catch a collapse, not a tuning drift.
+  ok(mix.sack / nAll < 0.30, 'the pass rush does not eat the game', `${((mix.sack / nAll) * 100).toFixed(1)}% sacks`);
+  ok((mix.interception || 0) / nAll < 0.08, 'interceptions stay rare', `${(((mix.interception || 0) / nAll) * 100).toFixed(1)}%`);
+  ok(tot / nAll > 3 && tot / nAll < 12, 'yards per play is in a football range', `${(tot / nAll).toFixed(2)} yd`);
+
+  L(`    162 play pairs, all terminate; offence spread ${lo.toFixed(1)}..${hi.toFixed(1)} yd, defence ${dlo.toFixed(1)}..${dhi.toFixed(1)} yd`);
+  L(`    sack rate by rushers: 6r ${pc(rush6)}  4r ${pc(rush4)}  3r ${pc(rush3)}  2r ${pc(rush2)}   (${rush6.n} downs each)`);
+  L(`    ${nAll} downs over all 32 clubs: ${Object.entries(mix).sort((x, y) => y[1] - x[1]).map(([k, v]) => `${k} ${((v / nAll) * 100).toFixed(1)}%`).join(', ')}`);
+  L(`    ${(tot / nAll).toFixed(2)} yards per play`);
+}
 L('\n=== A WHOLE GAME RUNS TO COMPLETION ===');
 {
   // The integration check: drive a full game with a seeded sequence and assert it ends in
