@@ -317,28 +317,32 @@ const PREDICATES = {
     return bad === 0 ? null : `${bad} of ${total} tackles made by a man still on a block`;
   },
 
-  // PURSUIT HAS TO SHOW UP IN WHO MAKES THE TACKLE. Turning it off changed no yardage
-  // bound, no sack rate and no completion rate this battery measures -- it survived as a
-  // silent no-op even though it is the difference between a defence and seven men running
-  // their assignments past the ball. Measured on the baseline, 86% of tackles are made by
-  // a defender who was NOT rushing, which is only possible because coverage men converge.
-  pursuitMakesTackles(S) {
-    let byRush = 0, byCover = 0;
+  // PURSUIT, MEASURED BY HOW LONG A CATCH SURVIVES. Turning pursuit off changed no yardage
+  // bound, no sack rate and no completion rate -- it survived as a silent no-op through two
+  // rounds of this battery. The first replacement, "who made the tackle", was not sharp
+  // enough either: a zone defender standing on his landmark still tackles a receiver who
+  // runs into him, so that read 86% with pursuit and 45% without, and squeaked past a 40%
+  // bar. THIS is the signature -- with the defence converging, a caught ball is brought
+  // down in 17 ticks; without it the receiver runs for 85, a second and a half, untouched.
+  pursuitConverges(S) {
+    let ticks = 0, caught = 0, byCover = 0, tot = 0;
     for (let o = 0; o < playbook.offense.length; o++) {
       for (let d = 0; d < playbook.defense.length; d++) {
         for (let s = 0; s < 3; s++) {
           const st = S.runPlay(S.createPlay(2500 + o * 41 + d * 7 + s, playbook.offense[o],
             playbook.defense[d], KC, BUF, playbook.formation));
           const ev = st.events.find((e) => e.kind === 'tackle' || e.kind === 'sack');
-          if (!ev) continue;
-          if (st.defense.assign[ev.slot] === 'rush') byRush++; else byCover++;
+          if (ev) { tot++; if (st.defense.assign[ev.slot] !== 'rush') byCover++; }
+          const cat = st.events.find((e) => e.kind === 'catch');
+          if (cat && st.result === S.RESULT.TACKLED) { ticks += st.tick - cat.tick; caught++; }
         }
       }
     }
-    const total = byRush + byCover;
-    if (total < 150) return `only ${total} tackles to look at`;
-    return byCover > total * 0.4 ? null
-      : `only ${byCover}/${total} tackles made by a defender who was not rushing`;
+    if (caught < 40) return `only ${caught} catches to look at`;
+    const avg = ticks / caught;
+    if (avg > 40) return `a catch runs ${avg.toFixed(0)} ticks before anyone gets there`;
+    if (byCover <= tot * 0.6) return `only ${byCover}/${tot} tackles by a man who was not rushing`;
+    return null;
   },
 
   balance(S) {
