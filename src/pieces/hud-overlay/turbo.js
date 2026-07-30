@@ -346,9 +346,23 @@ function bakeChrome(ui, s) {
     // clearance floor keeps every full-height gap above 3 px while the three gaps
     // the eye actually reads land within 10% of each other.
     gap: 5.4, capBand: 0.58, clear: 0.45,
-    // Undoes the x stretch on the STEMS only -- see ink.js pass 3b. Measured target is
-    // the art's stem/cap 0.209 (range 0.191-0.233); we were at 0.382.
-    thinX: 0.055,
+    // Undoes the x stretch on the STEMS only -- see ink.js pass 3b. The mechanism is
+    // correct and verified not to damage the letterforms, but the COEFFICIENT is not
+    // shippable yet and is therefore 0 (inert).
+    //
+    // WHY IT IS OFF: the target cannot currently be measured reliably. The round-3 critic
+    // read stem/cap 0.382 on the pre-change word against an art target of 0.209; measuring
+    // the same state on iso_turbo's 2x detail panel I get 0.250-0.520 depending only on the
+    // threshold, because a mid-cap slice of this word returns a BIMODAL run set --
+    // [18, 18, 24, 52, 53, 53] -- where the ~18-24 px runs are stems and the ~52 px runs
+    // are whole letters and counters. A median over that picks the wrong mode, so the
+    // number moves with the threshold instead of with the ink.
+    //
+    // Two rounds of this project were already lost to a confidently-stated wrong
+    // measurement, so the rule now is: reconcile the instrument first, on a stem-only
+    // sampling rule both sides agree on, THEN set this. Do not tune it against a number
+    // that cannot be reproduced.
+    thinX: 0,
     slant: WORD.slant, minXs: 0.62, maxXs: 2.05,
     keyline: { color: 'rgba(0,0,0,0.92)', k: 0.034 },
     shadow: { color: 'rgba(0,3,14,0.95)', blur: 9, dy: 4, alpha: 0.95 },
