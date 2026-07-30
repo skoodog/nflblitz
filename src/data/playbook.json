@@ -1,0 +1,655 @@
+{
+ "meta": {
+  "generated": "tools/build-playbook.py",
+  "shared": true,
+  "note": "ONE playbook for all 32 clubs. Clubs differ by player ratings, never by plays -- the arcade-football convention this game follows. Nothing here is keyed by club, so the rule cannot be broken by adding data.",
+  "offSlots": [
+   "QB",
+   "REC1",
+   "REC2",
+   "REC3",
+   "OL1",
+   "OL2",
+   "OL3"
+  ],
+  "defSlots": [
+   "RUSH1",
+   "RUSH2",
+   "ROVER",
+   "DB1",
+   "DB2",
+   "DB3",
+   "DB4"
+  ],
+  "units": "x across field in yards from centre (+-24), y downfield in yards from scrimmage",
+  "tickRate": 60
+ },
+ "formation": {
+  "offense": {
+   "QB": [
+    0.0,
+    -4.0
+   ],
+   "REC1": [
+    -14.0,
+    0.5
+   ],
+   "REC2": [
+    9.0,
+    0.5
+   ],
+   "REC3": [
+    -4.5,
+    -1.0
+   ],
+   "OL1": [
+    -2.4,
+    0.0
+   ],
+   "OL2": [
+    0.0,
+    0.0
+   ],
+   "OL3": [
+    2.4,
+    0.0
+   ]
+  },
+  "defense": {
+   "RUSH1": [
+    -2.6,
+    1.2
+   ],
+   "RUSH2": [
+    2.6,
+    1.2
+   ],
+   "ROVER": [
+    0.0,
+    5.0
+   ],
+   "DB1": [
+    -14.0,
+    7.0
+   ],
+   "DB2": [
+    9.0,
+    7.0
+   ],
+   "DB3": [
+    -5.0,
+    12.0
+   ],
+   "DB4": [
+    4.0,
+    14.0
+   ]
+  }
+ },
+ "offense": [
+  {
+   "id": "slot_cross",
+   "name": "SLOT CROSS",
+   "kind": "pass",
+   "depth": 12,
+   "clock": 78,
+   "note": "Two crossers underneath a clear-out. The staple.",
+   "routes": {
+    "REC1": [
+     [
+      -14,
+      0
+     ],
+     [
+      -11,
+      7
+     ],
+     [
+      6,
+      11
+     ]
+    ],
+    "REC2": [
+     [
+      9,
+      0
+     ],
+     [
+      7,
+      9
+     ],
+     [
+      -8,
+      13
+     ]
+    ],
+    "REC3": [
+     [
+      -4.5,
+      -1
+     ],
+     [
+      -6,
+      4
+     ],
+     [
+      -3,
+      7
+     ]
+    ]
+   },
+   "primary": "REC1"
+  },
+  {
+   "id": "post_wheel",
+   "name": "POST + WHEEL",
+   "kind": "pass",
+   "depth": 26,
+   "clock": 116,
+   "note": "Deep shot. Wheel holds the corner, post breaks in behind it.",
+   "routes": {
+    "REC1": [
+     [
+      -14,
+      0
+     ],
+     [
+      -13,
+      14
+     ],
+     [
+      -3,
+      27
+     ]
+    ],
+    "REC2": [
+     [
+      9,
+      0
+     ],
+     [
+      13,
+      6
+     ],
+     [
+      12,
+      26
+     ]
+    ],
+    "REC3": [
+     [
+      -4.5,
+      -1
+     ],
+     [
+      -4,
+      5
+     ],
+     [
+      -4,
+      9
+     ]
+    ]
+   },
+   "primary": "REC1"
+  },
+  {
+   "id": "quick_slants",
+   "name": "QUICK SLANTS",
+   "kind": "pass",
+   "depth": 7,
+   "clock": 46,
+   "note": "Beats pressure. Fastest read on the sheet.",
+   "routes": {
+    "REC1": [
+     [
+      -14,
+      0
+     ],
+     [
+      -10,
+      6
+     ],
+     [
+      -4,
+      9
+     ]
+    ],
+    "REC2": [
+     [
+      9,
+      0
+     ],
+     [
+      5,
+      6
+     ],
+     [
+      0,
+      9
+     ]
+    ],
+    "REC3": [
+     [
+      -4.5,
+      -1
+     ],
+     [
+      -1,
+      4
+     ],
+     [
+      3,
+      6
+     ]
+    ]
+   },
+   "primary": "REC1"
+  },
+  {
+   "id": "corner_flood",
+   "name": "CORNER FLOOD",
+   "kind": "pass",
+   "depth": 18,
+   "clock": 94,
+   "note": "Three levels at one sideline. Somebody is open.",
+   "routes": {
+    "REC1": [
+     [
+      -14,
+      0
+     ],
+     [
+      -15,
+      9
+     ],
+     [
+      -19,
+      18
+     ]
+    ],
+    "REC2": [
+     [
+      9,
+      0
+     ],
+     [
+      -2,
+      5
+     ],
+     [
+      -13,
+      9
+     ]
+    ],
+    "REC3": [
+     [
+      -4.5,
+      -1
+     ],
+     [
+      -9,
+      2
+     ],
+     [
+      -16,
+      3
+     ]
+    ]
+   },
+   "primary": "REC1"
+  },
+  {
+   "id": "seam_go",
+   "name": "DOUBLE SEAM",
+   "kind": "pass",
+   "depth": 30,
+   "clock": 124,
+   "note": "Both seams vertical. Max protection, one read, all or nothing.",
+   "routes": {
+    "REC1": [
+     [
+      -14,
+      0
+     ],
+     [
+      -9,
+      15
+     ],
+     [
+      -8,
+      32
+     ]
+    ],
+    "REC2": [
+     [
+      9,
+      0
+     ],
+     [
+      5,
+      15
+     ],
+     [
+      6,
+      32
+     ]
+    ],
+    "REC3": [
+     [
+      -4.5,
+      -1
+     ],
+     [
+      -4.5,
+      3
+     ],
+     [
+      -4.5,
+      6
+     ]
+    ]
+   },
+   "primary": "REC1"
+  },
+  {
+   "id": "screen_left",
+   "name": "SCREEN LEFT",
+   "kind": "screen",
+   "depth": 2,
+   "clock": 62,
+   "note": "Let them come, then throw behind the rush with blockers ahead.",
+   "routes": {
+    "REC1": [
+     [
+      -14,
+      0
+     ],
+     [
+      -16,
+      2
+     ],
+     [
+      -18,
+      4
+     ]
+    ],
+    "REC2": [
+     [
+      9,
+      0
+     ],
+     [
+      9,
+      10
+     ],
+     [
+      9,
+      18
+     ]
+    ],
+    "REC3": [
+     [
+      -4.5,
+      -1
+     ],
+     [
+      -9,
+      -3
+     ],
+     [
+      -13,
+      -2
+     ]
+    ]
+   },
+   "primary": "REC3"
+  },
+  {
+   "id": "power_right",
+   "name": "POWER RIGHT",
+   "kind": "run",
+   "depth": 0,
+   "clock": 30,
+   "note": "Hand it off behind the right gap and run downhill.",
+   "gap": 3.0,
+   "routes": {
+    "REC1": [
+     [
+      -14,
+      0
+     ],
+     [
+      -12,
+      4
+     ],
+     [
+      -10,
+      8
+     ]
+    ],
+    "REC2": [
+     [
+      9,
+      0
+     ],
+     [
+      8,
+      3
+     ],
+     [
+      7,
+      6
+     ]
+    ],
+    "REC3": [
+     [
+      -4.5,
+      -1
+     ],
+     [
+      1,
+      0
+     ],
+     [
+      6,
+      4
+     ]
+    ]
+   },
+   "primary": "REC3"
+  },
+  {
+   "id": "qb_keeper",
+   "name": "QB KEEPER",
+   "kind": "run",
+   "depth": 0,
+   "clock": 30,
+   "note": "The quarterback keeps it. Nobody blocks the edge for you.",
+   "gap": -3.0,
+   "routes": {
+    "REC1": [
+     [
+      -14,
+      0
+     ],
+     [
+      -13,
+      6
+     ],
+     [
+      -13,
+      12
+     ]
+    ],
+    "REC2": [
+     [
+      9,
+      0
+     ],
+     [
+      9,
+      6
+     ],
+     [
+      9,
+      12
+     ]
+    ],
+    "REC3": [
+     [
+      -4.5,
+      -1
+     ],
+     [
+      -8,
+      1
+     ],
+     [
+      -12,
+      2
+     ]
+    ]
+   },
+   "primary": "QB"
+  }
+ ],
+ "defense": [
+  {
+   "id": "safe_cover",
+   "name": "SAFE COVER",
+   "rush": 2,
+   "cover": "zone",
+   "risk": 0.1,
+   "note": "Everyone back. Gives up the underneath, gives up nothing deep.",
+   "assign": {
+    "RUSH1": "rush",
+    "RUSH2": "rush",
+    "ROVER": "zone_hook",
+    "DB1": "zone_deep",
+    "DB2": "zone_deep",
+    "DB3": "zone_flat",
+    "DB4": "zone_deep"
+   }
+  },
+  {
+   "id": "stuff_it",
+   "name": "STUFF IT",
+   "rush": 3,
+   "cover": "man",
+   "risk": 0.3,
+   "note": "Crowd the line. Built to kill a run before it starts.",
+   "assign": {
+    "RUSH1": "rush",
+    "RUSH2": "rush",
+    "ROVER": "rush",
+    "DB1": "man",
+    "DB2": "man",
+    "DB3": "spy",
+    "DB4": "zone_deep"
+   }
+  },
+  {
+   "id": "two_man_blitz",
+   "name": "2 MAN BLITZ",
+   "rush": 4,
+   "cover": "man",
+   "risk": 0.55,
+   "note": "Four after the passer, man behind it.",
+   "assign": {
+    "RUSH1": "rush",
+    "RUSH2": "rush",
+    "ROVER": "rush",
+    "DB1": "man",
+    "DB2": "man",
+    "DB3": "rush",
+    "DB4": "zone_deep"
+   }
+  },
+  {
+   "id": "zone_hook",
+   "name": "ZONE HOOK",
+   "rush": 2,
+   "cover": "zone",
+   "risk": 0.2,
+   "note": "Sit in the throwing lanes and wait for the mistake.",
+   "assign": {
+    "RUSH1": "rush",
+    "RUSH2": "rush",
+    "ROVER": "zone_hook",
+    "DB1": "zone_hook",
+    "DB2": "zone_hook",
+    "DB3": "zone_flat",
+    "DB4": "zone_deep"
+   }
+  },
+  {
+   "id": "slam_wall",
+   "name": "SLAM WALL",
+   "rush": 3,
+   "cover": "zone",
+   "risk": 0.35,
+   "note": "A wall at the sticks. Nothing crosses cheaply.",
+   "assign": {
+    "RUSH1": "rush",
+    "RUSH2": "rush",
+    "ROVER": "rush",
+    "DB1": "zone_flat",
+    "DB2": "zone_flat",
+    "DB3": "zone_hook",
+    "DB4": "zone_deep"
+   }
+  },
+  {
+   "id": "lb_attack",
+   "name": "LB ATTACK",
+   "rush": 2,
+   "cover": "mixed",
+   "risk": 0.38,
+   "note": "The rover comes clean up the middle while the edge stays home.",
+   "assign": {
+    "RUSH1": "rush",
+    "RUSH2": "contain",
+    "ROVER": "rush",
+    "DB1": "man",
+    "DB2": "man",
+    "DB3": "zone_hook",
+    "DB4": "zone_deep"
+   }
+  },
+  {
+   "id": "in_your_face",
+   "name": "IN YOUR FACE",
+   "rush": 4,
+   "cover": "man",
+   "risk": 0.7,
+   "note": "Press every receiver at the line. No cushion anywhere.",
+   "assign": {
+    "RUSH1": "rush",
+    "RUSH2": "rush",
+    "ROVER": "rush",
+    "DB1": "press",
+    "DB2": "press",
+    "DB3": "press",
+    "DB4": "rush"
+   }
+  },
+  {
+   "id": "death_wish",
+   "name": "DEATH WISH",
+   "rush": 6,
+   "cover": "man",
+   "risk": 1.0,
+   "note": "Everyone but one. Sack or touchdown, nothing between.",
+   "assign": {
+    "RUSH1": "rush",
+    "RUSH2": "rush",
+    "ROVER": "rush",
+    "DB1": "rush",
+    "DB2": "rush",
+    "DB3": "rush",
+    "DB4": "man"
+   }
+  }
+ ]
+}
