@@ -604,6 +604,64 @@ L('\n=== THE PLAY SIMULATION ===');
     eq(byBlocked, 0, 'nobody makes a tackle while still being blocked', `${byBlocked} of ${total}`);
   }
 
+  // THE BALL COMES LOOSE. RESULT.FUMBLE was declared and never once produced -- 5184 downs
+  // across all 32 clubs, not a single one -- while `pow` (hit power) and `bal` (ball
+  // security) were read off every roster and consulted by nothing. Three dead things that
+  // were really one gap, and the same defect `pas` had before the throw got an error term.
+  {
+    const sweep = (mutate) => [30, 65, 99].map((v) => {
+      let f = 0, n = 0;
+      for (let t = 0; t < clubs.length; t += 2) {
+        const [off, def] = mutate(players.byTeam[clubs[t]], players.byTeam[clubs[(t + 7) % clubs.length]], v);
+        for (let o = 0; o < playbook.offense.length; o++) {
+          for (let d = 0; d < playbook.defense.length; d++) {
+            if (S.runPlay(S.createPlay(9000 + t * 131 + o * 41 + d * 7, playbook.offense[o],
+              playbook.defense[d], off, def, playbook.formation)).result === S.RESULT.FUMBLE) f++;
+            n++;
+          }
+        }
+      }
+      return f / n;
+    });
+    const pct = (a) => a.map((x) => `${(x * 100).toFixed(2)}%`).join(' -> ');
+
+    // Hit power drives it up. Asserted across the WHOLE range, not just at the top: the
+    // first version resolved the contest as a difference, which goes negative the moment a
+    // hitter is out-rated, and since carriers here rate about 90 for ball security the
+    // clamp swallowed everything below ~80 -- a defence at 30 and one at 65 both forced
+    // fumbles on exactly 0.35% of downs. A rating that only exists at the top of its range
+    // is not in the simulation.
+    const byPow = sweep((o, d, v) => [o, d.map((p) => ({ ...p, pow: v }))]);
+    ok(byPow[0] < byPow[1] && byPow[1] < byPow[2], 'hit power forces fumbles, across its whole range', pct(byPow));
+
+    // And ball security drives it down.
+    const byBal = sweep((o, d, v) => [o.map((p) => ({ ...p, bal: v })), d]);
+    ok(byBal[0] > byBal[1] && byBal[1] > byBal[2], 'ball security prevents fumbles, across its whole range', pct(byBal));
+
+    // A sack is the most dangerous hit there is -- he never saw it coming.
+    // Counted over CONTACT, from the event, not inferred from the final state -- the first
+    // version of this asked whether the passer still had the ball at the whistle, which is
+    // also true of every incompletion and every throwaway, and it reported the strip-sack
+    // as the SAFER of the two at 1.6% against 4.0%.
+    let sackF = 0, sackN = 0, tackF = 0, tackN = 0;
+    for (let t = 0; t < clubs.length; t += 2) {
+      const off = players.byTeam[clubs[t]], def = players.byTeam[clubs[(t + 7) % clubs.length]];
+      for (let o = 0; o < playbook.offense.length; o++) {
+        for (let d = 0; d < playbook.defense.length; d++) {
+          const st = S.runPlay(S.createPlay(9000 + t * 131 + o * 41 + d * 7, playbook.offense[o],
+            playbook.defense[d], off, def, playbook.formation));
+          const fum = st.events.find((e) => e.kind === 'fumble');
+          if (fum) { if (fum.sack) { sackN++; sackF++; } else { tackN++; tackF++; } }
+          else if (st.result === S.RESULT.SACK) sackN++;
+          else if (st.result === S.RESULT.TACKLED || st.result === S.RESULT.TOUCHDOWN) tackN++;
+        }
+      }
+    }
+    ok(sackN > 100 && tackN > 100, 'enough of both kinds of contact to compare', `${sackN} / ${tackN}`);
+    ok(sackF / sackN > tackF / tackN, 'a sack shakes the ball loose more often than a tackle',
+      `${((sackF / sackN) * 100).toFixed(1)}% vs ${((tackF / tackN) * 100).toFixed(1)}%`);
+  }
+
   // THE ENGINE'S CORE INVARIANT, APPLIED TO THIS PIECE. The renderer hands the sim seconds
   // at whatever rate it is presenting; the sim is a fixed 60 Hz tick. adapt.js accumulates
   // dt and consumes only WHOLE ticks, so the same elapsed time must produce the identical
@@ -816,6 +874,8 @@ L('\n=== THE PLAY SIMULATION ===');
   // Sanity bounds only -- wide enough that they catch a collapse, not a tuning drift.
   ok(mix.sack / nAll < 0.30, 'the pass rush does not eat the game', `${((mix.sack / nAll) * 100).toFixed(1)}% sacks`);
   ok((mix.interception || 0) / nAll < 0.08, 'interceptions stay rare', `${(((mix.interception || 0) / nAll) * 100).toFixed(1)}%`);
+  ok((mix.fumble || 0) / nAll > 0.005 && (mix.fumble || 0) / nAll < 0.08, 'the ball comes loose, but not constantly',
+    `${(((mix.fumble || 0) / nAll) * 100).toFixed(1)}% fumbles`);
   ok(tot / nAll > 3 && tot / nAll < 12, 'yards per play is in a football range', `${(tot / nAll).toFixed(2)} yd`);
 
   L(`    162 play pairs, all terminate; offence spread ${lo.toFixed(1)}..${hi.toFixed(1)} yd, defence ${dlo.toFixed(1)}..${dhi.toFixed(1)} yd`);

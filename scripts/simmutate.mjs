@@ -345,6 +345,30 @@ const PREDICATES = {
     return null;
   },
 
+  // THE BIG HIT, and both ratings behind it, across their whole range.
+  bigHit(S) {
+    const sweep = (mutate) => [30, 65, 99].map((v) => {
+      let f = 0, n = 0;
+      for (let t = 0; t < clubs.length; t += 2) {
+        const [off, def] = mutate(players.byTeam[clubs[t]], players.byTeam[clubs[(t + 7) % clubs.length]], v);
+        for (let o = 0; o < playbook.offense.length; o++) {
+          for (let d = 0; d < playbook.defense.length; d++) {
+            if (S.runPlay(S.createPlay(9000 + t * 131 + o * 41 + d * 7, playbook.offense[o],
+              playbook.defense[d], off, def, playbook.formation)).result === S.RESULT.FUMBLE) f++;
+            n++;
+          }
+        }
+      }
+      return f / n;
+    });
+    const pct = (a) => a.map((x) => `${(x * 100).toFixed(2)}%`).join(' -> ');
+    const byPow = sweep((o, d, v) => [o, d.map((p) => ({ ...p, pow: v }))]);
+    if (!(byPow[0] < byPow[1] && byPow[1] < byPow[2])) return `hit power flat or inverted: ${pct(byPow)}`;
+    const byBal = sweep((o, d, v) => [o.map((p) => ({ ...p, bal: v })), d]);
+    if (!(byBal[0] > byBal[1] && byBal[1] > byBal[2])) return `ball security flat or inverted: ${pct(byBal)}`;
+    return null;
+  },
+
   balance(S) {
     const { mix, ypp, n } = leagueMix(S);
     if ((mix.sack || 0) / n >= 0.30) return `${(((mix.sack || 0) / n) * 100).toFixed(1)}% sacks`;
@@ -466,7 +490,23 @@ const MUTATIONS = [
       '      const through = car.x;']],
   },
   {
+    name: 'hit: the ball never comes loose',
+    was: 'RESULT.FUMBLE declared and never produced in 5184 downs; pow and bal both dead',
+    edits: [['const FUMBLE_BASE = 0.035;', 'const FUMBLE_BASE = 0;']],
+  },
+  {
+    name: 'hit: the fumble contest is a difference, not a ratio',
+    was: 'the clamp swallowed every hitter under ~80: 30 and 65 hit power both forced 0.35%',
+    edits: [['        const edge = Math.pow(2, (d.pow - car.bal) / FUMBLE_HALVING);',
+      '        const edge = 1 + (d.pow - car.bal) / 260;']],
+  },
+  {
+    name: 'hit: a sack is no more dangerous than any other tackle',
+    edits: [['const FUMBLE_SACK_MULT = 1.9;', 'const FUMBLE_SACK_MULT = 1.0;']],
+  },
+  {
     name: 'timing: the passer\'s read lands on the same tick every time',
+
     was: 'the same call against the same call replayed byte-identically forever',
     edits: [['const READY_JITTER = 9;', 'const READY_JITTER = 0;']],
   },

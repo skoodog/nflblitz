@@ -95,6 +95,28 @@ const SCRAMBLE_TRIGGER = SACK_RADIUS * 2.1;
  * A third of a second: long enough that the run has a window, short enough that it closes.
  */
 const RUN_DIAGNOSE_TICKS = 20;
+/* ------------------------------------------------------------- the big hit ---- */
+// THE BALL COMES LOOSE. Until this existed RESULT.FUMBLE was declared and never once
+// produced -- 5184 downs across all 32 clubs and not a single one -- and `pow` (hit power)
+// and `bal` (ball security) were read off every roster and then consulted by nothing, the
+// same defect `pas` had before the throw was given an error. Three dead things, one gap.
+//
+// It is a contest, not a die roll bolted onto a tackle: a punishing hitter against a
+// carrier who protects the ball, resolved once at the moment of contact.
+// The contest is a RATIO, not a difference. An additive swing goes negative the moment a
+// hitter is out-rated -- and carriers on these rosters are rated around 90 for ball
+// security, so `(pow - bal) / 260 + base` was under the floor for every hitter below about
+// 80 and the clamp swallowed the whole lower half of the scale: measured, a defence at 30
+// hit power and a defence at 65 both forced fumbles on exactly 0.35% of downs, and only a
+// 99 moved. A rating that only exists at the top of its range is not in the simulation.
+// Halving every FUMBLE_HALVING points of deficit keeps it monotone the whole way down.
+const FUMBLE_BASE = 0.035;
+const FUMBLE_HALVING = 30;      // rating points of pow-over-bal that double the chance
+const FUMBLE_MIN = 0.002;
+const FUMBLE_MAX = 0.16;
+/** A sack is the most dangerous hit of all: he never saw it and the ball is away from him. */
+const FUMBLE_SACK_MULT = 1.9;
+
 /** A defender assigned to rush shows blitz: it walks up to the line before the snap. */
 const BLITZ_DEPTH = 1.4;
 const BLITZ_WIDTH = 0.45;
@@ -309,7 +331,6 @@ function assignBlocks(state) {
   // Threat order: closest to the point of attack first, because that is who arrives first.
   const order = targets.slice().sort((a, b) => dist(a.x, a.y, poaX, poaY) - dist(b.x, b.y, poaX, poaY));
   const free = blockers.slice();
-  const spare = [];
   for (const r of order) {
     if (!free.length) break;
     // Of the blockers left, the one nearest this rusher takes it.
@@ -335,7 +356,6 @@ function assignBlocks(state) {
   const engaged = order.filter((r) => r.blocked > 0);
   if (free.length && engaged.length) {
     for (const b of free) {
-      spare.push(b);
       b.engaged = engaged[0].slot;   // it stands somewhere, and that is next to the front
       for (const r of engaged) {
         const edge = Math.max(-0.55, Math.min(0.55, (b.blk - r.prs) / 120));
@@ -617,6 +637,19 @@ export function step(state) {
           d.x -= (d.x - car.x) * 0.6;
           d.y -= 2.2;
           continue;
+        }
+        // THE BIG HIT. Hit power against ball security, one roll at contact, with a sack
+        // the worst of them because the passer never saw it coming.
+        const edge = Math.pow(2, (d.pow - car.bal) / FUMBLE_HALVING);
+        const chance = Math.max(FUMBLE_MIN, Math.min(FUMBLE_MAX,
+          FUMBLE_BASE * edge * (isSack ? FUMBLE_SACK_MULT : 1)));
+        if (state.rng() < chance) {
+          state.yards = gained;
+          state.result = RESULT.FUMBLE;
+          // `sack` records what KIND of contact caused it. Without it there is no way to tell a
+          // strip-sack from a fumble on a run after the fact -- the final state looks the same.
+          state.events.push({ tick: state.tick, kind: 'fumble', slot: d.slot, by: car.slot, sack: isSack });
+          return state.result;
         }
         state.yards = gained;
         state.result = isSack ? RESULT.SACK : RESULT.TACKLED;
