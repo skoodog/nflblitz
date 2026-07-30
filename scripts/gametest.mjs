@@ -53,8 +53,14 @@ L('\n=== THE SHARED PLAYBOOK (one sheet, all 32 clubs) ===');
   const abbrs = Object.keys(teams.teams);
   const leaked = abbrs.filter((a) => raw.includes(`"${a}"`));
   ok(leaked.length === 0, 'no club abbreviation appears in the playbook', leaked.join(','));
-  eq(playbook.offense.length, 8, 'eight offensive plays');
-  eq(playbook.defense.length, 8, 'eight defensive plays');
+  eq(playbook.offense.length, 18, 'eighteen offensive plays');
+  eq(playbook.defense.length, 9, 'nine defensive plays');
+  // Two pages of nine, which is what the playcall screen actually shows.
+  const byPage = {};
+  for (const pl of playbook.offense) byPage[pl.page || 1] = (byPage[pl.page || 1] || 0) + 1;
+  eq(Object.keys(byPage).length, 2, 'offence is laid out over two pages');
+  ok(Object.values(byPage).every((n) => n === 9), 'nine plays on every page',
+    JSON.stringify(byPage));
 
   // Every defensive call's declared rush count matches its assignment table. This is the
   // check that caught a real authoring error (LB ATTACK said 3, assigned 2).
@@ -76,7 +82,41 @@ L('\n=== THE SHARED PLAYBOOK (one sheet, all 32 clubs) ===');
   for (const d of playbook.defense) for (const s of Object.keys(d.assign)) if (!def.has(s)) badSlot++;
   eq(badRoute, 0, 'every offensive play routes all three receivers');
   eq(badSlot, 0, 'every slot named by a play is a real roster slot');
-  L(`    ${playbook.offense.length} offensive + ${playbook.defense.length} defensive, no club keying`);
+
+  // THE POINT OF EIGHTEEN PLAYS IS EIGHTEEN DIFFERENT NPC BEHAVIOURS, so distinctness is
+  // measured, not assumed. Compared WITHIN a kind only: a run and a pass are never the
+  // same play whatever the receivers do, because on a run the carrier and the gap are the
+  // content. (The first version of this compared across kinds and its closest pairs were
+  // all runs against hook concepts, which measured nothing.)
+  const endp = (pl) => ['REC1', 'REC2', 'REC3'].map((s2) => pl.routes[s2][pl.routes[s2].length - 1]);
+  let closest = 1e9, closestPair = '';
+  for (let i = 0; i < playbook.offense.length; i++) {
+    for (let j = i + 1; j < playbook.offense.length; j++) {
+      const A = playbook.offense[i], B = playbook.offense[j];
+      if (A.kind !== B.kind) continue;
+      const a = endp(A), b = endp(B);
+      let d = 0;
+      for (let k = 0; k < 3; k++) d += Math.hypot(a[k][0] - b[k][0], a[k][1] - b[k][1]);
+      d /= 3;
+      if (d < closest) { closest = d; closestPair = `${A.name} vs ${B.name}`; }
+    }
+  }
+  ok(closest >= 3.0, 'no two same-kind plays are near-duplicates', `${closest.toFixed(1)} yd — ${closestPair}`);
+
+  // Runs are separated by carrier and gap, which is where a run's content actually lives.
+  const runs = playbook.offense.filter((pl) => pl.kind === 'run');
+  const runKeys = new Set(runs.map((pl) => `${pl.primary}@${pl.gap}`));
+  eq(runKeys.size, runs.length, 'every run has its own carrier/gap combination');
+
+  // Nine defensive calls, all structurally different from one another.
+  const defKeys = new Set(playbook.defense.map((d) => JSON.stringify(d.assign)));
+  eq(defKeys.size, playbook.defense.length, 'every defensive call assigns differently');
+
+  // The rush counts have to actually spread, or every call plays the same on the field.
+  const rushes = new Set(playbook.defense.map((d) => d.rush));
+  ok(rushes.size >= 4, 'defensive calls span a real range of rush counts', [...rushes].sort().join(','));
+  L(`    ${playbook.offense.length} offensive (2 pages of 9) + ${playbook.defense.length} defensive, no club keying`);
+  L(`    closest same-kind pair ${closest.toFixed(1)} yd apart (${closestPair}); rush counts ${[...rushes].sort((x,y)=>x-y).join('/')}`);
 }
 
 L('\n=== KICKS ARE ALWAYS GOOD, AND SAY SO ===');

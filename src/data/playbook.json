@@ -86,14 +86,395 @@
    ]
   }
  },
+ "pages": 2,
  "offense": [
   {
-   "id": "slot_cross",
-   "name": "SLOT CROSS",
+   "id": "upper_cut",
+   "name": "UPPER CUT",
    "kind": "pass",
-   "depth": 12,
-   "clock": 78,
-   "note": "Two crossers underneath a clear-out. The staple.",
+   "depth": 14,
+   "clock": 84,
+   "page": 1,
+   "note": "Two in-breakers under a clear-out. Reads inside-out.",
+   "routes": {
+    "REC1": [
+     [
+      -14,
+      0
+     ],
+     [
+      -12,
+      8
+     ],
+     [
+      -2,
+      14
+     ]
+    ],
+    "REC2": [
+     [
+      9,
+      0
+     ],
+     [
+      8,
+      7
+     ],
+     [
+      0,
+      12
+     ]
+    ],
+    "REC3": [
+     [
+      -4.5,
+      -1
+     ],
+     [
+      -6,
+      5
+     ],
+     [
+      -5,
+      9
+     ]
+    ]
+   },
+   "primary": "REC1"
+  },
+  {
+   "id": "whiteout",
+   "name": "WHITEOUT",
+   "kind": "pass",
+   "depth": 20,
+   "clock": 104,
+   "page": 1,
+   "note": "Everyone releases vertical, then one breaks off late.",
+   "routes": {
+    "REC1": [
+     [
+      -14,
+      0
+     ],
+     [
+      -13,
+      12
+     ],
+     [
+      -15,
+      21
+     ]
+    ],
+    "REC2": [
+     [
+      9,
+      0
+     ],
+     [
+      10,
+      12
+     ],
+     [
+      12,
+      21
+     ]
+    ],
+    "REC3": [
+     [
+      -4.5,
+      -1
+     ],
+     [
+      -4,
+      10
+     ],
+     [
+      -1,
+      18
+     ]
+    ]
+   },
+   "primary": "REC1"
+  },
+  {
+   "id": "hail_mary",
+   "name": "HAIL MARY",
+   "kind": "pass",
+   "depth": 42,
+   "clock": 150,
+   "page": 1,
+   "note": "Everything deep. Throw it up and count the bodies.",
+   "routes": {
+    "REC1": [
+     [
+      -14,
+      0
+     ],
+     [
+      -12,
+      20
+     ],
+     [
+      -9,
+      44
+     ]
+    ],
+    "REC2": [
+     [
+      9,
+      0
+     ],
+     [
+      8,
+      20
+     ],
+     [
+      5,
+      44
+     ]
+    ],
+    "REC3": [
+     [
+      -4.5,
+      -1
+     ],
+     [
+      -3,
+      18
+     ],
+     [
+      -2,
+      42
+     ]
+    ]
+   },
+   "primary": "REC1"
+  },
+  {
+   "id": "turmoil",
+   "name": "TURMOIL",
+   "kind": "pass",
+   "depth": 11,
+   "clock": 72,
+   "page": 1,
+   "note": "Three crossers at three depths. Somebody comes clean.",
+   "routes": {
+    "REC1": [
+     [
+      -14,
+      0
+     ],
+     [
+      -9,
+      5
+     ],
+     [
+      8,
+      9
+     ]
+    ],
+    "REC2": [
+     [
+      9,
+      0
+     ],
+     [
+      4,
+      7
+     ],
+     [
+      -10,
+      12
+     ]
+    ],
+    "REC3": [
+     [
+      -4.5,
+      -1
+     ],
+     [
+      -1,
+      3
+     ],
+     [
+      7,
+      5
+     ]
+    ]
+   },
+   "primary": "REC1"
+  },
+  {
+   "id": "split",
+   "name": "SPLIT",
+   "kind": "pass",
+   "depth": 16,
+   "clock": 90,
+   "page": 1,
+   "note": "Outs to both sidelines, the slot sits in the middle.",
+   "routes": {
+    "REC1": [
+     [
+      -14,
+      0
+     ],
+     [
+      -14,
+      10
+     ],
+     [
+      -20,
+      15
+     ]
+    ],
+    "REC2": [
+     [
+      9,
+      0
+     ],
+     [
+      9,
+      10
+     ],
+     [
+      16,
+      15
+     ]
+    ],
+    "REC3": [
+     [
+      -4.5,
+      -1
+     ],
+     [
+      -4,
+      6
+     ],
+     [
+      -4,
+      11
+     ]
+    ]
+   },
+   "primary": "REC1"
+  },
+  {
+   "id": "x_cross",
+   "name": "X CROSS",
+   "kind": "pass",
+   "depth": 13,
+   "clock": 80,
+   "page": 1,
+   "note": "The outside two cross deep and swap sidelines.",
+   "routes": {
+    "REC1": [
+     [
+      -14,
+      0
+     ],
+     [
+      -6,
+      9
+     ],
+     [
+      11,
+      15
+     ]
+    ],
+    "REC2": [
+     [
+      9,
+      0
+     ],
+     [
+      1,
+      9
+     ],
+     [
+      -13,
+      15
+     ]
+    ],
+    "REC3": [
+     [
+      -4.5,
+      -1
+     ],
+     [
+      -5,
+      4
+     ],
+     [
+      -6,
+      7
+     ]
+    ]
+   },
+   "primary": "REC1"
+  },
+  {
+   "id": "dog_hook",
+   "name": "DOG HOOK",
+   "kind": "pass",
+   "depth": 9,
+   "clock": 62,
+   "page": 1,
+   "note": "Hooks at the sticks. Sit down in the soft spot.",
+   "routes": {
+    "REC1": [
+     [
+      -14,
+      0
+     ],
+     [
+      -14,
+      9
+     ],
+     [
+      -12,
+      7
+     ]
+    ],
+    "REC2": [
+     [
+      9,
+      0
+     ],
+     [
+      9,
+      9
+     ],
+     [
+      7,
+      7
+     ]
+    ],
+    "REC3": [
+     [
+      -4.5,
+      -1
+     ],
+     [
+      -4,
+      8
+     ],
+     [
+      -4,
+      6
+     ]
+    ]
+   },
+   "primary": "REC1"
+  },
+  {
+   "id": "up_the_gut",
+   "name": "UP THE GUT",
+   "kind": "run",
+   "depth": 0,
+   "clock": 30,
+   "page": 1,
+   "gap": 0.0,
+   "note": "Straight ahead behind the middle. No thinking required.",
    "routes": {
     "REC1": [
      [
@@ -102,11 +483,173 @@
      ],
      [
       -11,
-      7
+      4
      ],
      [
-      6,
+      -8,
+      7
+     ]
+    ],
+    "REC2": [
+     [
+      9,
+      0
+     ],
+     [
+      7,
+      4
+     ],
+     [
+      5,
+      7
+     ]
+    ],
+    "REC3": [
+     [
+      -4.5,
+      -1
+     ],
+     [
+      -1,
+      1
+     ],
+     [
+      0,
+      7
+     ]
+    ]
+   },
+   "primary": "REC3"
+  },
+  {
+   "id": "screen",
+   "name": "SCREEN",
+   "kind": "screen",
+   "depth": 2,
+   "clock": 60,
+   "page": 1,
+   "note": "Let the rush come, then throw behind it with blockers out front.",
+   "routes": {
+    "REC1": [
+     [
+      -14,
+      0
+     ],
+     [
+      -16,
+      3
+     ],
+     [
+      -19,
+      6
+     ]
+    ],
+    "REC2": [
+     [
+      9,
+      0
+     ],
+     [
+      9,
       11
+     ],
+     [
+      9,
+      19
+     ]
+    ],
+    "REC3": [
+     [
+      -4.5,
+      -1
+     ],
+     [
+      -9,
+      -3
+     ],
+     [
+      -14,
+      -1
+     ]
+    ]
+   },
+   "primary": "REC3"
+  },
+  {
+   "id": "long_bomb",
+   "name": "LONG BOMB",
+   "kind": "pass",
+   "depth": 34,
+   "clock": 132,
+   "page": 2,
+   "note": "Two verticals outside, one post splitting the middle.",
+   "routes": {
+    "REC1": [
+     [
+      -14,
+      0
+     ],
+     [
+      -14,
+      16
+     ],
+     [
+      -14,
+      36
+     ]
+    ],
+    "REC2": [
+     [
+      9,
+      0
+     ],
+     [
+      9,
+      16
+     ],
+     [
+      9,
+      36
+     ]
+    ],
+    "REC3": [
+     [
+      -4.5,
+      -1
+     ],
+     [
+      -4,
+      14
+     ],
+     [
+      2,
+      34
+     ]
+    ]
+   },
+   "primary": "REC1"
+  },
+  {
+   "id": "back_split",
+   "name": "BACK SPLIT",
+   "kind": "pass",
+   "depth": 12,
+   "clock": 76,
+   "page": 2,
+   "note": "Back releases opposite the slot. Stretches the underneath.",
+   "routes": {
+    "REC1": [
+     [
+      -14,
+      0
+     ],
+     [
+      -12,
+      9
+     ],
+     [
+      -14,
+      13
      ]
     ],
     "REC2": [
@@ -119,7 +662,115 @@
       9
      ],
      [
+      9,
+      13
+     ]
+    ],
+    "REC3": [
+     [
+      -4.5,
+      -1
+     ],
+     [
+      3,
+      2
+     ],
+     [
+      9,
+      5
+     ]
+    ]
+   },
+   "primary": "REC1"
+  },
+  {
+   "id": "subzero",
+   "name": "SUBZERO",
+   "kind": "pass",
+   "depth": 22,
+   "clock": 108,
+   "page": 2,
+   "note": "Deep corner off a hard inside stem. Freeze the safety.",
+   "routes": {
+    "REC1": [
+     [
+      -14,
+      0
+     ],
+     [
       -8,
+      12
+     ],
+     [
+      -18,
+      23
+     ]
+    ],
+    "REC2": [
+     [
+      9,
+      0
+     ],
+     [
+      3,
+      12
+     ],
+     [
+      15,
+      23
+     ]
+    ],
+    "REC3": [
+     [
+      -4.5,
+      -1
+     ],
+     [
+      -4,
+      7
+     ],
+     [
+      -4,
+      12
+     ]
+    ]
+   },
+   "primary": "REC1"
+  },
+  {
+   "id": "dawg_hook",
+   "name": "DAWG HOOK",
+   "kind": "pass",
+   "depth": 15,
+   "clock": 88,
+   "page": 2,
+   "note": "Deeper hooks than DOG HOOK, with a checkdown underneath.",
+   "routes": {
+    "REC1": [
+     [
+      -14,
+      0
+     ],
+     [
+      -14,
+      15
+     ],
+     [
+      -11,
+      13
+     ]
+    ],
+    "REC2": [
+     [
+      9,
+      0
+     ],
+     [
+      9,
+      15
+     ],
+     [
+      6,
       13
      ]
     ],
@@ -133,8 +784,116 @@
       4
      ],
      [
+      -8,
+      3
+     ]
+    ]
+   },
+   "primary": "REC1"
+  },
+  {
+   "id": "utb_deep",
+   "name": "OVER THE TOP",
+   "kind": "pass",
+   "depth": 28,
+   "clock": 120,
+   "page": 2,
+   "note": "Slot runs the seam behind two dig routes.",
+   "routes": {
+    "REC1": [
+     [
+      -14,
+      0
+     ],
+     [
+      -12,
+      13
+     ],
+     [
+      -1,
+      16
+     ]
+    ],
+    "REC2": [
+     [
+      9,
+      0
+     ],
+     [
+      8,
+      13
+     ],
+     [
+      -2,
+      17
+     ]
+    ],
+    "REC3": [
+     [
+      -4.5,
+      -1
+     ],
+     [
+      -4,
+      14
+     ],
+     [
       -3,
-      7
+      30
+     ]
+    ]
+   },
+   "primary": "REC1"
+  },
+  {
+   "id": "x_slant",
+   "name": "X SLANT",
+   "kind": "pass",
+   "depth": 8,
+   "clock": 50,
+   "page": 2,
+   "note": "Three slants. The answer to pressure.",
+   "routes": {
+    "REC1": [
+     [
+      -14,
+      0
+     ],
+     [
+      -10,
+      5
+     ],
+     [
+      -5,
+      9
+     ]
+    ],
+    "REC2": [
+     [
+      9,
+      0
+     ],
+     [
+      5,
+      5
+     ],
+     [
+      0,
+      9
+     ]
+    ],
+    "REC3": [
+     [
+      -4.5,
+      -1
+     ],
+     [
+      -1,
+      3
+     ],
+     [
+      4,
+      6
      ]
     ]
    },
@@ -142,11 +901,12 @@
   },
   {
    "id": "post_wheel",
-   "name": "POST + WHEEL",
+   "name": "POST WHEEL",
    "kind": "pass",
    "depth": 26,
    "clock": 116,
-   "note": "Deep shot. Wheel holds the corner, post breaks in behind it.",
+   "page": 2,
+   "note": "Wheel holds the corner, post breaks in behind it.",
    "routes": {
     "REC1": [
      [
@@ -194,225 +954,14 @@
    "primary": "REC1"
   },
   {
-   "id": "quick_slants",
-   "name": "QUICK SLANTS",
-   "kind": "pass",
-   "depth": 7,
-   "clock": 46,
-   "note": "Beats pressure. Fastest read on the sheet.",
-   "routes": {
-    "REC1": [
-     [
-      -14,
-      0
-     ],
-     [
-      -10,
-      6
-     ],
-     [
-      -4,
-      9
-     ]
-    ],
-    "REC2": [
-     [
-      9,
-      0
-     ],
-     [
-      5,
-      6
-     ],
-     [
-      0,
-      9
-     ]
-    ],
-    "REC3": [
-     [
-      -4.5,
-      -1
-     ],
-     [
-      -1,
-      4
-     ],
-     [
-      3,
-      6
-     ]
-    ]
-   },
-   "primary": "REC1"
-  },
-  {
-   "id": "corner_flood",
-   "name": "CORNER FLOOD",
-   "kind": "pass",
-   "depth": 18,
-   "clock": 94,
-   "note": "Three levels at one sideline. Somebody is open.",
-   "routes": {
-    "REC1": [
-     [
-      -14,
-      0
-     ],
-     [
-      -15,
-      9
-     ],
-     [
-      -19,
-      18
-     ]
-    ],
-    "REC2": [
-     [
-      9,
-      0
-     ],
-     [
-      -2,
-      5
-     ],
-     [
-      -13,
-      9
-     ]
-    ],
-    "REC3": [
-     [
-      -4.5,
-      -1
-     ],
-     [
-      -9,
-      2
-     ],
-     [
-      -16,
-      3
-     ]
-    ]
-   },
-   "primary": "REC1"
-  },
-  {
-   "id": "seam_go",
-   "name": "DOUBLE SEAM",
-   "kind": "pass",
-   "depth": 30,
-   "clock": 124,
-   "note": "Both seams vertical. Max protection, one read, all or nothing.",
-   "routes": {
-    "REC1": [
-     [
-      -14,
-      0
-     ],
-     [
-      -9,
-      15
-     ],
-     [
-      -8,
-      32
-     ]
-    ],
-    "REC2": [
-     [
-      9,
-      0
-     ],
-     [
-      5,
-      15
-     ],
-     [
-      6,
-      32
-     ]
-    ],
-    "REC3": [
-     [
-      -4.5,
-      -1
-     ],
-     [
-      -4.5,
-      3
-     ],
-     [
-      -4.5,
-      6
-     ]
-    ]
-   },
-   "primary": "REC1"
-  },
-  {
-   "id": "screen_left",
-   "name": "SCREEN LEFT",
-   "kind": "screen",
-   "depth": 2,
-   "clock": 62,
-   "note": "Let them come, then throw behind the rush with blockers ahead.",
-   "routes": {
-    "REC1": [
-     [
-      -14,
-      0
-     ],
-     [
-      -16,
-      2
-     ],
-     [
-      -18,
-      4
-     ]
-    ],
-    "REC2": [
-     [
-      9,
-      0
-     ],
-     [
-      9,
-      10
-     ],
-     [
-      9,
-      18
-     ]
-    ],
-    "REC3": [
-     [
-      -4.5,
-      -1
-     ],
-     [
-      -9,
-      -3
-     ],
-     [
-      -13,
-      -2
-     ]
-    ]
-   },
-   "primary": "REC3"
-  },
-  {
    "id": "power_right",
    "name": "POWER RIGHT",
    "kind": "run",
    "depth": 0,
    "clock": 30,
-   "note": "Hand it off behind the right gap and run downhill.",
+   "page": 2,
    "gap": 3.0,
+   "note": "Downhill behind the right gap.",
    "routes": {
     "REC1": [
      [
@@ -465,8 +1014,9 @@
    "kind": "run",
    "depth": 0,
    "clock": 30,
-   "note": "The quarterback keeps it. Nobody blocks the edge for you.",
+   "page": 2,
    "gap": -3.0,
+   "note": "The passer keeps it round the edge. Nobody blocks it for you.",
    "routes": {
     "REC1": [
      [
@@ -516,46 +1066,46 @@
  ],
  "defense": [
   {
-   "id": "safe_cover",
-   "name": "SAFE COVER",
+   "id": "man_cover",
+   "name": "MAN COVER",
    "rush": 2,
-   "cover": "zone",
-   "risk": 0.1,
-   "note": "Everyone back. Gives up the underneath, gives up nothing deep.",
+   "cover": "man",
+   "risk": 0.25,
+   "note": "Straight man across, two after the passer.",
    "assign": {
     "RUSH1": "rush",
     "RUSH2": "rush",
-    "ROVER": "zone_hook",
-    "DB1": "zone_deep",
-    "DB2": "zone_deep",
-    "DB3": "zone_flat",
+    "ROVER": "spy",
+    "DB1": "man",
+    "DB2": "man",
+    "DB3": "man",
     "DB4": "zone_deep"
    }
   },
   {
-   "id": "stuff_it",
-   "name": "STUFF IT",
-   "rush": 3,
+   "id": "goal_line",
+   "name": "GOAL LINE",
+   "rush": 4,
    "cover": "man",
-   "risk": 0.3,
-   "note": "Crowd the line. Built to kill a run before it starts.",
+   "risk": 0.5,
+   "note": "Crowd the line. Nothing gets in from close.",
    "assign": {
     "RUSH1": "rush",
     "RUSH2": "rush",
     "ROVER": "rush",
-    "DB1": "man",
-    "DB2": "man",
-    "DB3": "spy",
-    "DB4": "zone_deep"
+    "DB1": "press",
+    "DB2": "press",
+    "DB3": "rush",
+    "DB4": "man"
    }
   },
   {
-   "id": "two_man_blitz",
-   "name": "2 MAN BLITZ",
+   "id": "blitz_2",
+   "name": "BLITZ 2",
    "rush": 4,
    "cover": "man",
-   "risk": 0.55,
-   "note": "Four after the passer, man behind it.",
+   "risk": 0.6,
+   "note": "Four man pressure, man behind it.",
    "assign": {
     "RUSH1": "rush",
     "RUSH2": "rush",
@@ -567,12 +1117,12 @@
    }
   },
   {
-   "id": "zone_hook",
-   "name": "ZONE HOOK",
+   "id": "med_zone",
+   "name": "MED ZONE",
    "rush": 2,
    "cover": "zone",
    "risk": 0.2,
-   "note": "Sit in the throwing lanes and wait for the mistake.",
+   "note": "Zones at the sticks. Take away the intermediate.",
    "assign": {
     "RUSH1": "rush",
     "RUSH2": "rush",
@@ -584,59 +1134,8 @@
    }
   },
   {
-   "id": "slam_wall",
-   "name": "SLAM WALL",
-   "rush": 3,
-   "cover": "zone",
-   "risk": 0.35,
-   "note": "A wall at the sticks. Nothing crosses cheaply.",
-   "assign": {
-    "RUSH1": "rush",
-    "RUSH2": "rush",
-    "ROVER": "rush",
-    "DB1": "zone_flat",
-    "DB2": "zone_flat",
-    "DB3": "zone_hook",
-    "DB4": "zone_deep"
-   }
-  },
-  {
-   "id": "lb_attack",
-   "name": "LB ATTACK",
-   "rush": 2,
-   "cover": "mixed",
-   "risk": 0.38,
-   "note": "The rover comes clean up the middle while the edge stays home.",
-   "assign": {
-    "RUSH1": "rush",
-    "RUSH2": "contain",
-    "ROVER": "rush",
-    "DB1": "man",
-    "DB2": "man",
-    "DB3": "zone_hook",
-    "DB4": "zone_deep"
-   }
-  },
-  {
-   "id": "in_your_face",
-   "name": "IN YOUR FACE",
-   "rush": 4,
-   "cover": "man",
-   "risk": 0.7,
-   "note": "Press every receiver at the line. No cushion anywhere.",
-   "assign": {
-    "RUSH1": "rush",
-    "RUSH2": "rush",
-    "ROVER": "rush",
-    "DB1": "press",
-    "DB2": "press",
-    "DB3": "press",
-    "DB4": "rush"
-   }
-  },
-  {
-   "id": "death_wish",
-   "name": "DEATH WISH",
+   "id": "all_out",
+   "name": "ALL OUT",
    "rush": 6,
    "cover": "man",
    "risk": 1.0,
@@ -649,6 +1148,74 @@
     "DB2": "rush",
     "DB3": "rush",
     "DB4": "man"
+   }
+  },
+  {
+   "id": "deep_zone",
+   "name": "DEEP ZONE",
+   "rush": 2,
+   "cover": "zone",
+   "risk": 0.1,
+   "note": "Everything back. Concedes the short throw, concedes nothing over the top.",
+   "assign": {
+    "RUSH1": "rush",
+    "RUSH2": "rush",
+    "ROVER": "zone_hook",
+    "DB1": "zone_deep",
+    "DB2": "zone_deep",
+    "DB3": "zone_deep",
+    "DB4": "zone_deep"
+   }
+  },
+  {
+   "id": "blitz_1",
+   "name": "BLITZ 1",
+   "rush": 3,
+   "cover": "man",
+   "risk": 0.4,
+   "note": "Three man pressure with the rover coming clean.",
+   "assign": {
+    "RUSH1": "rush",
+    "RUSH2": "rush",
+    "ROVER": "rush",
+    "DB1": "man",
+    "DB2": "man",
+    "DB3": "spy",
+    "DB4": "zone_deep"
+   }
+  },
+  {
+   "id": "near_zone",
+   "name": "NEAR ZONE",
+   "rush": 3,
+   "cover": "zone",
+   "risk": 0.35,
+   "note": "Short zones and a wall at the line. Built against the run.",
+   "assign": {
+    "RUSH1": "rush",
+    "RUSH2": "rush",
+    "ROVER": "rush",
+    "DB1": "zone_flat",
+    "DB2": "zone_flat",
+    "DB3": "zone_hook",
+    "DB4": "zone_deep"
+   }
+  },
+  {
+   "id": "zone_blitz",
+   "name": "ZONE BLITZ",
+   "rush": 4,
+   "cover": "zone",
+   "risk": 0.55,
+   "note": "Pressure from the edge, zone rotating behind it.",
+   "assign": {
+    "RUSH1": "rush",
+    "RUSH2": "rush",
+    "ROVER": "rush",
+    "DB1": "zone_flat",
+    "DB2": "zone_deep",
+    "DB3": "rush",
+    "DB4": "zone_deep"
    }
   }
  ]
