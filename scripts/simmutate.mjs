@@ -366,6 +366,29 @@ const PREDICATES = {
     if (!(byPow[0] < byPow[1] && byPow[1] < byPow[2])) return `hit power flat or inverted: ${pct(byPow)}`;
     const byBal = sweep((o, d, v) => [o.map((p) => ({ ...p, bal: v })), d]);
     if (!(byBal[0] > byBal[1] && byBal[1] > byBal[2])) return `ball security flat or inverted: ${pct(byBal)}`;
+
+    // A strip-sack must be the most dangerous contact there is. Nothing here watched that
+    // at all, so setting the multiplier to 1 survived the whole battery untouched.
+    // Counted from the fumble event, which records the kind of contact -- inferring it
+    // from the final state also counts every incompletion as a sack that held on.
+    let sackF = 0, sackN = 0, tackF = 0, tackN = 0;
+    for (let t = 0; t < clubs.length; t += 2) {
+      const off = players.byTeam[clubs[t]], def = players.byTeam[clubs[(t + 7) % clubs.length]];
+      for (let o = 0; o < playbook.offense.length; o++) {
+        for (let d = 0; d < playbook.defense.length; d++) {
+          const st = S.runPlay(S.createPlay(9000 + t * 131 + o * 41 + d * 7, playbook.offense[o],
+            playbook.defense[d], off, def, playbook.formation));
+          const fum = st.events.find((e) => e.kind === 'fumble');
+          if (fum) { if (fum.sack) { sackN++; sackF++; } else { tackN++; tackF++; } }
+          else if (st.result === S.RESULT.SACK) sackN++;
+          else if (st.result === S.RESULT.TACKLED || st.result === S.RESULT.TOUCHDOWN) tackN++;
+        }
+      }
+    }
+    if (sackN < 100 || tackN < 100) return `not enough contact to compare: ${sackN}/${tackN}`;
+    if (sackF / sackN <= tackF / tackN) {
+      return `a sack is no more dangerous than a tackle: ${((sackF / sackN) * 100).toFixed(1)}% vs ${((tackF / tackN) * 100).toFixed(1)}%`;
+    }
     return null;
   },
 
@@ -497,8 +520,12 @@ const MUTATIONS = [
   {
     name: 'hit: the fumble contest is a difference, not a ratio',
     was: 'the clamp swallowed every hitter under ~80: 30 and 65 hit power both forced 0.35%',
-    edits: [['        const edge = Math.pow(2, (d.pow - car.bal) / FUMBLE_HALVING);',
-      '        const edge = 1 + (d.pow - car.bal) / 260;']],
+    // The mutation has to reproduce the defect that actually shipped: the swing ADDED to
+    // the base, so it goes negative against a well-rated carrier and the floor flattens it.
+    // Writing it as a multiplier (base * (1 + swing)) stays monotone and proves nothing --
+    // that version survived this battery, and the fault was the mutation, not the sim.
+    edits: [['          FUMBLE_BASE * edge * (isSack ? FUMBLE_SACK_MULT : 1)));',
+      '          (FUMBLE_BASE + (d.pow - car.bal) / 260) * (isSack ? FUMBLE_SACK_MULT : 1)));']],
   },
   {
     name: 'hit: a sack is no more dangerous than any other tackle',
