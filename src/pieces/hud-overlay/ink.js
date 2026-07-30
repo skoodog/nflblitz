@@ -678,6 +678,25 @@ export function inkSet(F, c, text, face, o) {
  */
 const TRANSPARENT = 'rgba(0,0,0,0)';
 let layCv = null, layCx = null;
+let thinCv = null, thinCx = null;
+
+/** Untouched copy of the layer, so a morphological pass never reads its own output. */
+function thinScratch(lay) {
+  if (!lay) return null;
+  if (!thinCv) {
+    thinCv = mkCanvas(lay.width, lay.height);
+    thinCx = thinCv ? thinCv.getContext('2d') : null;
+  } else if (thinCv.width !== lay.width || thinCv.height !== lay.height) {
+    thinCv.width = lay.width; thinCv.height = lay.height;
+    thinCx = thinCv.getContext('2d');
+  }
+  if (!thinCx) return null;
+  thinCx.setTransform(1, 0, 0, 1, 0, 0);
+  thinCx.globalCompositeOperation = 'copy';
+  thinCx.drawImage(lay, 0, 0);
+  thinCx.globalCompositeOperation = 'source-over';
+  return thinCv;
+}
 function layerFor(c) {
   const dst = c.canvas;
   if (!dst || !(dst.width > 0) || !(dst.height > 0)) return null;
@@ -807,11 +826,22 @@ function paint(c, p, q, x0, x1, y0, y1, o, fuse) {
    * frame cost. Opt-in via o.thinX so only the stretched run pays it. */
   if (o.thinX > 0) {
     const d = Math.max(1, Math.round(o.h * o.thinX));
-    l.globalCompositeOperation = 'destination-out';
-    l.setTransform(1, 0, 0, 1, 0, 0);
-    for (let k = 1; k <= d; k++) {
-      l.drawImage(layCv, rx - k, ry, rw, rh, rx, ry, rw, rh);
-      l.drawImage(layCv, rx + k, ry, rw, rh, rx, ry, rw, rh);
+    // TWO THINGS THIS GOT WRONG THE FIRST TIME, both visible in one capture -- the word
+    // came out as hollow OUTLINES with no fill at all:
+    //   1. `destination-out` with a shifted copy REMOVES the interior and keeps the edges.
+    //      That is an outline operator. Erosion is `destination-in`: keep only where the
+    //      shape is present at every shift.
+    //   2. Reading layCv while writing into layCv is self-referential, so each step eroded
+    //      its own previous output and the effect compounded away the whole body. The
+    //      source has to be an untouched snapshot.
+    const src = thinScratch(layCv);
+    if (src) {
+      l.setTransform(1, 0, 0, 1, 0, 0);
+      l.globalCompositeOperation = 'destination-in';
+      for (let k = 1; k <= d; k++) {
+        l.drawImage(src, rx - k, ry, rw, rh, rx, ry, rw, rh);
+        l.drawImage(src, rx + k, ry, rw, rh, rx, ry, rw, rh);
+      }
     }
   }
 
