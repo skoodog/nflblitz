@@ -537,6 +537,73 @@ L('\n=== THE PLAY SIMULATION ===');
       `${behind} sacked, ${beyond} past the line`);
   }
 
+  // THE RUN GAME. Three of the eighteen calls are runs, and they spent this piece's whole
+  // construction averaging MINUS 0.4 yards over 864 downs -- every single one a tackle,
+  // none of them ever gaining anything. Four separate mechanisms were missing at once:
+  // the carrier was being dragged along his own pass route while the carrier logic tried
+  // to take him upfield; he lined up ON the line rather than in the backfield, two and a
+  // half yards from a lineman at the snap; the defence swarmed him from tick zero with
+  // perfect knowledge of a handoff it could not yet have seen; and a defender still
+  // engaged with a blocker could tackle him anyway, so he sprinted into a man who was
+  // being blocked and was stopped by him. A third of the sheet was decoration.
+  {
+    const byPlay = {};
+    for (let t = 0; t < clubs.length; t += 2) {
+      const off = players.byTeam[clubs[t]], def = players.byTeam[clubs[(t + 7) % clubs.length]];
+      for (let o = 0; o < playbook.offense.length; o++) {
+        const pl = playbook.offense[o];
+        if (pl.kind !== 'run') continue;
+        for (let d = 0; d < playbook.defense.length; d++) {
+          const st = S.runPlay(S.createPlay(9000 + t * 131 + o * 41 + d * 7, pl,
+            playbook.defense[d], off, def, playbook.formation));
+          const b = (byPlay[pl.id] = byPlay[pl.id] || { n: 0, tot: 0, gained: 0 });
+          b.n++; b.tot += st.yards;
+          if (st.yards > 0) b.gained++;
+        }
+      }
+    }
+    const ids = Object.keys(byPlay);
+    eq(ids.length, 3, 'three run calls on the sheet');
+    for (const id of ids) {
+      const b = byPlay[id];
+      ok(b.tot / b.n > 1.5, `${id} averages real yardage`, `${(b.tot / b.n).toFixed(2)} yd over ${b.n} downs`);
+      ok(b.gained > b.n * 0.4, `${id} gains ground more often than not`, `${b.gained}/${b.n}`);
+    }
+    // And the three must not be the same run wearing different names -- the gap on the play
+    // sheet is aimed AT, not nudged toward, which is what separates them.
+    const means = ids.map((id) => byPlay[id].tot / byPlay[id].n);
+    ok(Math.max(...means) - Math.min(...means) >= 0.8, 'the three runs are genuinely different calls',
+      ids.map((id, i) => `${id} ${means[i].toFixed(1)}`).join(', '));
+  }
+
+  // A BLOCKED MAN DOES NOT MAKE THE PLAY. Asserted directly, because it is the rule that
+  // makes both the run game and the pass rush mean anything: a sack or a tackle must come
+  // from someone who beat his block or was never blocked.
+  {
+    let byBlocked = 0, total = 0;
+    for (let o = 0; o < playbook.offense.length; o++) {
+      for (let d = 0; d < playbook.defense.length; d++) {
+        for (let s2 = 0; s2 < 3; s2++) {
+          const st = S.runPlay(S.createPlay(2500 + o * 41 + d * 7 + s2, playbook.offense[o],
+            playbook.defense[d], KC, BUF, playbook.formation));
+          const ev = st.events.find((e) => e.kind === 'tackle' || e.kind === 'sack');
+          if (!ev) continue;
+          total++;
+          const man = st.def.find((x) => x.slot === ev.slot);
+          if (!man || !man.blocked) continue;
+          // A block is beaten two ways and BOTH count: its time runs out, or the blocker
+          // loses contact. The first version of this check tested only the clock and
+          // flagged three honest tackles by men whose blocker had simply been left behind.
+          const stillOn = st.off.some((b) => b.engaged === man.slot
+            && Math.hypot(b.x - man.x, b.y - man.y) < S.BLOCK_REACH);
+          if (stillOn && st.tick < man.holdTicks) byBlocked++;
+        }
+      }
+    }
+    ok(total > 200, 'plays end in a tackle or a sack often enough to check', `${total}`);
+    eq(byBlocked, 0, 'nobody makes a tackle while still being blocked', `${byBlocked} of ${total}`);
+  }
+
   // THREE MECHANISM-LEVEL CHECKS, each added because the mutation battery proved the
   // outcome-level assertions above could not see the mechanism at all. Deleting any of the
   // three behaviours below changed no yardage bound, no sack rate and no completion rate

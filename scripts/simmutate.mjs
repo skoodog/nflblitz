@@ -260,6 +260,54 @@ const PREDICATES = {
     return min >= 1.85 ? null : `a throw left with ${min.toFixed(2)} yd of separation`;
   },
 
+  // THE RUN GAME MUST GAIN GROUND, and each of the three calls must be its own play.
+  runGame(S) {
+    const byPlay = {};
+    for (let t = 0; t < clubs.length; t += 2) {
+      const off = players.byTeam[clubs[t]], def = players.byTeam[clubs[(t + 7) % clubs.length]];
+      for (let o = 0; o < playbook.offense.length; o++) {
+        const pl = playbook.offense[o];
+        if (pl.kind !== 'run') continue;
+        for (let d = 0; d < playbook.defense.length; d++) {
+          const st = S.runPlay(S.createPlay(9000 + t * 131 + o * 41 + d * 7, pl,
+            playbook.defense[d], off, def, playbook.formation));
+          const b = (byPlay[pl.id] = byPlay[pl.id] || { n: 0, tot: 0 });
+          b.n++; b.tot += st.yards;
+        }
+      }
+    }
+    const ids = Object.keys(byPlay);
+    const means = ids.map((id) => byPlay[id].tot / byPlay[id].n);
+    const shown = ids.map((id, i) => `${id} ${means[i].toFixed(1)}`).join(', ');
+    if (means.some((m) => m <= 1.5)) return `a run call averages nothing: ${shown}`;
+    if (Math.max(...means) - Math.min(...means) < 0.8) return `the runs are one play: ${shown}`;
+    return null;
+  },
+
+  // Nobody makes a tackle or a sack while a blocker is still on him and the block has not
+  // yet timed out. This is the rule the whole run game and half the pass rush rest on.
+  blockedManCannotTackle(S) {
+    let bad = 0, total = 0;
+    for (let o = 0; o < playbook.offense.length; o++) {
+      for (let d = 0; d < playbook.defense.length; d++) {
+        for (let s = 0; s < 3; s++) {
+          const st = S.runPlay(S.createPlay(2500 + o * 41 + d * 7 + s, playbook.offense[o],
+            playbook.defense[d], KC, BUF, playbook.formation));
+          const ev = st.events.find((e) => e.kind === 'tackle' || e.kind === 'sack');
+          if (!ev) continue;
+          total++;
+          const man = st.def.find((x) => x.slot === ev.slot);
+          if (!man || !man.blocked) continue;
+          const stillOn = st.off.some((b) => b.engaged === man.slot
+            && Math.hypot(b.x - man.x, b.y - man.y) < S.BLOCK_REACH);
+          if (stillOn && st.tick < man.holdTicks) bad++;
+        }
+      }
+    }
+    if (total < 200) return `only ${total} plays ended in a tackle or sack`;
+    return bad === 0 ? null : `${bad} of ${total} tackles made by a man still on a block`;
+  },
+
   balance(S) {
     const { mix, ypp, n } = leagueMix(S);
     if ((mix.sack || 0) / n >= 0.30) return `${(((mix.sack || 0) / n) * 100).toFixed(1)}% sacks`;
@@ -353,6 +401,32 @@ const MUTATIONS = [
     name: 'pursuit: only the rush ever chases the ball carrier',
     was: 'a passer who got outside ran untouched to the end zone on a tenth of his scrambles',
     edits: [['    if (swarm && as !== \'rush\') {', '    if (false) {']],
+  },
+  {
+    name: 'run: the carrier also runs his pass route',
+    was: 'the route loop dragged him sideways while the carrier logic pulled him upfield',
+    edits: [["    if (play.kind === 'run' && a.slot === state.carrier) continue;",
+      "    if (false) continue;"]],
+  },
+  {
+    name: 'run: the carrier lines up on the line instead of in the backfield',
+    was: 'two and a half yards from a lineman at the snap, tackled by tick 11 every time',
+    edits: [["      car.y = -4.2;", "      car.y = -1.0;"]],
+  },
+  {
+    name: 'run: the defence diagnoses the handoff instantly',
+    was: 'all seven converged from tick zero and the runs averaged minus 0.4 yards',
+    edits: [['const RUN_DIAGNOSE_TICKS = 20;', 'const RUN_DIAGNOSE_TICKS = 0;']],
+  },
+  {
+    name: 'block: a man still being blocked can make the tackle anyway',
+    was: 'the runner sprinted into a lineman who was being blocked and was stopped by him',
+    edits: [['      if (blockSlow(d) < 1) continue;', '      if (false) continue;']],
+  },
+  {
+    name: 'run: every run aims at the same gap',
+    edits: [['      const through = car.y < 1.5 ? gap : car.x;',
+      '      const through = car.x;']],
   },
   {
     name: 'timing: the passer\'s read lands on the same tick every time',

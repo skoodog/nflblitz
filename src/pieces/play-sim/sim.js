@@ -32,7 +32,7 @@ const BALL_YPS = 26;   // a thrown ball, yards per second
 const BLOCK_HOLD_TICKS = 100;    // how long ONE blocker holds ONE rusher, before ratings
 const BLOCK_RELEASE_TICKS = 26; // once beaten, how long the rusher takes to get back to speed
 const BLOCK_SLOW = 0.16;        // a held rusher's speed while the block is winning
-const BLOCK_REACH = 2.6;        // a blocker past this distance is no longer engaged
+export const BLOCK_REACH = 2.6; // a blocker past this distance is no longer engaged
 const PRESSURE_RADIUS = SACK_RADIUS * 2.4;   // 3.0 yd: where the passer feels it
 const PRESSURE_FREE = 1.0;      // an unblocked rusher inside that radius
 // A rusher still fighting a block is not the same threat. This weight is not tuned, it is
@@ -90,6 +90,11 @@ const RUSH_REDIRECT_SLOW = 0.55;
  * about to end in a sack, which is the whole point of it.
  */
 const SCRAMBLE_TRIGGER = SACK_RADIUS * 2.1;
+/**
+ * Ticks a defender in coverage takes to diagnose a run and come downhill on the ball.
+ * A third of a second: long enough that the run has a window, short enough that it closes.
+ */
+const RUN_DIAGNOSE_TICKS = 20;
 /** A defender assigned to rush shows blitz: it walks up to the line before the snap. */
 const BLITZ_DEPTH = 1.4;
 const BLITZ_WIDTH = 0.45;
@@ -200,6 +205,21 @@ export function createPlay(seed, offense, defense, offRoster, defRoster, formati
   const carrierSlot = offense.kind === 'run' || offense.kind === 'screen'
     ? offense.primary : 'QB';
 
+  // THE RUNNER LINES UP IN THE BACKFIELD. Same reasoning as a blitzer walking up: the
+  // shared formation is a base look, and the call is what changes an alignment. Left on
+  // the line at y = -1 the runner was two and a half yards from a defensive lineman at the
+  // snap and was tackled around tick 11 every time, with no runway and no chance for a
+  // blocker to get in front of him. He takes it four yards deep, beside the passer, aimed
+  // at his gap -- which is also what makes the gap on the play sheet mean anything.
+  if (offense.kind === 'run' && carrierSlot !== 'QB') {
+    const car = off.find((a) => a.slot === carrierSlot);
+    if (car) {
+      car.x = (offense.gap || 0) * 0.25;
+      car.y = -4.2;
+      car.px = car.x; car.py = car.y;
+    }
+  }
+
   // Drawn here, once, before anything else consults the generator, so it is a pure
   // function of the seed and does not depend on how the down happens to unfold.
   const readyJitter = Math.round((rng() * 2 - 1) * READY_JITTER);
@@ -269,10 +289,25 @@ function assignMan(state) {
 function assignBlocks(state) {
   const blockers = state.off.filter((a) => a.slot.startsWith('OL'));
   const qb = find(state.off, 'QB');
-  const rushers = state.def.filter((d) => state.defense.assign[d.slot] === 'rush');
-  for (const r of rushers) { r.blocked = 0; r.holdTicks = 0; }
-  // Threat order: closest to the passer first, because that is who arrives first.
-  const order = rushers.slice().sort((a, b) => dist(a.x, a.y, qb.x, qb.y) - dist(b.x, b.y, qb.x, qb.y));
+  const running = state.offense.kind === 'run';
+
+  // WHO THE BLOCKERS WORK ON DEPENDS ON THE CALL, and leaving that out killed the run
+  // game outright. Blockers only ever pass-protected, so on a run nobody blocked anyone
+  // who was not already rushing the passer -- and once the defence learned to pursue a
+  // ball carrier, all seven converged on a runner with no one in front of him. Measured
+  // over 864 downs, the three run calls averaged MINUS 0.32 yards and every single one of
+  // them ended in a tackle. Three of the eighteen plays on the sheet were dead.
+  //
+  // On a run the point of attack is the gap, not the passer, so the men to block are
+  // whoever is nearest it -- linebacker, safety or lineman, assignment be damned.
+  const poaX = running ? (state.offense.gap || 0) * 0.35 : qb.x;
+  const poaY = running ? 2.5 : qb.y;
+  const targets = running
+    ? state.def.slice()
+    : state.def.filter((d) => state.defense.assign[d.slot] === 'rush');
+  for (const r of targets) { r.blocked = 0; r.holdTicks = 0; }
+  // Threat order: closest to the point of attack first, because that is who arrives first.
+  const order = targets.slice().sort((a, b) => dist(a.x, a.y, poaX, poaY) - dist(b.x, b.y, poaX, poaY));
   const free = blockers.slice();
   const spare = [];
   for (const r of order) {
@@ -311,6 +346,7 @@ function assignBlocks(state) {
     for (const b of free) b.engaged = null;
   }
   // What the offence can read at the line: more rushers than bodies to block them.
+  const rushers = state.def.filter((d) => state.defense.assign[d.slot] === 'rush');
   state.overload = Math.max(0, rushers.length - blockers.length);
 }
 
@@ -325,6 +361,12 @@ export function step(state) {
   // --- receivers run their routes -------------------------------------------------
   for (const a of state.off) {
     if (!a.slot.startsWith('REC')) continue;
+    // THE BALL CARRIER IS NOT ALSO RUNNING A ROUTE. Every play on the sheet routes all
+    // three receivers, runs included, and the runner is one of them -- so on a run the
+    // route loop was dragging the carrier sideways along a pass route while the carrier
+    // logic below tried to take him upfield. Measured, he made 0.1 yd of ground per tick
+    // out of a possible 0.16 and the three run calls averaged MINUS 0.32 yards.
+    if (play.kind === 'run' && a.slot === state.carrier) continue;
     const route = play.routes[a.slot];
     if (!route) continue;
     a.px = a.x; a.py = a.y;
@@ -351,13 +393,37 @@ export function step(state) {
   // players instead of seven. It is also simply what this kind of football looks like:
   // when the ball breaks contain, the whole defence swarms it.
   const carrying = find(state.off, state.carrier);
-  const swarm = !state.ball && carrying
+  // WHEN the defence knows. A catch or a passer breaking contain is visible the instant it
+  // happens and everyone reacts at once. A HANDOFF IS NOT: a safety fourteen yards deep is
+  // still reading run-or-pass while the back is taking the ball, and the yards a run gains
+  // are bought in exactly that window.
+  //
+  // Swarming from tick zero on a run gave all seven defenders perfect knowledge at the
+  // snap. Three blockers can occupy three of them, so four converged on the runner before
+  // he reached the line of scrimmage and the three run calls averaged MINUS 0.4 yards over
+  // 864 downs -- every one of them a tackle, none of them ever gaining anything. The
+  // diagnosis beat is what makes a run a play rather than a formality.
+  const diagnosed = play.kind !== 'run' || state.tick >= RUN_DIAGNOSE_TICKS;
+  const swarm = !state.ball && carrying && diagnosed
     && (state.scrambling || state.carrier !== 'QB' || play.kind === 'run');
+
+  /** How much a blocker in contact is slowing this defender, 1 = not blocked at all. */
+  const blockSlow = (d) => {
+    if (!d.blocked) return 1;
+    const inReach = blockers.some((x) => x.engaged === d.slot && dist(x.x, x.y, d.x, d.y) < BLOCK_REACH);
+    if (!inReach) return 1;
+    const past = state.tick - d.holdTicks;
+    if (past <= 0) return BLOCK_SLOW;
+    if (past >= BLOCK_RELEASE_TICKS) return 1;
+    return BLOCK_SLOW + (1 - BLOCK_SLOW) * (past / BLOCK_RELEASE_TICKS);
+  };
 
   for (const d of state.def) {
     const as = dplay.assign[d.slot];
     if (swarm && as !== 'rush') {
-      seek(d, carrying.x, carrying.y, 1.0);
+      // Pursuit is not free either. A defender with a blocker on him gets there when he
+      // gets off the block, which is what a run play is actually about.
+      seek(d, carrying.x, carrying.y, blockSlow(d));
       continue;
     }
     if (as === 'rush') {
@@ -425,7 +491,12 @@ export function step(state) {
   // --- blockers stay between the rush and the passer -------------------------------
   for (const b of blockers) {
     const mine = b.engaged ? state.def.find((d) => d.slot === b.engaged) : null;
-    if (mine) seek(b, (mine.x + qb.x) / 2, (mine.y + qb.y) / 2, 0.95);
+    if (!mine) continue;
+    // Stay between your man and whatever he is trying to reach: the passer on a drop, the
+    // BALL CARRIER on a run. Anchoring run blocking to the quarterback left the linemen
+    // standing in a pocket the ball had already left.
+    const anchor = swarm && carrying ? carrying : qb;
+    seek(b, (mine.x + anchor.x) / 2, (mine.y + anchor.y) / 2, 0.95);
   }
 
   // --- ball in flight ---------------------------------------------------------------
@@ -469,10 +540,15 @@ export function step(state) {
     // A ball carrier who is not the passer runs upfield; the passer holds the pocket
     // until thrown or flushed.
     if (state.carrier !== 'QB') {
+      // Through the gap first, then straight up. `gap` is a yard offset across the
+      // formation from the play sheet, so it is aimed AT rather than nudged toward -- the
+      // old `car.x + gap * 0.06` moved a three-yard gap by two inches a tick and made
+      // up_the_gut and power_right the same run.
       const gap = play.kind === 'run' ? (play.gap || 0) : 0;
-      seek(car, car.x + gap * 0.06, car.y + 3, 1.0);
+      const through = car.y < 1.5 ? gap : car.x;
+      seek(car, through, car.y + 4, 1.0);
     } else if (play.kind === 'run') {
-      seek(car, car.x, car.y + 2, 1.0);
+      seek(car, play.gap || 0, car.y + 4, 1.0);
     } else if (state.scrambling) {
       // HE TAKES OFF. A passer with a free rusher on him and nobody to throw to had
       // exactly two futures before this -- get rid of it or die -- and measured over 5184
@@ -510,6 +586,14 @@ export function step(state) {
     }
 
     for (const d of state.def) {
+      // A MAN STILL ON A BLOCK DOES NOT MAKE THE PLAY. This is the whole point of a block
+      // and it was missing: blockSlow() held a defender nearly stationary but left him
+      // fully able to tackle anything that came within a yard of him -- so on a run the
+      // carrier sprinted upfield into a lineman who was being blocked and was tackled by
+      // him, and the three run calls could not gain anything however long the blocks held.
+      // It is equally true of the pass: a sack should come from a rusher who has BEATEN his
+      // man or was never blocked at all, not from one still being walked backwards.
+      if (blockSlow(d) < 1) continue;
       const dd = dist(d.x, d.y, car.x, car.y);
       // ANYONE CARRYING IT gets the break-tackle contest below, a scrambling passer
       // included. But a scrambler is not immune to the rush he ran from: dropped BEHIND
