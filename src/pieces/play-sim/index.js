@@ -20,10 +20,10 @@
 //             into a simulation that has to stay pure to stay reproducible.
 //
 // HOW IT IS JUDGED, and this is the part that matters:
-//   node scripts/gametest.mjs    208 assertions, of which ~30 are this piece's
-//   node scripts/simmutate.mjs   the mutation battery -- sixteen deliberate defects, every
-//                                one of them a bug this piece actually shipped, each of
-//                                which must be caught by the assertions above
+//   node scripts/gametest.mjs    224 assertions, of which ~45 are this piece's
+//   node scripts/simmutate.mjs   the mutation battery -- 21 deliberate defects, every one
+//                                of them a bug this piece actually shipped, each of which
+//                                must be caught by the assertions above
 //
 // The second command is the real one. Assertions that look specific prove nothing; a
 // sister piece here shipped a suite where 20 of 38 deliberate mutations left it green.
@@ -43,19 +43,34 @@ registerSim(sim);
 // here would be inert decoration, which is exactly what the first version of these two
 // shots contained. What the spec can own is the camera; what picks the down is the seed.
 //
-// SEED 33 IS THE DOWN. create() derives the clubs and both play calls from the seed, so
-// the seed alone selects it, reproducibly: SEATTLE against NEW ENGLAND, the deep UNDER THE
-// BOMB concept against the ALL-OUT rush. Six rushers on three blockers leaves three men
-// running clean; the passer feels it at the snap because the overload is readable at the
-// line, breaks contain on tick 39 and runs it to +8. Chosen out of 117 candidate seeds
-// because the scramble WORKS -- most of them end in the sack, and a frame of a sack shows
-// the rush but not the answer to it.
+// WHAT THE SEED ACTUALLY CONTROLS, which is less than it first appears. scenes.js calls
+// create(params.seed, { teamA: 'NYC', teamB: 'CHI' }) with those two clubs hard-coded, and
+// it is foundation, not this piece. 'NYC' is a leftover from the fictional league and is
+// not in the roster, so the home side falls through to the seed; CHI is a real club and is
+// honoured, so THE AWAY SIDE IS ALWAYS CHICAGO for an iso capture, whatever the seed. Both
+// play calls do come from the seed.
 //
-//   node scripts/shoot.mjs --scene=iso_play_sim        --seed=33 --t=1.83
-//   node scripts/shoot.mjs --scene=iso_play_sim_pocket --seed=33 --t=0.50
+// Stated because the first version of this note got it wrong: it claimed Seattle against
+// NEW ENGLAND, having searched seeds with both clubs seed-derived. The captured frame says
+// SEA and CHI on the scoreboard, and the defensive ratings in it are Chicago's.
+//
+// SEED 33 IS THE DOWN: SEATTLE against CHICAGO, the deep UNDER THE BOMB concept against
+// the ALL-OUT rush. Six rushers on three blockers leaves three men running clean; the
+// overload is readable at the line so the passer feels it from the snap, breaks contain on
+// tick 39, and takes it 40 yards to the house on tick 426. Chosen from a search for downs
+// where the scramble WORKS -- most all-out pressures end in the sack, and a frame of a sack
+// shows the rush but not the answer to it.
+//
+//   node scripts/shoot.mjs --scene=iso_play_sim        --seed=33 --t=1.83 --timeout=800000
+//   node scripts/shoot.mjs --scene=iso_play_sim_pocket --seed=33 --t=0.50 --timeout=800000
+//
+// The timeout is not optional. At the default 240 s this scene fails with nothing but
+// "page.waitForFunction: Timeout exceeded": fourteen actors is 731k triangles over 339
+// draw calls, and under SwiftShader the readback of the 1920x1080 layer pair alone took
+// 212 s -- longer than the whole budget, before any rendering is counted.
 
 /**
- * The hero: t=1.83s, mid-scramble.
+ * The hero: t=1.83s, mid-scramble, on a down that ends in the end zone.
  *
  * Everything this piece owns is in the one frame and nothing else can be credited with it.
  * Three rushers running free because three blockers is the cap. The passer eleven yards
@@ -75,7 +90,7 @@ registerIsoShot('iso_play_sim', {
   lens: { fStop: 3.5, focusDist: 20.0, bokehScale: 0.85, shutter: 1 / 320 },
   exposure: 1.0,
   hud: { visible: true },
-  note: 'Seed 33 at t=1.83s: six rushers on three blockers, three free, the passer outside and running, the secondary converging.',
+  note: 'Seed 33, SEA v CHI at t=1.83s: six rushers on three blockers, three free, the passer eleven yards wide and running, all seven defenders inside nine yards of the ball.',
 });
 
 /**
@@ -91,7 +106,7 @@ registerIsoShot('iso_play_sim_pocket', {
   lens: { fStop: 5.0, focusDist: 30.0, bokehScale: 0.5, shutter: 1 / 250 },
   exposure: 1.0,
   hud: { visible: true },
-  note: 'Seed 33 at t=0.50s: the same down before the break, protection intact.',
+  note: 'Seed 33, SEA v CHI at t=0.50s: the same down before the break, protection intact, routes still developing.',
 });
 
 export default sim;

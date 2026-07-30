@@ -13,6 +13,15 @@
 // hidden.
 //
 //   node scripts/simmutate.mjs
+//
+// WHAT THIS BATTERY DOES NOT COVER, stated rather than implied away: it mutates sim.js
+// only. adapt.js -- the world-units/actors/poses layer and, importantly, the accumulator
+// that consumes whole ticks so the sim is identical at any frame rate -- cannot be loaded
+// here at all, because it imports JSON that only the bundler resolves. That accumulator IS
+// asserted in gametest.mjs (2 s of football delivered at 60, 30 and a ragged 12 frames a
+// second, against a plain-node reference), but the assertion has not been proven able to
+// fail by mutating the code it guards, which is the standard everything else here is held
+// to. Treat adapt.js as unproven against it.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -308,6 +317,30 @@ const PREDICATES = {
     return bad === 0 ? null : `${bad} of ${total} tackles made by a man still on a block`;
   },
 
+  // PURSUIT HAS TO SHOW UP IN WHO MAKES THE TACKLE. Turning it off changed no yardage
+  // bound, no sack rate and no completion rate this battery measures -- it survived as a
+  // silent no-op even though it is the difference between a defence and seven men running
+  // their assignments past the ball. Measured on the baseline, 86% of tackles are made by
+  // a defender who was NOT rushing, which is only possible because coverage men converge.
+  pursuitMakesTackles(S) {
+    let byRush = 0, byCover = 0;
+    for (let o = 0; o < playbook.offense.length; o++) {
+      for (let d = 0; d < playbook.defense.length; d++) {
+        for (let s = 0; s < 3; s++) {
+          const st = S.runPlay(S.createPlay(2500 + o * 41 + d * 7 + s, playbook.offense[o],
+            playbook.defense[d], KC, BUF, playbook.formation));
+          const ev = st.events.find((e) => e.kind === 'tackle' || e.kind === 'sack');
+          if (!ev) continue;
+          if (st.defense.assign[ev.slot] === 'rush') byRush++; else byCover++;
+        }
+      }
+    }
+    const total = byRush + byCover;
+    if (total < 150) return `only ${total} tackles to look at`;
+    return byCover > total * 0.4 ? null
+      : `only ${byCover}/${total} tackles made by a defender who was not rushing`;
+  },
+
   balance(S) {
     const { mix, ypp, n } = leagueMix(S);
     if ((mix.sack || 0) / n >= 0.30) return `${(((mix.sack || 0) / n) * 100).toFixed(1)}% sacks`;
@@ -351,8 +384,8 @@ const MUTATIONS = [
   {
     name: 'block: rushers are paired one-to-one with no surplus running free',
     was: 'blockers slowed every rusher within reach of ANY blocker; 6r and 2r both sacked 67%',
-    edits: [['  for (const r of rushers) { r.blocked = 0; r.holdTicks = 0; }',
-      '  for (const r of rushers) { r.blocked = 1; r.holdTicks = BLOCK_HOLD_TICKS; }']],
+    edits: [['  for (const r of targets) { r.blocked = 0; r.holdTicks = 0; }',
+      '  for (const r of targets) { r.blocked = 1; r.holdTicks = BLOCK_HOLD_TICKS; }']],
   },
   {
     name: 'pressure: blocked men count as much as free ones',

@@ -604,6 +604,74 @@ L('\n=== THE PLAY SIMULATION ===');
     eq(byBlocked, 0, 'nobody makes a tackle while still being blocked', `${byBlocked} of ${total}`);
   }
 
+  // THE ENGINE'S CORE INVARIANT, APPLIED TO THIS PIECE. The renderer hands the sim seconds
+  // at whatever rate it is presenting; the sim is a fixed 60 Hz tick. adapt.js accumulates
+  // dt and consumes only WHOLE ticks, so the same elapsed time must produce the identical
+  // state at any frame rate and must equal what plain node produces stepping tick by tick.
+  // The engine already proved bit-identical sim state across 60/45/30 present rates before
+  // this piece existed; it only stays true if the piece keeps it true, and until now that
+  // was asserted nowhere -- it was a claim in a comment.
+  {
+    const per = 1 / S.TICK_HZ;
+    const drive = (seed, o, d, dts) => {
+      const st = S.createPlay(seed, playbook.offense[o], playbook.defense[d], KC, BUF, playbook.formation);
+      st.acc = 0; st.t = 0;
+      for (const dt of dts) {
+        st.t += dt; st.acc += dt;
+        let g = 0;
+        while (st.acc >= per && g++ < 600) {
+          st.acc -= per;
+          if (st.result !== S.RESULT.LIVE) break;
+          S.advance(st);
+        }
+      }
+      return st;
+    };
+    const fill = (n, dt) => Array(n).fill(dt);
+    const sig = (st) => `${st.tick}|${st.result}|`
+      + st.off.concat(st.def).map((m) => `${m.x.toFixed(6)},${m.y.toFixed(6)}`).join(';');
+    let divergent = 0, checked = 0;
+    for (let o = 0; o < playbook.offense.length; o++) {
+      for (let d = 0; d < playbook.defense.length; d++) {
+        const seed = 1234 + o * 7 + d;
+        // Two seconds of football, delivered three different ways.
+        const a = drive(seed, o, d, fill(120, 1 / 60));
+        const b = drive(seed, o, d, fill(60, 1 / 30));
+        const c = drive(seed, o, d, fill(24, 1 / 12));
+        // ...and the same two seconds stepped straight through in plain node.
+        const ref = S.createPlay(seed, playbook.offense[o], playbook.defense[d], KC, BUF, playbook.formation);
+        for (let i = 0; i < 120 && ref.result === S.RESULT.LIVE; i++) S.advance(ref);
+        if (sig(a) !== sig(b) || sig(a) !== sig(c)) divergent++;
+        else if (ref.tick === a.tick && sig(ref) !== sig(a)) divergent++;
+        checked++;
+      }
+    }
+    eq(divergent, 0, 'the sim is identical at 60, 30 and a ragged 12 frames a second',
+      `${divergent} of ${checked} play pairs diverged`);
+  }
+
+  // AND PURSUIT, asserted through WHO MAKES THE TACKLE. Switching pursuit off changed no
+  // yardage bound, no sack rate and no completion rate in this suite -- it survived as a
+  // silent no-op even though it is the difference between a defence and seven men running
+  // their assignments past the ball.
+  {
+    let byRush = 0, byCover = 0;
+    for (let o = 0; o < playbook.offense.length; o++) {
+      for (let d = 0; d < playbook.defense.length; d++) {
+        for (let s2 = 0; s2 < 3; s2++) {
+          const st = S.runPlay(S.createPlay(2500 + o * 41 + d * 7 + s2, playbook.offense[o],
+            playbook.defense[d], KC, BUF, playbook.formation));
+          const ev = st.events.find((e) => e.kind === 'tackle' || e.kind === 'sack');
+          if (!ev) continue;
+          if (st.defense.assign[ev.slot] === 'rush') byRush++; else byCover++;
+        }
+      }
+    }
+    const total = byRush + byCover;
+    ok(byCover > total * 0.4, 'coverage defenders converge on the ball and make tackles',
+      `${byCover}/${total} tackles by a man who was not rushing`);
+  }
+
   // THREE MECHANISM-LEVEL CHECKS, each added because the mutation battery proved the
   // outcome-level assertions above could not see the mechanism at all. Deleting any of the
   // three behaviours below changed no yardage bound, no sack rate and no completion rate
