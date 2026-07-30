@@ -785,6 +785,36 @@ function paint(c, p, q, x0, x1, y0, y1, o, fuse) {
     l.fillRect(x0 - 2, y0, (x1 - x0) + 4, y1 - y0);
   }
 
+  /* 3b — HORIZONTAL-ONLY EROSION, for a run whose x has been stretched.
+   *
+   * turbo.js widens blitz-techno to reach the art's square letters by solving an x scale
+   * of ~1.96, and that scale is applied to the PATH — so every vertical stem is multiplied
+   * by 1.96 along with the skeleton. Measured on a mid-cap slice, stem/cap came out 0.382
+   * against the art's 0.209, i.e. 83% overweight, and the counters closed to slits (our O
+   * counter 0.319 cap against the art's 0.552). Blind at matched height that was the single
+   * loudest tell in the whole element.
+   *
+   * turbo.js's own note said "It cannot be fixed from here — it is the face's proportion."
+   * That is not right, and the face is not at fault: blitz-techno's authored pen is 68 at
+   * capHeight 700 (typeface-lettering/build.js:87-89) = 0.194 of cap, which is already the
+   * art's 0.209. The stretch is what broke it, so the stretch is what gets corrected.
+   *
+   * A pure HORIZONTAL shift erodes a vertical stem from both sides and leaves a horizontal
+   * bar alone except at its two ends — exactly the anisotropy the x stretch introduced, and
+   * exactly why an isotropic erosion would be the wrong tool. Runs at bake time on the
+   * layer scratch, before the keyline goes under it, so the keyline still hugs the FINAL
+   * silhouette rather than the pre-erosion one. Two drawImage calls, no allocation, no
+   * frame cost. Opt-in via o.thinX so only the stretched run pays it. */
+  if (o.thinX > 0) {
+    const d = Math.max(1, Math.round(o.h * o.thinX));
+    l.globalCompositeOperation = 'destination-out';
+    l.setTransform(1, 0, 0, 1, 0, 0);
+    for (let k = 1; k <= d; k++) {
+      l.drawImage(layCv, rx - k, ry, rw, rh, rx, ry, rw, rh);
+      l.drawImage(layCv, rx + k, ry, rw, rh, rx, ry, rw, rh);
+    }
+  }
+
   /* 4 — the keyline, UNDER everything above */
   l.globalCompositeOperation = 'destination-over';
   if (o.keyline) {

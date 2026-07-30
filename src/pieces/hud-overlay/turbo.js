@@ -316,7 +316,12 @@ function bakeChrome(ui, s) {
     // So the run has to be widened ~1.7x. That is also the one thing about this
     // word still off the art: stretching x at a fixed pen thickens every vertical
     // stem, so our strokes read ~0.30 of the cap height against the bar's ~0.20.
-    // It cannot be fixed from here — it is the face's proportion.
+    // RETIRED: this said "It cannot be fixed from here - it is the face's proportion."
+    // Both halves were wrong. blitz-techno's authored pen is 68 at capHeight 700
+    // (typeface-lettering/build.js:87-89) = 0.194 of cap, i.e. already the art's 0.209 --
+    // the face is right and the stretch is what thickens the stems. And it IS fixable from
+    // here: a horizontal-only erosion on the layer scratch takes the stems back down
+    // without touching the horizontals. See ink.js pass 3b and the thinX opt below.
     //
     // LETTERSPACING, MEASURED IN A SHEAR-CORRECTED FRAME. A column projection
     // cannot see the gap between two OBLIQUE letters — a column holds one letter
@@ -341,6 +346,9 @@ function bakeChrome(ui, s) {
     // clearance floor keeps every full-height gap above 3 px while the three gaps
     // the eye actually reads land within 10% of each other.
     gap: 5.4, capBand: 0.58, clear: 0.45,
+    // Undoes the x stretch on the STEMS only -- see ink.js pass 3b. Measured target is
+    // the art's stem/cap 0.209 (range 0.191-0.233); we were at 0.382.
+    thinX: 0.055,
     slant: WORD.slant, minXs: 0.62, maxXs: 2.05,
     keyline: { color: 'rgba(0,0,0,0.92)', k: 0.034 },
     shadow: { color: 'rgba(0,3,14,0.95)', blur: 9, dy: 4, alpha: 0.95 },
