@@ -113,10 +113,23 @@ const impl = {
     }
   },
 
-  /** Re-simulate from zero. Byte-reproducible for a given (seed, t). */
+  /**
+   * Re-simulate from zero. Byte-reproducible for a given (seed, t).
+   *
+   * THE RESET HAS TO BE TOTAL. This used to Object.assign a fresh state over the old one,
+   * which only overwrites the keys the fresh state HAS -- and a played-out down carries
+   * keys createPlay never sets: `scrambling`, `scrambleAt`, `escapeSide`, `flushedAt`.
+   * They survived the reset, so seeking backwards resumed a down that already believed its
+   * passer had broken contain, and replayed differently from the first pass. Caught by
+   * scripts/simmutate.mjs the moment adapt.js came under coverage, on the UNMUTATED file --
+   * before a single mutation ran. Anyone scrubbing a replay would have seen the play change
+   * under them.
+   */
   seekTo(state, t) {
     if (t < state.t) {
-      Object.assign(state, impl.create(state.seed, { teamA: state.teamA, teamB: state.teamB }));
+      const fresh = impl.create(state.seed, { teamA: state.teamA, teamB: state.teamB });
+      for (const k of Object.keys(state)) if (!(k in fresh)) delete state[k];
+      Object.assign(state, fresh);
     }
     const per = 1 / TICK_HZ;
     let guard = 0;

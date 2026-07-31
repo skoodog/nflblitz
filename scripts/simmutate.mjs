@@ -14,14 +14,15 @@
 //
 //   node scripts/simmutate.mjs
 //
-// WHAT THIS BATTERY DOES NOT COVER, stated rather than implied away: it mutates sim.js
-// only. adapt.js -- the world-units/actors/poses layer and, importantly, the accumulator
-// that consumes whole ticks so the sim is identical at any frame rate -- cannot be loaded
-// here at all, because it imports JSON that only the bundler resolves. That accumulator IS
-// asserted in gametest.mjs (2 s of football delivered at 60, 30 and a ragged 12 frames a
-// second, against a plain-node reference), but the assertion has not been proven able to
-// fail by mutating the code it guards, which is the standard everything else here is held
-// to. Treat adapt.js as unproven against it.
+// BOTH FILES ARE COVERED. sim.js is mutated directly. adapt.js -- the world-units layer
+// and, importantly, the accumulator that consumes whole ticks so the sim is identical at
+// any frame rate -- was previously reported here as UNCOVERED, because it imports JSON that
+// only the bundler resolves and so cannot be imported by plain node at all.
+//
+// That was a real hole and it is closed rather than restated: resolving a JSON import is
+// exactly what the bundler does, and the loader below does the same thing, rewriting each
+// one into a readFileSync at an absolute path. The frame-rate invariance that gametest.mjs
+// asserts is now guarded by mutations that can actually break it.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -49,6 +50,39 @@ async function load(edits) {
   const f = path.join(tmp, `sim${serial++}.mjs`);
   fs.writeFileSync(f, src);
   return import(pathToFileURL(f).href);
+}
+
+const ADAPT = path.join(ROOT, 'src/pieces/play-sim/adapt.js');
+const ADAPT_SRC = fs.readFileSync(ADAPT, 'utf8');
+
+/**
+ * Load a copy of adapt.js with `edits` applied.
+ *
+ * adapt.js cannot be imported by plain node as it stands: `import PLAYBOOK from
+ * '../../data/playbook.json'` is a bundler feature. Rewriting each JSON import into a
+ * readFileSync at an absolute path is precisely what the bundler does, so the module under
+ * test is the real one -- and its two relative code imports are re-pointed at the real
+ * files rather than at the temp directory the copy lives in.
+ */
+async function loadAdapt(edits) {
+  let src = ADAPT_SRC
+    .replace(/import PLAYBOOK from '[^']*playbook\.json';/,
+      `const PLAYBOOK = JSON.parse(fs.readFileSync(${JSON.stringify(path.join(ROOT, 'src/data/playbook.json'))}, 'utf8'));`)
+    .replace(/import PLAYERS from '[^']*players\.json';/,
+      `const PLAYERS = JSON.parse(fs.readFileSync(${JSON.stringify(path.join(ROOT, 'src/data/players.json'))}, 'utf8'));`)
+    .replace(/from '\.\.\/\.\.\/foundation\/rng\.js'/,
+      `from ${JSON.stringify(pathToFileURL(path.join(ROOT, 'src/foundation/rng.js')).href)}`)
+    .replace(/from '\.\/sim\.js'/,
+      `from ${JSON.stringify(pathToFileURL(SIM).href)}`);
+  src = `import fs from 'node:fs';\n` + src;
+  for (const [find, repl] of edits || []) {
+    const n = src.split(find).length - 1;
+    if (n !== 1) throw new Error(`adapt anchor matched ${n} times, expected 1: ${find.slice(0, 70)}`);
+    src = src.replace(find, repl);
+  }
+  const f = path.join(tmp, `adapt${serial++}.mjs`);
+  fs.writeFileSync(f, src);
+  return (await import(pathToFileURL(f).href)).default;
 }
 
 /* ------------------------------------------------------------ the predicates ---- */
@@ -414,6 +448,107 @@ const PREDICATES = {
   },
 };
 
+/* ------------------------------------------------------ the adapt predicates ---- */
+// These take the ADAPTER's default export (create/step/seekTo/snapshot), not the sim
+// namespace, so they are kept in their own table and run only against adapt mutations.
+
+const REALSIM = await import(pathToFileURL(SIM).href);
+
+/** Signature of the simulation state, to the micro-yard. */
+const simSig = (st) => `${st.tick}|${st.result}|`
+  + st.off.concat(st.def).map((m) => `${m.x.toFixed(6)},${m.y.toFixed(6)}`).join(';');
+
+const ADAPT_PREDICATES = {
+  // THE ONE THE HOLE WAS ABOUT. The renderer hands the adapter seconds at whatever rate it
+  // is presenting; the sim is a fixed 60 Hz tick. Whole ticks only, remainder carried, so
+  // the same elapsed time gives the identical state at any frame rate.
+  frameRate(A) {
+    const drive = (dts) => {
+      const st = A.create(33, { teamA: 'NYC', teamB: 'CHI' });
+      for (const dt of dts) A.step(st, dt);
+      return st;
+    };
+    const fill = (n, dt) => Array(n).fill(dt);
+    const a = drive(fill(120, 1 / 60));
+    const b = drive(fill(60, 1 / 30));
+    const c = drive(fill(24, 1 / 12));
+    // Two seconds of football, delivered three ways, plus a deliberately ragged rate.
+    const d = drive([...fill(30, 1 / 60), ...fill(15, 1 / 30), ...fill(6, 1 / 12), ...fill(30, 1 / 60)]);
+    if (simSig(a) !== simSig(b)) return `60 fps and 30 fps disagree (tick ${a.tick} vs ${b.tick})`;
+    if (simSig(a) !== simSig(c)) return `60 fps and 12 fps disagree (tick ${a.tick} vs ${c.tick})`;
+    if (simSig(a) !== simSig(d)) return `a ragged frame rate diverges (tick ${a.tick} vs ${d.tick})`;
+    return null;
+  },
+
+  // And it must agree with what plain node produces stepping the sim directly -- otherwise
+  // the renderer is running a different game from the one the test suite measures.
+  agreesWithPlainNode(A) {
+    const st = A.create(33, { teamA: 'NYC', teamB: 'CHI' });
+    for (let i = 0; i < 120; i++) A.step(st, 1 / 60);
+    const ref = REALSIM.createPlay(33, st.offense, st.defense,
+      players.byTeam[st.teamA], players.byTeam[st.teamB], playbook.formation);
+    for (let i = 0; i < 120 && ref.result === REALSIM.RESULT.LIVE; i++) REALSIM.advance(ref);
+    if (ref.tick !== st.tick) return `adapter ran ${st.tick} ticks, plain node ran ${ref.tick}`;
+    return simSig(ref) === simSig(st) ? null : 'adapter and plain node disagree on the same tick';
+  },
+
+  // THE AXES. The world runs downfield along -x and across along +z; the simulation runs
+  // downfield along +y and across along +x. Every actor must obey it, or the whole team
+  // renders sideways or mirrored and only a rendered capture would ever reveal it.
+  axes(A) {
+    const st = A.create(33, { teamA: 'NYC', teamB: 'CHI' });
+    A.seekTo(st, 1.2);
+    const snap = A.snapshot(st);
+    for (const m of st.off.concat(st.def)) {
+      const id = (m.side === 'OFF' ? 'o_' : 'd_') + m.slot.toLowerCase();
+      const a = snap.actors.find((x) => x.id === id);
+      if (!a) return `no actor for ${m.slot}`;
+      if (Math.abs(a.pos[0] - (-m.y)) > 1e-9) return `${m.slot} world.x ${a.pos[0].toFixed(3)} != -sim.y ${(-m.y).toFixed(3)}`;
+      if (Math.abs(a.pos[2] - m.x) > 1e-9) return `${m.slot} world.z ${a.pos[2].toFixed(3)} != sim.x ${m.x.toFixed(3)}`;
+    }
+    return snap.actors.length === 14 ? null : `${snap.actors.length} actors, want 14`;
+  },
+
+  // seekTo must be reproducible, and must re-simulate from zero when asked to go backwards
+  // rather than quietly returning a later state.
+  seekReproducible(A) {
+    const one = A.create(7, {});
+    A.seekTo(one, 1.5);
+    const sigAt15 = simSig(one);
+    A.seekTo(one, 2.5);
+    A.seekTo(one, 1.5);            // backwards: must land on the same state as before
+    if (simSig(one) !== sigAt15) return 'seeking backwards did not reproduce the earlier state';
+    const two = A.create(7, {});
+    A.seekTo(two, 1.5);
+    return simSig(two) === sigAt15 ? null : 'two seeks to the same time disagree';
+  },
+
+  // The ball is where the man holding it is, or in the air on its own arc -- never adrift.
+  ball(A) {
+    let held = 0, air = 0, checked = 0;
+    for (let seed = 1; seed <= 40; seed++) {
+      const st = A.create(seed, {});
+      for (let k = 1; k <= 12; k++) {
+        A.seekTo(st, k * 0.25);
+        const snap = A.snapshot(st);
+        checked++;
+        if (st.ball) {
+          air++;
+          if (snap.ball.pos[1] < 1.35) return `a ball in flight at y=${snap.ball.pos[1].toFixed(2)}, under the release height`;
+        } else {
+          const car = st.off.find((m) => m.slot === st.carrier);
+          if (!car) continue;
+          held++;
+          const dx = snap.ball.pos[0] - (-car.y), dz = snap.ball.pos[2] - car.x;
+          if (Math.hypot(dx, dz) > 1.2) return `the carrier's ball is ${Math.hypot(dx, dz).toFixed(2)} yd away from him`;
+        }
+      }
+    }
+    if (held < 50 || air < 5) return `only ${held} held / ${air} in flight over ${checked} samples`;
+    return null;
+  },
+};
+
 /* -------------------------------------------------------------- the mutations ---- */
 // Every one of these is a defect this piece actually shipped, reintroduced on purpose.
 
@@ -546,54 +681,95 @@ const MUTATIONS = [
     edits: [['    const route = play.routes[a.slot];',
       '    const route = play.routes[Object.keys(play.routes)[0]];']],
   },
+  {
+    target: 'adapt',
+    name: 'adapter: every dt advances a tick, whatever its size',
+    was: 'the sim would run at a different speed on every device',
+    edits: [['    while (state.acc >= per && guard++ < 600) {', '    while (guard++ < 1) {']],
+  },
+  {
+    target: 'adapt',
+    name: 'adapter: the leftover fraction of a tick is thrown away',
+    was: 'a slow frame would silently drop the remainder and the sim would drift',
+    edits: [['      state.acc -= per;', '      state.acc = 0;']],
+  },
+  {
+    target: 'adapt',
+    name: 'adapter: the field axes are mirrored',
+    edits: [['    pos: [-m.y, 0, m.x],', '    pos: [m.y, 0, m.x],']],
+  },
+  {
+    target: 'adapt',
+    name: 'adapter: seeking backwards does not re-simulate',
+    edits: [['    if (t < state.t) {', '    if (false) {']],
+  },
+  {
+    target: 'adapt',
+    name: 'adapter: the ball is not attached to the man carrying it',
+    edits: [["      ball = { pos: [-carrier.y - 0.3, 1.42, carrier.x + 0.35], held: `o_${carrier.slot.toLowerCase()}` };",
+      "      ball = { pos: [0, 1.42, 0], held: `o_${carrier.slot.toLowerCase()}` };"]],
+  },
 ];
 
 /* --------------------------------------------------------------------- run it ---- */
 
 const names = Object.keys(PREDICATES);
-const only = process.argv.includes('--quick');
-const list = only ? MUTATIONS.slice(0, 6) : MUTATIONS;
+const anames = Object.keys(ADAPT_PREDICATES);
+const list = MUTATIONS;
+const total = names.length + anames.length;
 
-console.log(`\nMUTATION BATTERY — play-sim   ${list.length} mutations x ${names.length} predicates\n`);
+console.log(`\nMUTATION BATTERY — play-sim   ${list.length} mutations x ${total} predicates`);
+console.log(`  sim.js: ${names.length} predicates   adapt.js: ${anames.length} predicates\n`);
 
-const base = await load();
-const baseFails = [];
-for (const n of names) {
-  const r = await PREDICATES[n](base);
-  if (r) baseFails.push(`${n}: ${r}`);
+/** Run every predicate for one target. Returns the list of complaints. */
+async function checkSim(S) {
+  const out = [];
+  for (const n of names) {
+    let r;
+    try { r = await PREDICATES[n](S); } catch (e) { r = `threw: ${e.message}`; }
+    if (r) out.push(`${n} (${r})`);
+  }
+  return out;
 }
+async function checkAdapt(A) {
+  const out = [];
+  for (const n of anames) {
+    let r;
+    try { r = await ADAPT_PREDICATES[n](A); } catch (e) { r = `threw: ${e.message}`; }
+    if (r) out.push(`${n} (${r})`);
+  }
+  return out;
+}
+
+const baseFails = (await checkSim(await load())).concat(await checkAdapt(await loadAdapt()));
 if (baseFails.length) {
-  console.log('  THE UNMUTATED SIM DOES NOT PASS ITS OWN PREDICATES:');
+  console.log('  THE UNMUTATED CODE DOES NOT PASS ITS OWN PREDICATES:');
   for (const f of baseFails) console.log(`    ${f}`);
   console.log('\n  Nothing below means anything until that is fixed.\n');
   process.exit(1);
 }
-console.log(`  baseline: all ${names.length} predicates hold on the unmutated sim\n`);
+console.log(`  baseline: all ${total} predicates hold on the unmutated sim.js and adapt.js\n`);
 
 let killed = 0;
 const survived = [];
 for (const m of list) {
-  let S;
+  const isAdapt = m.target === 'adapt';
+  let caught;
   try {
-    S = await load(m.edits);
+    caught = isAdapt ? await checkAdapt(await loadAdapt(m.edits)) : await checkSim(await load(m.edits));
   } catch (e) {
     console.log(`  ERROR  ${m.name}\n         ${e.message}`);
-    survived.push({ ...m, caughtBy: [], error: e.message });
+    survived.push({ ...m, error: e.message });
     continue;
   }
-  const caught = [];
-  for (const n of names) {
-    let r;
-    try { r = await PREDICATES[n](S); } catch (e) { r = `threw: ${e.message}`; }
-    if (r) caught.push(`${n} (${r})`);
-  }
+  const tag = isAdapt ? '[adapt] ' : '';
   if (caught.length) {
     killed++;
-    console.log(`  KILLED    ${m.name}`);
+    console.log(`  KILLED    ${tag}${m.name}`);
     console.log(`            caught by ${caught.length}: ${caught.slice(0, 2).join('; ')}`);
   } else {
     survived.push(m);
-    console.log(`  SURVIVED  ${m.name}`);
+    console.log(`  SURVIVED  ${tag}${m.name}`);
   }
 }
 
