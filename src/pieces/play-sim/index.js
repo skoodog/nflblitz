@@ -21,8 +21,9 @@
 //
 // HOW IT IS JUDGED, and this is the part that matters:
 //   node scripts/gametest.mjs    224 assertions, of which ~55 are this piece's
-//   node scripts/simmutate.mjs   the mutation battery -- 24 deliberate defects, every one
-//                                of them a bug this piece actually shipped, all 24 killed
+//   node scripts/simmutate.mjs   the mutation battery -- 29 deliberate defects over both
+//                                sim.js and adapt.js, every one of them a bug this piece
+//                                actually shipped, all 29 killed
 //
 // The second command is the real one. Assertions that look specific prove nothing; a
 // sister piece here shipped a suite where 20 of 38 deliberate mutations left it green.

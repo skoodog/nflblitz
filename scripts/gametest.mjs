@@ -22,10 +22,16 @@
 //
 // THE STANDARD THIS IS HELD TO. "The assertions look specific" is not evidence -- a sister
 // piece in this project shipped a suite where 20 of 38 deliberate mutations left it green.
-// The play-sim section is now backed by an automated battery that reintroduces sixteen
-// real defects and requires each to be caught:
+// The play-sim section is now backed by an automated battery that reintroduces 29 real
+// defects across both sim.js and adapt.js and requires each to be caught:
 //
 //   node scripts/simmutate.mjs
+//
+// That battery earns its keep. Bringing adapt.js under it exposed a replay bug on the
+// UNMUTATED file: seekTo reset a state by assigning a fresh one over it, so keys a
+// played-out down carries but a fresh one never sets (`scrambling`, `flushedAt`) survived
+// the reset and a backward seek replayed a different down. None of the assertions below
+// could see it, because every one of them drives the simulation forwards only.
 //
 // The rule set, kick and control-scheme sections above it are NOT yet covered by a battery,
 // and are stated here as unproven against that standard rather than implied away.
