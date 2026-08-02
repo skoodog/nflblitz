@@ -101,9 +101,10 @@ const JUMP_MAX = new Float64Array([0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 3, 2, 3]);
  *
  * ON A CUT the state does not interpolate — it teleports, which is what a cut is. But it
  * teleports to a point deliberately SHORT of the new ideal, with velocity toward it:
- * `p = ideal - err`, `v = err * CUT_KICK`. The result is that the frame arrives already
- * moving and settles over ~0.25 s, which is how a real operator lands on a new subject.
- * A cut that lands perfectly composed and frozen reads as a scene change, not as an edit.
+ * `p = ideal - err*CUT_LAG`, `v = err*CUT_LAG * omega*CUT_KICK`. The result is that the
+ * frame arrives already moving and settles over ~0.25 s, which is how a real operator lands
+ * on a new subject. A cut that lands perfectly composed and frozen reads as a scene change,
+ * not as an edit.
  */
 // CUT_KICK IS IN UNITS OF OMEGA, and the fact that it used to be a bare 9.0 was the second
 // half of the framing bug. The teleport leaves a residual of `err * CUT_LAG`; the kick then

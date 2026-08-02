@@ -24,8 +24,8 @@
 // (no browser, no renderer) over 20 seeds; these are its actual outputs after round 2
 // (`catch` and `six` were unreachable before it — see track.js BEAT):
 //
-//   seed 7   sack.      0.00 pocket -> 0.68 pursuit (scramble@0.62) -> 1.78 impact (sack)
-//   seed 5   tackled.   0.00 pocket -> 0.65 deep (throw) -> 1.30 impact (tackle)
+//   seed 7   sack.      0.00 pocket -> 0.69 pursuit (scramble@0.62) -> 1.78 impact (sack)
+//   seed 5   tackled.   0.00 pocket -> 0.67 deep (throw) -> 1.30 impact (tackle)
 //            catch and tackle both fire on tick 77. The catch wants `catch` (prio 3) and
 //            the tackle wants `impact` (prio 4); the tackle wins on the same tick. That is
 //            the priority rule doing the job it exists for, and it is why the catch shot
@@ -34,9 +34,9 @@
 //            0.00 pocket -> 0.20 pursuit (LINE-OF-SCRIMMAGE CROSS) -> 1.10 impact (tackle)
 //            Without the geometric beat below, this down would be one static pocket shot
 //            from the snap to the whistle.
-//   seed 3   tackled.   0.00 pocket -> 0.53 deep -> 1.18 pursuit -> 1.28 CATCH -> 1.43
-//            impact -> 2.13 pursuit. The full grammar on one down.
-//   seed 16  TOUCHDOWN. 0.00 pocket -> 0.72 pursuit (scramble) -> 7.25 SIX. The score beat
+//   seed 3   tackled.   0.00 pocket -> 0.55 deep -> 1.18 CATCH -> 1.43 impact -> 2.03
+//            pursuit. Five shots, the full grammar, on one down.
+//   seed 16  TOUCHDOWN. 0.00 pocket -> 0.73 pursuit (scramble) -> 7.23 SIX. The score beat
 //            is synthesised in track.js from `snap.result`, because play-sim has no
 //            touchdown EVENT to cut on.
 //

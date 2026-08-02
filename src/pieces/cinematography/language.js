@@ -54,10 +54,20 @@
 // camera, which is 0.15 + 0.64*0.326 = 0.36 — the solver was doing exactly what it was
 // told and what it was told was wrong. Only two of the three are free. `fill` is the bar's
 // number and stays; `topAt` and `height` are now solved TOGETHER so the identity lands in
-// 60%..70%, which is why every camera below dropped to 0.80-0.95 m and every `topAt` grew.
-// The heights are low because the bar's heights are low: a 1.88 m man at fill 0.76 with
-// his feet on the frame edge and the horizon at 63% pins the camera at 0.86 m and there is
-// no other answer.
+// 60%..70%, which is why every man-subject camera below dropped to 0.72-0.80 m and every
+// `topAt` grew. The heights are low because the bar's heights are low: a 1.88 m man at
+// fill 0.76 with his feet on the frame edge and the horizon at 67% pins the camera at
+// 0.80 m and there is no other answer. `deep` and `catch` sit higher (1.55, 1.05) because
+// their subject is in the air and the identity does not apply to them; each records its
+// own arithmetic on its entry.
+//
+// DELIVERED, re-measured the same way over 4732 live frames across 20 seeds AFTER the
+// re-solve — this is the number that matters, because it comes off the integrated camera
+// body and not off the ideal:
+//     pocket 64%   pursuit 66%   impact 64%   catch 67%   six 63%   deep 53%
+// and off the staged panels: qb_dropback 67%, truck 67%, midair_hit 66%, leveler 64%,
+// catch 76%, touchdown 62% (see index.js on why the touchdown panel is not matched to its
+// own bar frame). `deep` is under the band on purpose; it is a shot of a ball in the air.
 //
 // WHAT THE FILL FRACTION COST US, measured. The foundation fallback stages `truck` at
 // 7.28 m from the hero on a 36 degree lens. Frame height at 7.28 m is 2*7.28*tan(18) =
@@ -184,7 +194,7 @@ export const RECIPES = {
    * Measured on the panel, the QB's helmet sits at 22% from the top and 38% across.
    *
    * HORIZON 0.26 + 0.76*(1 - 0.80/1.75) = 0.673, against the panel's measured 0.66. His
-   * feet land at 0.26 + 0.76 = 1.02, on the frame edge, which is the panel's crop.
+   * feet land at 0.26 + 0.76 = 1.02, just past the frame edge, which is the panel's crop.
    */
   pocket: {
     fov: 38, fill: 0.76, height: 0.80, topAt: 0.26,
@@ -316,7 +326,7 @@ export const RECIPES = {
  * The first version expressed "open the frame ahead of the runner" as a look-at point
  * pushed N metres along his velocity: pursuit had lead 4.5 m, pocket had 6.4 m. Those are
  * enormous compared with the staging distance the fill fraction produces — pursuit stages
- * at 3.95 m and pocket at 3.50 m. Worked through for the qb_dropback panel, a 6.4 m lead
+ * at 3.60 m and pocket at 3.59 m. Worked through for the qb_dropback panel, a 6.4 m lead
  * at 3.50 m distance puts the passer 53.4 degrees off the camera axis against a
  * horizontal half-fov of 31.5 degrees: THE SUBJECT OF THE SHOT WAS OUTSIDE THE FRAME.
  *
