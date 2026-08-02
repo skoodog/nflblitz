@@ -105,8 +105,9 @@ function core(S, x, y, z, t0, p, opts) {
     // first correction. Projected into the `leveler` frame at 205 px/m the starburst
     // alone was a 1.52 m quad at 3.1 linear — a 311 px white disc before bloom, in a
     // frame whose entire debris field was only 380 px wide. In the bar panel the flash
-    // core is about one HELMET across (0.26 m) with spikes reaching three or four times
-    // that, and it sits behind the bodies rather than in front of them.
+    // core is about two HELMETS across (0.26 m each) with spikes reaching three or four
+    // times that, and it sits behind the bodies rather than in front of them. At power
+    // 2.2 these numbers are a 0.49 m core growing to 0.80 m over its 0.17 s life.
     emit(g, x, y, z, 0, 0, 0, t0, 0.125 * (0.7 + p * 0.15),
       (0.20 + 0.13 * p) * flashS, (0.34 + 0.21 * p) * flashS,
       COL.flashCore[0], COL.flashCore[1], COL.flashCore[2],
@@ -146,8 +147,8 @@ function sparks(S, x, y, z, t0, p, n, rng, along, flat, lift, vlo, vhi) {
     // 30 ms a power-2.2 spark is still doing 29 m/s, so 0.25 made the sprite 1 + 7.25 =
     // 8.25x its own length: a 0.097 m sprite drawn 0.80 m long, 164 px, and then the
     // 1/55 s shutter smeared another 0.53 m on top of that. Ninety-seven of those
-    // radiating from one point IS the firework the critic saw. 0.045-0.080 puts the
-    // drawn streak at 0.10-0.19 m and lets the shutter do the rest.
+    // radiating from one point IS the firework the critic saw. 0.045-0.080 against the
+    // reduced v0 puts the drawn streak at 0.04-0.19 m and lets the shutter do the rest.
     emit(g, x, y, z, D[0] * v, D[1] * v, D[2] * v,
       t0, 0.26 + rng() * 0.38, s, s * 0.35,
       CTMP[0], CTMP[1], CTMP[2],
