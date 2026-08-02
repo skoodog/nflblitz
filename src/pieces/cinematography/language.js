@@ -49,27 +49,51 @@ export const ACTOR_H = 1.88;
  * contracts.js) and az=+PI/2 puts it toward the right sideline (+X). The offence attacks
  * -X, so "behind the ball carrier on a downfield run" is az near +PI/2.
  *
- * `aimY` is the height of the look-at point, and it is the composition control: aiming at
- * the chest (1.30) puts a standing man's head at ~20% from the top and his feet at ~93%
- * down, which is the bar's framing. Aiming at the head flattens him into the middle.
+ * `aimY` is a raw look-at height and is only a fallback. The composition control is
+ * `topY` + `topAt`; see the block inside the function for what happened when it was not.
  *
- * `lead` is a world-space offset added to the look-at point only — used to push the
- * subject off-centre and open the frame in the direction he is going, which is what makes
- * the pursuit shot read as motion rather than as a portrait.
+ * `lead` is an optional world-space offset on the look-at point. It is used only where a
+ * fixed metric offset is genuinely what is meant (nudging a hero panel's aim onto a second
+ * body); the general "open the frame ahead of him" control is pushOffAxis(), in FRAME
+ * units, for the reason recorded there.
  */
 export function orbitStage(out, subject, azimuth, o) {
   const fov = o.fov;
   const fill = o.fill;
   const subjectH = o.subjectH !== undefined ? o.subjectH : ACTOR_H;
-  const aimY = o.aimY !== undefined ? o.aimY : 1.30;
   const height = o.height;
+  const tanH = Math.tan(fov * 0.5 * DEG);
 
-  const dist = subjectH / (2 * fill * Math.tan(fov * 0.5 * DEG));
+  const dist = subjectH / (2 * fill * tanH);
   // The circle is horizontal, so the slant range asked for has to lose the rise first.
   // Guarded at 0.6 m so a camera asked for an impossible height still gets a real frame
   // instead of a NaN.
-  const dy = height - aimY;
-  const horiz = Math.sqrt(Math.max(0.36, dist * dist - dy * dy));
+  let aimY = o.aimY !== undefined ? o.aimY : 1.30;
+  let horiz = Math.sqrt(Math.max(0.36, dist * dist - (height - aimY) * (height - aimY)));
+
+  // TOP-OF-SUBJECT PLACEMENT — the control everything in this piece is actually authored
+  // with, and the one that a bar sheet can be measured into directly.
+  //
+  // WHAT WENT WRONG WITHOUT IT, measured. The first version set `aimY` by hand per shot.
+  // Projecting the results (scratch script, reported in the build log) showed the pocket
+  // shot putting the passer's helmet at 39.1% down the frame and HIS FEET AT 109.4% —
+  // out of frame — where bar/panel-qb_dropback.png has him at 18% and 100%. The truck
+  // shot put the carrier's helmet at 37.3% against the bar's 8%. `aimY` is a look-at
+  // height, and a look-at height is not a composition: it interacts with camera height,
+  // distance and lens, so the same number means a different frame in every shot.
+  //
+  // `topY` + `topAt` says the thing that was actually meant — "put the top of him HERE in
+  // the frame" — and solves for the aim. It is iterated three times because the aim
+  // height feeds back into the horizontal range through the slant correction; three
+  // passes converge to under a millimetre at every distance this game uses.
+  if (o.topY !== undefined && o.topAt !== undefined) {
+    const rel = Math.atan((1 - 2 * o.topAt) * tanH);
+    for (let it = 0; it < 3; it++) {
+      const topPitch = Math.atan((o.topY - height) / horiz);
+      aimY = height + horiz * Math.tan(topPitch - rel);
+      horiz = Math.sqrt(Math.max(0.36, dist * dist - (height - aimY) * (height - aimY)));
+    }
+  }
 
   const s = Math.sin(azimuth), c = Math.cos(azimuth);
   out.pos[0] = subject[0] + s * horiz;
@@ -84,6 +108,7 @@ export function orbitStage(out, subject, azimuth, o) {
   out.fov = fov;
   out.roll = o.roll || 0;
   out.dist = dist;
+  out.aimY = aimY;
   return out;
 }
 
@@ -93,9 +118,11 @@ export function orbitStage(out, subject, azimuth, o) {
 // others, and each carries its own LENS, not just its own position — that is the whole
 // point of calling this a camera language rather than a set of camera positions.
 //
-//  fill     how much of the frame height a 1.88 m man occupies
+//  fill     how much of the frame height a 1.88 m man occupies -> sets the DISTANCE
 //  height   camera height in metres (all of them are below chest height; see MEASUREMENT)
-//  aimY     height of the look-at point
+//  topAt    where the TOP of the subject sits, as a fraction down the frame. 0.15 means
+//           "his helmet is 15% from the top". This is the number the bar sheet was
+//           measured into and it, not a look-at height, is what composes the shot.
 //  fov      VERTICAL fov, degrees (three.js convention)
 //  fStop    aperture; small = shallow = the crowd dissolves
 //  bokeh    artistic multiplier on the aperture, see index.js apertureOffset()
@@ -114,15 +141,15 @@ export const RECIPES = {
    *
    * WHY IT IS NOT A "FILL" SHOT. Framing the passer to a fill fraction frames the passer
    * and nothing else, and the pocket is not about the passer — it is about who is coming
-   * free. So the look-at point is pushed 6.4 m DOWNFIELD of him: he ends up large and
-   * off-centre at the frame edge, and the geometry of the rush is the subject. Measured
-   * on the panel, the QB's helmet sits at 22% from the top and 38% across.
+   * free. So the aim is rotated DOWNFIELD until he sits 52% of the way to the frame edge:
+   * he ends up large and off-centre, and the geometry of the rush is the subject.
+   * Measured on the panel, the QB's helmet sits at 22% from the top and 38% across.
    */
   pocket: {
-    fov: 38, fill: 0.78, height: 1.88, aimY: 1.52,
+    fov: 38, fill: 0.76, height: 1.42, topAt: 0.18,
     fStop: 3.4, bokeh: 1.0, shutter: 1 / 160,
     stiff: 30, hand: 0.55, prio: 1,
-    lead: 6.4,            // metres downfield the aim point is pushed
+    offAxis: 0.52,        // fraction of the horizontal half-frame the passer is pushed
     side: 26 * DEG,       // camera swung off dead-behind so we see past him
   },
 
@@ -132,13 +159,13 @@ export const RECIPES = {
    * "The pocket wants a different lens from the open field": this one is 42 degrees
    * against the pocket's 38 and sits 0.65 m lower. Wide + low is what makes ground speed
    * read; the same run on the pocket's lens looks like a jog. The frame is opened ahead
-   * of the runner by a 4.5 m lead so he is chasing space rather than centred in it.
+   * of the runner (offAxis 0.40) so he is chasing space rather than centred in it.
    */
   pursuit: {
-    fov: 42, fill: 0.62, height: 1.22, aimY: 1.26,
+    fov: 42, fill: 0.64, height: 1.18, topAt: 0.15,
     fStop: 2.4, bokeh: 1.1, shutter: 1 / 90,
     stiff: 14, hand: 1.0, prio: 2,
-    lead: 4.5,
+    offAxis: 0.40,
     side: 24 * DEG,       // off the runner's trailing quarter, not dead behind
   },
 
@@ -152,10 +179,10 @@ export const RECIPES = {
    * the ball travels (see director.js: `fill` ramps 0.16 -> 0.30 over the flight).
    */
   deep: {
-    fov: 28, fill: 0.20, height: 2.60, aimY: 2.10,
+    fov: 28, fill: 0.38, height: 2.60, topAt: 0.30,
     fStop: 2.8, bokeh: 1.15, shutter: 1 / 320,
     stiff: 20, hand: 0.7, prio: 3,
-    lead: 0,
+    offAxis: 0.0,
     side: 18 * DEG,
     subjectH: 3.4,        // the "subject" is a ball-plus-receiver column, not a man
   },
@@ -173,10 +200,10 @@ export const RECIPES = {
    * The spring is deliberately soft (stiff 9): the operator is thrown by the hit.
    */
   impact: {
-    fov: 39, fill: 0.66, height: 1.05, aimY: 1.34,
+    fov: 39, fill: 0.68, height: 1.05, topAt: 0.15,
     fStop: 1.8, bokeh: 1.3, shutter: 1 / 48,
     stiff: 9, hand: 1.6, prio: 4,
-    lead: 0,
+    offAxis: 0.10,
     side: 90 * DEG,       // broadside to the collision axis
     rollDeg: 5.5,
   },
@@ -189,10 +216,10 @@ export const RECIPES = {
    * choice is most of why the panel reads: the ball has nothing behind it.
    */
   catch: {
-    fov: 35, fill: 0.80, height: 1.62, aimY: 2.02,
+    fov: 35, fill: 0.80, height: 1.55, topAt: 0.14,
     fStop: 1.9, bokeh: 1.25, shutter: 1 / 110,
     stiff: 16, hand: 0.9, prio: 3,
-    lead: 0,
+    offAxis: 0.20,
     side: 12 * DEG,
     rollDeg: 1.6,
   },
@@ -206,14 +233,50 @@ export const RECIPES = {
    * like a hit.
    */
   six: {
-    fov: 40, fill: 0.72, height: 1.18, aimY: 1.24,
+    fov: 40, fill: 0.72, height: 1.16, topAt: 0.14,
     fStop: 2.2, bokeh: 1.15, shutter: 1 / 70,
     stiff: 13, hand: 1.0, prio: 4,
-    lead: -2.4,
+    offAxis: 0.30,
     side: 32 * DEG,
     rollDeg: -3.4,
   },
 };
+
+/**
+ * pushOffAxis — put the subject `frac` of the way to the horizontal frame edge.
+ *
+ * WHY THIS AND NOT A METRIC LEAD, and it is a mistake this piece made and measured.
+ * The first version expressed "open the frame ahead of the runner" as a look-at point
+ * pushed N metres along his velocity: pursuit had lead 4.5 m, pocket had 6.4 m. Those are
+ * enormous compared with the staging distance the fill fraction produces — pursuit stages
+ * at 3.95 m and pocket at 3.50 m. Worked through for the qb_dropback panel, a 6.4 m lead
+ * at 3.50 m distance puts the passer 53.4 degrees off the camera axis against a
+ * horizontal half-fov of 31.5 degrees: THE SUBJECT OF THE SHOT WAS OUTSIDE THE FRAME.
+ *
+ * A composition rule has to be expressed in frame units, not world units, or it stops
+ * meaning anything as soon as the lens changes. So: rotate the aim by `frac` of the
+ * horizontal half-angle, and let the world distance be whatever it turns out to be.
+ * `prefer` is a world XZ direction; of the two rotations, the one that carries the aim
+ * further along it wins, which is how "open the frame DOWNFIELD" gets said.
+ */
+export function pushOffAxis(out, subject, frac, aspect, prefer) {
+  if (!frac) return out;
+  const hHalf = Math.atan(aspect * Math.tan(out.fov * 0.5 * DEG));
+  const ang = frac * hHalf;
+  const dx = subject[0] - out.pos[0];
+  const dz = subject[2] - out.pos[2];
+  const d = Math.hypot(dx, dz);
+  if (d < 1e-4) return out;
+  const h = Math.atan2(dx, dz);
+  const h1 = h + ang, h2 = h - ang;
+  const t1x = out.pos[0] + Math.sin(h1) * d, t1z = out.pos[2] + Math.cos(h1) * d;
+  const t2x = out.pos[0] + Math.sin(h2) * d, t2z = out.pos[2] + Math.cos(h2) * d;
+  const s1 = (t1x - subject[0]) * prefer[0] + (t1z - subject[2]) * prefer[1];
+  const s2 = (t2x - subject[0]) * prefer[0] + (t2z - subject[2]) * prefer[1];
+  if (s1 >= s2) { out.target[0] = t1x; out.target[2] = t1z; }
+  else { out.target[0] = t2x; out.target[2] = t2z; }
+  return out;
+}
 
 /* ------------------------------------------------------- ball legibility guard */
 

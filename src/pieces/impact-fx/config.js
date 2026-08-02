@@ -8,9 +8,9 @@
 /* ------------------------------------------------------------------- pools */
 
 // Pool sizes are the ONLY allocation this piece ever does at runtime, and they are done
-// once in build(). A `hit` at power 2.2 emits 231 glow quads + 96 debris quads (counted
-// by instrumenting emit(); see the header of bursts.js), so the glow pool holds ~4.7
-// concurrent maximum-power hits and the debris pool ~7.9. Both are ring buffers: the
+// once in build(). A `hit` at power 2.2 emits 161 glow quads + 84 debris quads (counted
+// by instrumenting emit(); see the header of bursts.js), so the glow pool holds 6.8
+// concurrent maximum-power hits and the debris pool 9.0. Both are ring buffers: the
 // oldest quad is overwritten rather than dropped, which is right for this piece because
 // the oldest quad is always the one closest to being dead anyway.
 export const POOL_GLOW = 1100;
@@ -60,19 +60,27 @@ export const MODE = {
 // still read (as plain white-hot) if there is not.
 
 export const COL = {
-  flashCore: [4.2, 3.6, 2.6],
-  flashWarm: [3.0, 1.35, 0.42],
+  flashCore: [3.1, 2.55, 1.70],
+  flashWarm: [2.2, 0.95, 0.30],
   starburst: [3.6, 2.5, 1.30],
-  ringHot: [2.4, 1.10, 0.34],
-  ringCool: [1.1, 0.70, 0.45],
+  ringHot: [1.9, 0.85, 0.26],
+  ringCool: [0.9, 0.55, 0.36],
   sparkHot: [3.2, 1.90, 0.70],
   sparkMid: [2.6, 0.95, 0.20],
   sparkCool: [1.5, 0.34, 0.06],
   ember: [1.9, 0.52, 0.10],
-  dust: [0.42, 0.36, 0.30],
-  dustLit: [0.70, 0.55, 0.40],
-  smoke: [0.20, 0.17, 0.16],
-  groundPool: [1.30, 0.62, 0.22],
+  // DUST AND SMOKE ARE ADDITIVE AND THEY STACK, so budget for the STACK and not for the
+  // sprite: ~13 overlapping puffs at sprite alpha 0.4 times these values lands around
+  // 0.8-1.1, which is a warm haze you can still see sparks through.
+  //
+  // These were driven down to a third of this while I was chasing a white blob in the
+  // first two probe captures. The blob was not the dust — it was the FLASH, drawing the
+  // dust sprite, because of the atlas row bug documented in quads.js. Numbers restored
+  // once the sprites were coming out of the right cells.
+  dust: [0.205, 0.166, 0.129],
+  dustLit: [0.44, 0.30, 0.185],
+  smoke: [0.125, 0.104, 0.094],
+  groundPool: [0.95, 0.44, 0.15],
 };
 
 // Debris is UNLIT (see the note in quads.js on why): the shading lives in the sprite's
@@ -80,11 +88,11 @@ export const COL = {
 // bar/panel-leveler.png the clods read as near-black silhouettes with a warm top edge,
 // not as brown lumps.
 export const DIRT = {
-  soil: [0.115, 0.082, 0.058],
-  soilDark: [0.070, 0.052, 0.040],
-  sod: [0.105, 0.130, 0.062],
-  mud: [0.135, 0.100, 0.070],
-  grass: [0.130, 0.170, 0.075],
+  soil: [0.185, 0.128, 0.086],
+  soilDark: [0.105, 0.076, 0.056],
+  sod: [0.160, 0.198, 0.092],
+  mud: [0.205, 0.150, 0.100],
+  grass: [0.195, 0.255, 0.110],
 };
 
 /* ----------------------------------------------------------------- physics */
@@ -98,9 +106,15 @@ export const DIRT = {
 // Real sparks leave a collision at tens of m/s and stop almost immediately, so the fix
 // was not to slow time down but to use honest initial speeds with honest drag:
 //   displacement(age) = v0 * (1 - exp(-k*age)) / k
-//   v0=38, k=9   ->  0.99 m at 30 ms,  2.83 m at 100 ms,  4.05 m at 250 ms
-//   v0=16, k=4.5 ->  0.45 m at 30 ms,  1.29 m at 100 ms,  2.37 m at 250 ms
+//   v0=32, k=9   ->  0.83 m at 30 ms,  2.38 m at 100 ms,  3.41 m at 250 ms
+//   v0=14, k=4.5 ->  0.39 m at 30 ms,  1.13 m at 100 ms,  2.07 m at 250 ms
 // That reads as an explosion at 30 ms and still holds together at 250 ms.
+//
+// THEN I OVERSHOT, and the first capture (shots/impact-fx/probe_hit.png) showed it:
+// sparks at v0 up to 50 m/s put the leading edge of the shower 3.1 m from the contact at
+// 90 ms, a 6 m ball of sparks. The `leveler` hero camera is 8 m out at 37 degrees, which
+// is 5.3 m of frame width, so the effect was wider than the shot. In the panel the whole
+// shower is about half the frame — call it 2.5-3 m. Top speeds came down by a third.
 export const SPARK_DRAG = 9.0;
 export const SPARK_GRAV = 7.0;
 export const DEBRIS_DRAG = 4.5;

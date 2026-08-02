@@ -74,9 +74,11 @@ function cellSmoke(nx, ny, r) {
 }
 
 function cellDust(nx, ny, r) {
-  const a = puff(nx, ny, r, 2411, 0.30, -0.35) * 0.44;
+  // Softer and lumpier than SMOKE but NOT invisible — the first version faded from the
+  // centre outward over the whole cell and the atlas dump showed a barely-there smudge.
+  const a = puff(nx, ny, r, 2411, 0.34, -0.02) * 0.62;
   const lump = fbm2(nx * 2.2 + 8.0, ny * 2.2 - 3.0, { octaves: 3, seed: 55 }) * 0.5 + 0.5;
-  return [1, 0.95, 0.9, clamp01(a * (0.55 + lump * 0.6))];
+  return [1, 0.95, 0.9, clamp01(a * (0.5 + lump * 0.7))];
 }
 
 function cellStar(nx, ny, r) {
@@ -135,17 +137,28 @@ function cellBar(nx, ny) {
  */
 function clod(nx, ny, r, seed, lobes, rough, grassTop) {
   const th = Math.atan2(ny, nx);
-  const edge = 0.60 + rough * (
-    fbm2(Math.cos(th) * lobes + seed * 0.7, Math.sin(th) * lobes - seed * 0.3, { octaves: 3, seed })
-  ) + rough * 0.35 * Math.cos(th * lobes + seed);
-  const R = edge * USABLE;
-  const a = sstep(R, R - 0.045, r);
+  // FACETED, NOT FLUFFY. The first version perturbed a circle with fbm and the atlas
+  // dump (shots/impact-fx/atlas.png) showed three snowballs — a soft cloudy silhouette
+  // reads as vapour at any size. Torn ground breaks along flat faces, so the base shape
+  // is a `lobes`-sided polygon (R = poly / cos of the angle within one facet, the standard
+  // regular-polygon SDF trick) and the noise only roughens its edges.
+  const seg = (Math.PI * 2) / lobes;
+  let a2 = (th + seed) % seg;
+  if (a2 < 0) a2 += seg;
+  a2 -= seg * 0.5;
+  const wob = fbm2(Math.cos(th) * 2.2 + seed * 0.7, Math.sin(th) * 2.2 - seed * 0.3, { octaves: 3, seed });
+  let R = (0.56 / Math.cos(a2)) * (1 + rough * wob);
+  if (R > 1) R = 1;
+  R *= USABLE;
+  const a = sstep(R, R - 0.035, r);
   if (a <= 0) return [0, 0, 0, 0];
-  // Key from above: the upper 35% of the lump catches it, the underside goes to black.
+  // Key from above. The range is kept BELOW 1 on purpose: the previous curve peaked at
+  // 2.3, so everything above the lump's midline clipped to flat white and the whole
+  // top-lit gradient — the only shading these unlit quads ever get — was thrown away.
   const up = clamp01(ny / Math.max(R, 0.001) * 0.5 + 0.5);
-  const lit = 0.14 + Math.pow(up, 2.2) * 1.55;
-  const rim = sstep(R - 0.16, R - 0.02, r) * Math.pow(clamp01(ny), 1.4) * 1.5;
-  const grain = 0.80 + fbm2(nx * 7.0 + seed, ny * 7.0 - seed, { octaves: 3, seed: seed + 7 }) * 0.55;
+  const lit = 0.075 + Math.pow(up, 2.0) * 0.94;
+  const rim = sstep(R - 0.13, R - 0.02, r) * Math.pow(clamp01(ny), 1.5) * 0.55;
+  const grain = 0.76 + fbm2(nx * 7.0 + seed, ny * 7.0 - seed, { octaves: 3, seed: seed + 7 }) * 0.46;
   const v = (lit + rim) * grain;
   const g = grassTop > 0 ? clamp01(up - 0.62) * grassTop : 0;
   return [v, v * (1 + g * 1.1), v * (1 - g * 0.55), a];
@@ -209,7 +222,14 @@ function cellWisp(nx, ny) {
   return [1, 0.96, 0.92, clamp01(a * (0.30 + n * 0.75) * 0.7)];
 }
 
-const RECIPE = [];
+/**
+ * The recipe table, exported so the cells can be rasterised OUTSIDE a browser.
+ * Nothing above this line touches the DOM or a GL context, which means a plain-node
+ * script can dump all sixteen cells to a PNG in a second instead of spending four
+ * minutes on a headless capture to find out that one sprite is wrong. That is not a
+ * hypothetical: the atlas row-order bug in quads.js took two full captures to spot.
+ */
+export const RECIPE = [];
 RECIPE[CELL.GLOW] = cellGlow;
 RECIPE[CELL.SPARK] = cellSpark;
 RECIPE[CELL.SMOKE] = cellSmoke;
@@ -218,9 +238,9 @@ RECIPE[CELL.RING] = cellRing;
 RECIPE[CELL.EMBER] = cellEmber;
 RECIPE[CELL.FLAME] = cellFlame;
 RECIPE[CELL.BAR] = cellBar;
-RECIPE[CELL.CLOD_A] = (nx, ny, r) => clod(nx, ny, r, 17, 2.6, 0.30, 0.0);
-RECIPE[CELL.CLOD_B] = (nx, ny, r) => clod(nx, ny, r, 53, 3.4, 0.34, 0.0);
-RECIPE[CELL.CLOD_C] = (nx, ny, r) => clod(nx, ny, r, 91, 4.6, 0.26, 0.0);
+RECIPE[CELL.CLOD_A] = (nx, ny, r) => clod(nx, ny, r, 17, 5, 0.26, 0.30);
+RECIPE[CELL.CLOD_B] = (nx, ny, r) => clod(nx, ny, r, 53, 6, 0.30, 0.0);
+RECIPE[CELL.CLOD_C] = (nx, ny, r) => clod(nx, ny, r, 91, 4, 0.22, 0.0);
 RECIPE[CELL.TUFT] = cellTuft;
 RECIPE[CELL.SOD] = cellSod;
 RECIPE[CELL.SPLAT] = cellSplat;

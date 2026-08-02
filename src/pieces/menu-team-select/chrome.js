@@ -77,20 +77,30 @@ export function chroma(c) {
  * lighten('#0B162A', 0.55) is #8a919e, a grey, and Chicago's navy is gone.
  *
  * So this scales the CHANNELS by a common factor, which preserves the ratios
- * between them (hence the hue) and only clips at the top. #0B162A -> #3A73DE at
- * target 0.42: still unmistakably Bears navy, now readable. A pure black primary
- * has no ratios to preserve and returns null so the caller can fall back to the
- * club's secondary — which for the one club that hits it (LV) is the silver that
- * everybody actually pictures anyway.
+ * between them and therefore the hue. A pure black primary has no ratios to
+ * preserve and returns null so the caller can fall back to the club's secondary —
+ * which for the one club that hits it (LV) is the silver everybody pictures anyway.
+ *
+ * THE CLIPPING BUG, and how it showed up. The first version used f = target/luma
+ * flat and let the channels clip at 255. Kansas City is #E31837 = (227,24,55): to
+ * reach luma 0.55 that is f = 2.0, which pins R at 255 while G and B are free to
+ * multiply, so the drawn colour came out (255,48,110) — a hot pink. It was obvious
+ * in iso_team_select_states, where CHIEFS was set in a colour the Chiefs do not own.
+ * The factor is therefore capped so NO channel clips:
+ *
+ *     f = min(255 / maxChannel, target / luma)
+ *
+ * KC now boosts by 1.12 to (255,27,62) — luma 0.30, under the nominal target but
+ * pure club red, and 0.30 against a 0.02 card ground is 15 stops of separation.
+ * Hue integrity beats hitting a number that was only ever a proxy for legibility.
  */
 export function beacon(hex, targetLuma) {
   const [r, g, b] = hex2rgb(hex);
   const l = luma(hex);
   if (l <= 0.004) return null;               // pure black — no hue to rescue
   if (l >= targetLuma) return hex;
-  const f = targetLuma / l;
-  // Straight channel scale. Clipping is allowed: a clipped channel is what makes
-  // #FF3C00 stay orange instead of drifting pink.
+  const mx = Math.max(r, g, b);
+  const f = Math.min(255 / Math.max(1, mx), targetLuma / l);
   return rgb2hex(r * f, g * f, b * f);
 }
 

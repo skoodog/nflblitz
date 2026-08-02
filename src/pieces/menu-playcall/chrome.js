@@ -44,20 +44,55 @@ export function hgrad(c, x0, x1, stops) {
  * Fine tooth. A Canvas2D plate with a mathematically flat fill is one of the instant
  * "this is a vector mock" tells; the bar's own card interiors read 5..7 rather than a
  * single value. ~1 px specks, both signs, clipped to the path.
+ *
+ * IT IS A TILED PATTERN, AND THAT CAME OUT OF A MEASUREMENT. The first version laid
+ * the specks down one fillRect at a time over whatever it was given. At this screen's
+ * size that is 1920*1080*0.0275 = 57,000 rects for the backdrop plus ~3,200 per card,
+ * every one of them building an `rgba(...)` string first — and the whole-sheet bake
+ * measured 359 ms cold and 160 ms on a page flip, which is a visible hitch on a button
+ * press. The specks are now rasterised ONCE into a 256x256 tile and repeated, so a
+ * plate of any size costs one fillRect. Same look (the tile is seeded, the repeat is
+ * invisible at these alphas), two orders of magnitude less work. Measured in-page,
+ * before -> after, on this box while five captures were competing for the same four
+ * cores (so both columns are upper bounds):
+ *
+ *   cold bake, defensive sheet   359 ms -> 143 ms
+ *   cold bake, offence page 1    232 ms ->  60 ms
+ *   page flip (full re-bake)     160 ms ->  51 ms
+ *   selection move (one card)   17.5 ms -> 1.7 ms
+ *   steady frame (2 blits)      0.11 ms -> 0.06 ms
  */
-export function grain(c, path, x, y, w, h, seed, amount) {
-  if (amount <= 0) return;
-  const rng = makeRng(hash(seed | 0, w | 0, h | 0));
-  c.save();
-  c.clip(path);
-  const n = Math.round(w * h * 0.055 * amount);
+const TILE = 256;
+const tiles = new Map();
+function grainTile(amount) {
+  const key = Math.round(amount * 20);
+  const hit = tiles.get(key);
+  if (hit) return hit;
+  const cv = mkCanvas(TILE, TILE);
+  const c = cv.getContext('2d');
+  const rng = makeRng(hash(0x9e37, key, TILE));
+  const n = Math.round(TILE * TILE * 0.055 * amount);
   for (let i = 0; i < n; i++) {
-    const px = x + rng() * w;
-    const py = y + rng() * h;
     const a = (0.010 + rng() * 0.048) * amount;
     c.fillStyle = rng() < 0.55 ? `rgba(0,0,0,${a.toFixed(3)})` : `rgba(176,196,255,${a.toFixed(3)})`;
-    c.fillRect(px, py, 1, rng() < 0.22 ? 2 : 1);
+    c.fillRect(rng() * TILE, rng() * TILE, 1, rng() < 0.22 ? 2 : 1);
   }
+  tiles.set(key, cv);
+  return cv;
+}
+
+export function grain(c, path, x, y, w, h, seed, amount) {
+  if (amount <= 0) return;
+  const tile = grainTile(amount);
+  const pat = c.createPattern(tile, 'repeat');
+  if (!pat) return;
+  c.save();
+  c.clip(path);
+  // Offset the tile per caller so nine cards do not all show the same speck field.
+  const ox = (seed | 0) % TILE, oy = ((seed | 0) * 7) % TILE;
+  c.translate(-ox, -oy);
+  c.fillStyle = pat;
+  c.fillRect(x + ox - TILE, y + oy - TILE, w + TILE * 2, h + TILE * 2);
   c.restore();
 }
 
@@ -117,10 +152,12 @@ export function roundedPolyPath(pts, radius) {
 /**
  * Resample a polyline at a fixed arc-length spacing. Returns [x,y,dirx,diry] samples.
  *
- * The first version of this walked each segment from its own origin, which put an
- * extra sample right on top of every corner (two beads a pixel apart at every route
- * break). It now tracks ONE global distance cursor across the whole chain, so the
- * spacing is uniform through the corners as well.
+ * The first version of this walked each segment from its own origin, which would put
+ * an extra sample right on top of every corner (two beads a pixel apart at every route
+ * break). Caught by reading it back while writing it, not by a render — recorded
+ * anyway, because uniform bead spacing is what makes a route read as steps. It now
+ * tracks ONE global distance cursor across the whole chain, so the spacing is uniform
+ * through the corners as well.
  */
 export function walk(pts, spacing, skipStart, skipEnd) {
   const out = [];

@@ -61,9 +61,9 @@ export const HEAD = {
   x: 102,                    // bar: panel x=35 -> 102 logical
   capTop: 56,                // bar: panel y=20
   capBot: 155,               // bar: panel y=48  -> cap height 99
-  size: 104,                 // brush-italic point size that lands a 99 px cap (measured)
+  maxInkW: 1123,             // bar: panel x 35..353 -> 1123 logical of ink
   clockRight: 1872,          // re-anchored to the safe inset; see the crop note above
-  clockSize: 84,
+  clockCap: 78,              // bar: panel y 23..45 -> 78 logical
   bandBot: 176,
 };
 
@@ -105,19 +105,32 @@ export const CARD = {
   rail: 6,                   // bar: 2 panel px of magenta = 7 logical; 6 after rounding
   railSel: 12,
   plate: 80,                 // 33% of 241; the bar's is 45% of a much taller card
-  pad: 12,
+  pad: 12,                   // top/bottom
+  padX: 6,                   // sides — half, because the horizontal yard scale is the
+                             // scarce one: 42 yards of field across a 436 px card
 };
 
-export function diagramRect(r) {
+/**
+ * The two boxes inside a card. Both take the card's SCALE, because the same routine
+ * bakes a 436 px card on the screen and a 283 px card on the proof sheet and a 872 px
+ * card on the audit sheet; without the scale the name plate would stay 80 px tall on
+ * all three and eat two thirds of the small one.
+ */
+export function diagramRect(r, s = 1) {
   return {
-    x: r.x + CARD.rail + CARD.pad,
-    y: r.y + CARD.pad,
-    w: r.w - CARD.rail - CARD.pad * 2,
-    h: r.h - CARD.plate - CARD.pad,
+    x: r.x + (CARD.rail + CARD.padX) * s,
+    y: r.y + CARD.pad * s,
+    w: r.w - (CARD.rail + CARD.padX * 2) * s,
+    h: r.h - (CARD.plate + CARD.pad) * s,
   };
 }
-export function plateRect(r) {
-  return { x: r.x + CARD.rail, y: r.y + r.h - CARD.plate, w: r.w - CARD.rail, h: CARD.plate };
+export function plateRect(r, s = 1) {
+  return {
+    x: r.x + CARD.rail * s,
+    y: r.y + r.h - CARD.plate * s,
+    w: r.w - CARD.rail * s,
+    h: CARD.plate * s,
+  };
 }
 
 /**
@@ -134,20 +147,63 @@ export function plateRect(r) {
  *     up  = (yards / 44) ^ 0.62      (fraction of the height above the LOS)
  *     down= (|yards| / 8) ^ 0.90     (fraction of the height below it)
  *
- * Measured against the shipped book, that puts the nine route depths at
- *   9 yd -> 37% of the field box, 14 -> 49%, 21 -> 63%, 27 -> 72%, 34 -> 84%, 44 -> 100%
- * which keeps every play distinguishable from its neighbour while the bomb still
- * visibly out-runs the hook. The exponent was chosen by printing that table for 0.5,
- * 0.62 and 0.75 and taking the one where the shallowest play still cleared a third of
- * the box (0.5 gave 45% and flattened the deep half; 0.75 gave 30% and crowded the
- * short plays into the LOS).
+ * Computed against the shipped book's own depths, the exponent was picked off this
+ * table (printed from node, all three columns, before the value was fixed):
+ *
+ *          9 yd   14    21    27    34    44
+ *   ^0.50   45%   56%   69%   78%   88%   100%
+ *   ^0.62   37%   49%   63%   74%   85%   100%
+ *   ^0.75   30%   42%   57%   69%   82%   100%
+ *
+ * 0.50 spends 45% of the box on the shallowest play in the book and leaves the deep
+ * half nothing to spread into; 0.75 crowds the short plays onto the line. 0.62 is the
+ * column where the shallowest play still clears a third of the box and every step up
+ * the ladder is still worth 8-14 points of height.
  */
 export const MAX_DEPTH = 44;
 export const MAX_BACK = 8;
 export const DEPTH_POW = 0.62;
 export const BACK_POW = 0.90;
 
-/** Half-width of the field actually drawn, in yards. The widest point in the book is
- *  SPLIT's -20 and SUBZERO's -18/+15; 22 keeps the widest route inside the card with a
- *  little air, and the same value is used on every card. */
-export const HALF_WIDTH = 22;
+/**
+ * THE DEFENSIVE SHEET USES A SECOND, LINEAR MAPPING, and that is deliberate.
+ *
+ * The compressive curve above exists to spread 9-to-44-yard ROUTES. The defensive book
+ * covers a different range: rushers 1.2 yards off the ball, a rover at 5, corners at 7,
+ * a deep third centred on 23. Run through the route curve (computed against the 119 px
+ * box a defensive card actually has):
+ *
+ *              route curve, ^0.62 / 44 yd      linear / 34 yd
+ *   1.2 yd            12% of the box                 3.5%
+ *   14 yd             49%                            41%
+ *   deep-third bubble, 16.5..29.5 yd
+ *                     28 px tall                     46 px tall
+ *
+ * i.e. the curve puts a rusher a foot off the ball as far from the line as a 4-yard
+ * drop, and squashes the coverage bubbles to half their honest height. A coverage
+ * picture is ABOUT those relative depths, so the defensive sheet maps linearly over 34
+ * yards. Both mappings are shared by every card ON THEIR OWN SHEET, so cards are still
+ * comparable with their neighbours; the two sheets are not compared with each other,
+ * they answer different questions.
+ */
+export const DEF_MAX_DEPTH = 34;
+export const DEF_MAX_BACK = 8;
+
+/**
+ * Half-width of the field actually drawn, in yards, and it is ONE value for every
+ * card. The widest point in the shipped book is SPLIT's REC1 at -20 (and SUBZERO's
+ * -18); 21 puts that route 195 px from the centre of a 211 px half-box, so the widest
+ * play in the book clears the edge by 8% and every narrower play is drawn at the same
+ * scale instead of being stretched to fill its own card.
+ */
+export const HALF_WIDTH = 21;
+
+/**
+ * ...and the defensive sheet gets its own, for the same reason it gets its own depth
+ * map. The widest thing on a defensive card is a corner at -14 with a clamped zone
+ * bubble beside him; nothing out there goes to 20. Drawn at the offensive scale the
+ * whole defence sat inside the middle 67% of the card and the cards read empty against
+ * the bar panel, which fills its tiles edge to edge. At 17 the same formation fills
+ * 82%, and the zone clamp in book.js is written against this number.
+ */
+export const DEF_HALF_WIDTH = 17;

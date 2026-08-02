@@ -53,8 +53,6 @@ export const BEAT = {
 
 const cache = new Map();
 
-function idOf(actorId) { return String(actorId || ''); }
-
 /**
  * build(seed) -> track, memoised. Returns null if the sim slot cannot produce one, in
  * which case the director falls back to staging the ShotSpec's own frozen actors — the
@@ -112,7 +110,14 @@ function build(seed) {
     if (snap.events && snap.events.length > events.length) events = snap.events;
     n = k + 1;
 
-    if (snap.result && snap.result !== 'LIVE') {
+    // CASE MATTERS AND IT COST A WHOLE TRACK. `play-sim`'s RESULT_NAME is lower case
+    // ('live', 'tackled', 'sack', ...) while the foundation sim fallback has no `result`
+    // field at all. Comparing against 'LIVE' therefore matched NOTHING, every sample
+    // looked like the end of the play, and the track was truncated to TRAIL_S = 1.4 s —
+    // so every cut after 1.4 s silently never happened. Found by running the editor
+    // against the real sim in plain node rather than by looking at a frame, which is the
+    // only way a 1.4 s track and an 11 s track look different.
+    if (snap.result && String(snap.result).toLowerCase() !== 'live') {
       if (endedAt < 0) endedAt = t;
       // Keep rolling a little past the whistle so the impact shot has somewhere to settle.
       if (t - endedAt > TRAIL_S) break;
@@ -142,7 +147,6 @@ function build(seed) {
   return {
     seed, n, ball, carry, vel, beats, los,
     endT: (n - 1) * TRACK_DT,
-    heroId: idOf(null),
   };
 }
 

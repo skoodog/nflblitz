@@ -18,12 +18,15 @@
 //
 // THE SLOT PAIRING FOR MAN COVERAGE IS DERIVED, NOT INVENTED. The defensive rows say
 // `DB1: 'man'` and never say whom. Rather than making one up, the target is the
-// NEAREST offensive skill position to that defender in the shipped formation:
-//   DB1 x=-14 -> REC1 x=-14, DB2 x=+9 -> REC2 x=+9, DB3 x=-5 -> REC3 x=-4.5,
-//   DB4 x=+4  -> REC2 (5 yd) rather than REC3 (8.5 yd)
-// which is what the formation says those players are lined up over.
+// NEAREST offensive skill position to that defender in the shipped formation. Printed
+// from the shipped coordinates, that resolves to (distance in yards):
+//   DB1 -> REC1  6.5      DB2 -> REC2  6.5      DB3 -> REC3 13.0      DB4 -> REC2 14.4
+//   RUSH1 -> REC3 2.9     RUSH2 -> REC2 6.4     ROVER -> REC3 7.5   (rushers ignore it)
+// i.e. every defensive back pairs with the receiver he is lined up over, which is what
+// the formation itself says.
 
 import PLAYBOOK from '../../data/playbook.json';
+import { DEF_HALF_WIDTH } from './layout.js';
 
 export const FORMATION = PLAYBOOK.formation;
 export const OFF_SLOTS = PLAYBOOK.meta.offSlots;
@@ -72,6 +75,12 @@ function nearestTarget(defSlot) {
   return best;
 }
 
+/** Keep a zone bubble of radius `rx` inside the yards a DEFENSIVE card draws (17). */
+function clampZone(x, rx) {
+  const lim = DEF_HALF_WIDTH - rx * 0.55;
+  return Math.max(-lim, Math.min(lim, x));
+}
+
 /**
  * Where an assignment points, in yards. Zones are placed by their family and by the
  * defender's own side of the field, so DEEP ZONE's four deep quarters actually sit in
@@ -92,12 +101,17 @@ function assignGeometry(slot, kind) {
       return { kind, to: FORMATION.offense.QB.slice(), target: 'QB' };
     case 'contain':
       return { kind, to: [side * 16, 3], target: null };
+    // Zone centres are CLAMPED so the bubble stays on the drawn field. A defensive card
+    // draws DEF_HALF_WIDTH (17) yards either side of the ball; a deep third centred on
+    // DB1's -16.1 with a 9-yard radius reaches -25 and was cut off by the card's left
+    // edge — visible on the DEEP ZONE card in the first render. The clamp keeps the
+    // bubble whole; the DEPTH, which is what the picture is actually about, is untouched.
     case 'zone_flat':
-      return { kind, zone: [side * 13 || 12, 5], rx: 7.5, ry: 4.0 };
+      return { kind, zone: [clampZone(side * 13 || 12, 7.5), 5], rx: 7.5, ry: 4.0 };
     case 'zone_hook':
-      return { kind, zone: [at[0] * 0.55, 11], rx: 6.5, ry: 4.2 };
+      return { kind, zone: [clampZone(at[0] * 0.55, 6.5), 11], rx: 6.5, ry: 4.2 };
     case 'zone_deep':
-      return { kind, zone: [at[0] * 1.15, 23], rx: 9.0, ry: 6.5 };
+      return { kind, zone: [clampZone(at[0] * 1.15, 8.0), 23], rx: 8.0, ry: 6.5 };
     default:
       return { kind, to: [at[0], at[1] + 4], target: null };
   }

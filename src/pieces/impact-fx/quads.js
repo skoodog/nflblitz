@@ -12,10 +12,11 @@
 // construction, because there is no accumulated state that could drift between a capture
 // at t=0.30 and a play session that happened to arrive at t=0.30 by a different route.
 //
-// MEASURED, on this box (SwiftShader, ?mode=play&scene=live_play):
-//   update() for both batches + the flame = 3 uniform writes, 0 allocations. The
-//   allocprobe run over 900 frames shows this piece contributing 0 B/frame; the whole
-//   per-frame cost is inside the GPU vertex stage, which is 4 verts per quad.
+// WHAT THE PER-FRAME COST ACTUALLY IS: fx.update() writes uTime on two materials and
+// ball.update() writes it on a third, plus one Euler assignment for the ball's spin.
+// Nothing else runs on the CPU, nothing is read, nothing is allocated — there is no
+// particle list to walk because there is no particle state to walk. Everything else is
+// in the vertex stage at 4 vertices per quad.
 //
 // WHY NOT InstancedBufferGeometry, which would be 4x less vertex memory and 4x less
 // work at emit time: foundation/budget.js only counts instances for THREE.InstancedMesh
@@ -105,8 +106,23 @@ void main() {
 
   gl_Position = projectionMatrix * mv;
 
+  // ATLAS CELL -> UV. The row is MIRRORED, and this cost me two captures.
+  // (No backticks anywhere in this shader source: it is a JS template literal, and one
+  // stray backtick inside a GLSL comment ends the string and produces a JS parse error
+  // pointing at a comment. Which is exactly how the first version of this note failed.)
+  // THREE.CanvasTexture leaves flipY = true, so UV v=0 is the BOTTOM of the canvas while
+  // atlas.js lays cells out from the TOP. floor(cell/4) therefore addressed row 3-r
+  // instead of row r, and every sprite quietly drew a different cell's art: the flash
+  // (cell 3, STAR) rendered the DUST puff, the dust (cell 15) rendered the STARBURST,
+  // and every dirt clod (cells 8-10) rendered the RING. I spent two capture cycles
+  // dimming "the dust" to kill a white blob that was actually the flash drawing a puff,
+  // and the giveaway was a field full of thin black hoops in
+  // shots/impact-fx/probe_timeline.png — clods drawing shockwave rings.
+  // Flipping the row here rather than setting flipY=false keeps the WITHIN-cell
+  // orientation correct too: with flipY on, uv01.y=1 lands on the canvas rows atlas.js
+  // drew as the sprite's top.
   float cell = aDyn.x;
-  vec2 cxy = vec2(mod(cell, CELLS), floor(cell / CELLS));
+  vec2 cxy = vec2(mod(cell, CELLS), CELLS - 1.0 - floor(cell / CELLS));
   vec2 uv01 = aCorner.xy * 0.5 + 0.5;
   vUv = (cxy + INSET * 4.0 + uv01 * (1.0 - INSET * 8.0)) / CELLS;
 
@@ -121,6 +137,24 @@ void main() {
   vFade = rise * fall * uGain * exp(-fd * fd * 0.85) * smoothstep(0.06, 0.55, dist);
 }`;
 
+// TONE MAPPING, and why this piece has to do it by hand.
+//
+// A ShaderMaterial with a hand-written GLSL3 fragment shader gets NONE of three.js's
+// injected output chunks — not <tonemapping_fragment> and not <colorspace_fragment>.
+// On the CAPTURE path that is exactly right: engine.js renders into a half-float target
+// (three forces NoToneMapping whenever the target is not null) and its resolve pass does
+// ACES + sRGB once, over the accumulated buffer. Writing linear radiance is the contract.
+//
+// On the PLAY path there is no resolve pass — cinematography's buildPost returns null in
+// play mode and the scene goes straight to the default framebuffer, where every STANDARD
+// material has ACES and the sRGB transfer compiled into it and mine would not. Additive
+// values of 3.0 written raw into an sRGB backbuffer are a white hole. So uTone is set
+// from ctx.mode at build time and the same ACES curve engine.js uses is applied here.
+//
+// KNOWN LIMITATION: if a cinema piece ever returns a real post chain in play mode, that
+// chain renders into its own linear target and this would double-tonemap. There is no
+// way to know that at build time — buildPost runs after fx.build — so it is recorded
+// here rather than guessed at.
 const FRAG = /* glsl */`
 precision highp float;
 in vec2 vUv;
@@ -129,13 +163,33 @@ in float vFade;
 uniform sampler2D uAtlas;
 uniform float uPremul;     // 1 additive (premultiply by alpha), 0 opaque cutout
 uniform float uAlphaTest;
+uniform float uTone;       // 1 when this material writes straight to an sRGB backbuffer
 out vec4 fragColor;
+
+vec3 aces(vec3 x) {
+  const mat3 IN = mat3(0.59719, 0.07600, 0.02840,
+                       0.35458, 0.90834, 0.13383,
+                       0.04823, 0.01566, 0.83777);
+  const mat3 OUT = mat3( 1.60475, -0.10208, -0.00327,
+                        -0.53108,  1.10813, -0.07276,
+                        -0.07367, -0.00605,  1.07602);
+  vec3 v = IN * x;
+  vec3 a = v * (v + 0.0245786) - 0.000090537;
+  vec3 b = v * (0.983729 * v + 0.4329510) + 0.238081;
+  return clamp(OUT * (a / b), 0.0, 1.0);
+}
+vec3 toSRGB(vec3 c) {
+  return mix(c * 12.92, 1.055 * pow(max(c, vec3(0.0)), vec3(0.41666)) - 0.055, step(0.0031308, c));
+}
+
 void main() {
   if (vFade <= 0.0) discard;
   vec4 t = texture(uAtlas, vUv);
   float a = t.a * vFade;
   if (a <= uAlphaTest) discard;
-  fragColor = vec4(t.rgb * vColor * mix(1.0, a, uPremul), 1.0);
+  vec3 c = t.rgb * vColor * mix(1.0, a, uPremul);
+  if (uTone > 0.5) c = toSRGB(aces(c));
+  fragColor = vec4(c, 1.0);
 }`;
 
 /**
@@ -162,6 +216,7 @@ export function makeQuadMaterial(atlas, opts) {
       uClampGround: { value: additive ? 0 : 1 },
       uPremul: { value: additive ? 1 : 0 },
       uAlphaTest: { value: additive ? 0.0015 : 0.36 },
+      uTone: { value: o.tone ? 1 : 0 },
     },
     transparent: additive,
     depthWrite: !additive,
@@ -254,7 +309,7 @@ export function makeBatch(cap, mat, name, renderOrder) {
 
 /**
  * Write one quad. POSITIONAL ARGUMENTS ON PURPOSE: an options object here allocates one
- * short-lived object per particle, and a power-2.2 `hit` emits 327 of them in a single
+ * short-lived object per particle, and a power-2.2 hit emits 245 of them in a single
  * frame. Ugly signature, zero garbage.
  */
 export function emit(b, px, py, pz, vx, vy, vz,
@@ -286,16 +341,23 @@ export function emit(b, px, py, pz, vx, vy, vz,
  *
  * A burst is contiguous in the ring buffer unless it wrapped, and a wrap shows up here
  * as a range that spans the whole pool. Rather than track two spans, a wrap re-uploads
- * everything — it costs ~0.9 MB and happens at most once per five maximum-power hits.
- * Before update ranges were wired up at all, EVERY impact re-uploaded all seven
- * attributes of both pools whether or not they had changed.
+ * everything — it costs ~0.9 MB and happens at most once per six maximum-power hits.
+ *
+ * DO NOT ADD clearUpdateRanges() HERE. It looks like the obvious hygiene and it is a bug:
+ * three.js clears the ranges ITSELF, inside WebGLAttributes.updateBuffer, once the data
+ * has actually reached the GPU. Clearing them on this side means that two impacts in the
+ * SAME frame — one emit, flush, emit, flush with no draw in between — throw away the
+ * first burst's pending range and upload only the second, and the first hit renders as
+ * whatever stale quads happened to be in those slots. The three-burst iso_impact_timeline
+ * scene emits three bursts back to back inside buildFromShot and is exactly this case;
+ * it only survived the first version because three does a full bufferData on an
+ * attribute's FIRST upload and ignores ranges then.
  */
 export function flush(b) {
   if (b.dirtyLo < 0) return;
   const lo = b.dirtyLo, n = b.dirtyHi - b.dirtyLo;
   for (const k of Object.keys(b.attr)) {
     const at = b.attr[k];
-    at.clearUpdateRanges();
     at.addUpdateRange(lo * at.itemSize, n * at.itemSize);
     at.needsUpdate = true;
   }

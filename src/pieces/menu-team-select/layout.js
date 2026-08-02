@@ -101,7 +101,7 @@ export function cardX(i) { return CARDS_X + i * (CARD.w + CARD.gap); }
 
 export const C = {
   pad: 20,
-  crest: { x: 28, y: 12, s: 300 },        // 300 square, centred (356-300)/2 = 28
+  crest: { x: 20, y: 8, s: 316 },         // 316 square, centred (356-316)/2 = 20
   cityBase: 372,                          //  0.568
   cityCap: 22,
   nickBase: 428,                          //  0.654 (ink top 384/0.586)
@@ -143,10 +143,12 @@ export const CHEV_R = { x: W - 46 - CHEV.w, y: CHEV_L.y, w: CHEV.w, h: CHEV.h };
  * (first match wins). The card rectangles are the un-lifted boxes: a selected card
  * is drawn 14 px higher but its target must not move under the thumb when it does.
  */
-export function hitTargets() {
+// Built ONCE. The layout is constant, so a hit test on a finger-down must not
+// allocate fourteen objects to answer a question whose answer never changes.
+const TARGETS = (() => {
   const out = [];
-  out.push({ id: 'page-prev', kind: 'chevron', ...CHEV_L });
-  out.push({ id: 'page-next', kind: 'chevron', ...CHEV_R });
+  out.push({ id: 'page-prev', kind: 'chevron', slot: -1, x: CHEV_L.x, y: CHEV_L.y, w: CHEV_L.w, h: CHEV_L.h });
+  out.push({ id: 'page-next', kind: 'chevron', slot: 1, x: CHEV_R.x, y: CHEV_R.y, w: CHEV_R.w, h: CHEV_R.h });
   for (let i = 0; i < COLS; i++) {
     out.push({ id: `card-${i}`, kind: 'card', slot: i, x: cardX(i), y: CARD.y, w: CARD.w, h: CARD.h });
   }
@@ -154,11 +156,15 @@ export function hitTargets() {
     out.push({ id: `div-${i}`, kind: 'division', slot: i, x: tabX(i), y: RAIL.y, w: RAIL.tabW, h: RAIL.h });
   }
   return out;
-}
+})();
+
+export function hitTargets() { return TARGETS; }
 
 export function hitAt(x, y) {
-  const t = hitTargets();
-  for (const r of t) if (x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) return r;
+  for (let i = 0; i < TARGETS.length; i++) {
+    const r = TARGETS[i];
+    if (x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) return r;
+  }
   return null;
 }
 

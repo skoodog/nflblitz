@@ -24,8 +24,10 @@
 // things a pure-Euler approach cannot have:
 //   * two-bone IK, so "the fingertips are ON the ball" is a statement, not a hope;
 //   * groundTo(), so a crouch or a sprawl actually touches the turf instead of floating
-//     or sinking (the fallback's `downed` sinks the hips to 0.35 and the knees go under
-//     the pitch — measured, see scratch verify run in the piece README comment in poses.js);
+//     or sinking. Measured against the fallback itself: its `downed` pins the hips at
+//     0.344 and leaves the toe tips 0.645 m UNDER the pitch, and its `idle` sinks the toe
+//     tips 25 mm on the `skill` archetype because that archetype's legs are 5% longer than
+//     the canonical rig and nothing re-solves for it. See the header of poses.js;
 //   * measurement, which is how every number in poses.js was checked.
 //
 // Writes ONLY bone.quaternion and bone.position. Never geometry, never materials.
@@ -116,6 +118,13 @@ const _v1 = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
 const _v3 = new THREE.Vector3();
 const _v4 = new THREE.Vector3();
+
+// Default spine distribution: lumbar-heavy for flexion, thoracic-heavy for twist. Frozen
+// module constants rather than array literals inside spine(), which would allocate three
+// arrays per actor per rebuild for nothing.
+const SPINE_WP = Object.freeze([0.34, 0.34, 0.32]);
+const SPINE_WT = Object.freeze([0.20, 0.34, 0.46]);
+const SPINE_WL = Object.freeze([0.38, 0.34, 0.28]);
 
 /** Points sampled by groundTo()/lowest(): every part of a body that can touch turf. */
 const CONTACTS = [
@@ -253,9 +262,9 @@ export class Poser {
    */
   spine(o) {
     const p = (o.pitch || 0) * D, t = (o.twist || 0) * D, l = (o.lean || 0) * D;
-    const wp = o.wp || [0.34, 0.34, 0.32];
-    const wt = o.wt || [0.20, 0.34, 0.46];
-    const wl = o.wl || [0.38, 0.34, 0.28];
+    const wp = o.wp || SPINE_WP;
+    const wt = o.wt || SPINE_WT;
+    const wl = o.wl || SPINE_WL;
     this.rot('spine01', p * wp[0], t * wt[0], -l * wl[0]);
     this.rot('spine02', p * wp[1], t * wt[1], -l * wl[1]);
     this.rot('chest', p * wp[2], t * wt[2], -l * wl[2]);

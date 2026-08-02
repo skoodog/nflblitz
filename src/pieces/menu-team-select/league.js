@@ -21,6 +21,14 @@
 // number's clothes. The best-player ovr is no better (97 .. 99). Both were deleted.
 // The three spread stats are the only club-level numbers on this screen that actually
 // separate 32 clubs, and the star line carries a NAME, which does.
+//
+// A DATA QUIRK, NOT A BUG IN THIS FILE, flagged here so nobody has to rediscover it.
+// players.json is an all-time roster and some men appear on more than one club at
+// their real career teams. Night Train Lane (ovr 98) is the top-rated player on BOTH
+// Chicago and Detroit, so NFC NORTH shows the same star on two adjacent cards; Tom
+// Brady (97) is top on both New England and Tampa Bay. Picking the second-best man
+// instead would make the card say something untrue about the roster to make the
+// screen look tidier, so the highest ovr is shown and this note exists instead.
 
 import playerData from '../../data/players.json';
 import { STAT_KEYS } from './layout.js';
@@ -122,12 +130,22 @@ export function resolve(state, brand) {
     if (list.length) {
       const sel = Math.max(0, Math.min(list.length - 1, st.selected | 0));
       const at = locate(groups, list[sel].id);
+      // THE FOUR SHOWN ARE ONLY A DIVISION IF THEY ACTUALLY ARE ONE. The hero
+      // `team_select` scene ships the foundation's legacy list ['NYC','CHI','DAL','LA'],
+      // which aliases to NYG / CHI / DAL / LAR — four clubs from three divisions. The
+      // first version labelled that row "NFC EAST" (from the selected club) and lit the
+      // NFC EAST tab, so the header named a division the cards did not contain and the
+      // rail under it listed four different clubs. Caught in the hero capture. A row
+      // that is not a division now says so and lights no tab.
+      const full = at.division >= 0
+        && groups[at.division].teams.length === list.length
+        && groups[at.division].teams.every((t) => list.some((x) => x.id === t.id));
       return {
         groups,
-        division: at.division >= 0 ? at.division : 0,
+        division: full ? at.division : -1,
         shown: list,
         selected: sel,
-        label: at.division >= 0 ? groups[at.division].label : 'SELECT',
+        label: full ? groups[at.division].label : 'SELECT YOUR CLUB',
         team: list[sel],
       };
     }

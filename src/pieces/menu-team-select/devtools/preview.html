@@ -1,0 +1,60 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#000}canvas{display:block}</style></head>
+<body><canvas id="cv" width="1920" height="1080"></canvas>
+<script type="module">
+// DEV LOOP — this screen is pure Canvas2D, so it does not need the engine, the
+// world, three.js or a GL context to be looked at. Loading it here instead of
+// through scripts/shoot.mjs turns a ~250 s capture into a ~2 s one, which is the
+// only reason it was possible to iterate on this layout at all on a box with no GPU.
+//
+// It boots the SAME modules the game boots — brand-identity for the crests and the
+// club colours, typeface-lettering for the four faces, this piece for the screen —
+// through the registry, so what it draws is what the overlay draws. It is not a
+// mock. The one thing it does not exercise is the overlay's transform and the
+// runtime raster path; iso_team_select through scripts/shoot.mjs covers those.
+import { REG } from '/src/foundation/registry.js';
+import fbBrand from '/src/foundation/fallbacks/brand.js';
+import { fallbackFaces } from '/src/foundation/typeface.js';
+import '/src/pieces/brand-identity/index.js';
+import '/src/pieces/typeface-lettering/index.js';
+import '/src/pieces/menu-team-select/index.js';
+
+const q = new URLSearchParams(location.search);
+
+// ?degraded=1 puts the FOUNDATION FALLBACKS back in the brand and faces slots. The
+// screen has to survive that: brand-identity's 32 clubs become 8 fictional ones with
+// no conference, no division, no `art` record, no `officials` array and no star
+// player, and the outline faces become system italic. A menu that throws when its
+// neighbours have not loaded yet takes the whole round down with it.
+if (q.get('degraded')) {
+  REG.brand = fbBrand;
+  REG.faces = fallbackFaces;
+}
+const cv = document.getElementById('cv');
+const c = cv.getContext('2d');
+const scene = q.get('scene') || '';
+const t = +(q.get('t') || 0);
+
+let state = {};
+try { state = JSON.parse(q.get('state') || '{}'); } catch (e) { state = {}; }
+
+const ui = {
+  W: 1920, H: 1080,
+  faces: REG.faces,
+  brand: REG.brand,
+  safe: { l: 48, t: 36, r: 48, b: 36 },
+  quality: 'capture', seed: 7, t, variant: '',
+  shot: scene ? { id: scene, piece: 'menu-team-select' } : null,
+  px: (n) => n,
+};
+
+c.clearRect(0, 0, 1920, 1080);
+try {
+  REG.ui.teamSelect.draw(c, t, state, ui);
+  window.__OK__ = true;
+} catch (e) {
+  window.__ERR__ = String((e && e.stack) || e);
+  console.error(e);
+}
+window.__PROV__ = Object.assign({}, REG.provenance);
+</script></body></html>
