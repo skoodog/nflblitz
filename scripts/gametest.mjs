@@ -889,6 +889,149 @@ L('\n=== THE PLAY SIMULATION ===');
   L(`    ${nAll} downs over all 32 clubs: ${Object.entries(mix).sort((x, y) => y[1] - x[1]).map(([k, v]) => `${k} ${((v / nAll) * 100).toFixed(1)}%`).join(', ')}`);
   L(`    ${(tot / nAll).toFixed(2)} yards per play`);
 }
+L('\n=== THE FLOW MACHINE AND THE PLAY CALLER ===');
+{
+  // flow.js imports the playbook and the rosters as JSON, which only the bundler resolves,
+  // so it is loaded here the same way scripts/simmutate.mjs loads adapt.js: by rewriting
+  // each JSON import into a readFileSync, which is exactly what the bundler does.
+  const fsx = await import('node:fs');
+  const osx = await import('node:os');
+  const R = ROOT + '/';
+  let src = fsx.readFileSync(path.join(ROOT, 'src/pieces/game-flow/flow.js'), 'utf8')
+    .replace(/import PLAYBOOK from '[^']*playbook\.json';/, `const PLAYBOOK = JSON.parse(fs.readFileSync('${R}src/data/playbook.json','utf8'));`)
+    .replace(/import PLAYERS from '[^']*players\.json';/, `const PLAYERS = JSON.parse(fs.readFileSync('${R}src/data/players.json','utf8'));`)
+    .replace(/from '\.\.\/\.\.\/foundation\/rng\.js'/, `from '${R}src/foundation/rng.js'`)
+    .replace(/from '\.\.\/play-sim\/sim\.js'/, `from '${R}src/pieces/play-sim/sim.js'`)
+    .replace(/from '\.\/(coach|kick|rules|pad)\.js'/g, `from '${R}src/pieces/game-flow/$1.js'`);
+  src = "import fs from 'node:fs';\n" + src;
+  const tdir = fsx.mkdtempSync(path.join(osx.tmpdir(), 'gt-flow-'));
+  const ff = path.join(tdir, 'flow.mjs');
+  fsx.writeFileSync(ff, src);
+  const flow = (await import(pathToFileURL(ff).href)).default;
+  const S = await imp('src/pieces/play-sim/sim.js');
+
+  // A GAME HAS TO FINISH, and finish legally. The fallback this replaced was a demo timer
+  // that could not tell a down from a touchdown; this drives the real simulation and hands
+  // every result to the real rule set.
+  const drive = (seed) => {
+    const st = flow.create({ seed });
+    let t = 0, guard = 0;
+    while (!st.game.over && guard++ < 300000) flow.step(st, t++);
+    return { st, ticks: t, hung: guard >= 300000 };
+  };
+  const g7 = drive(7);
+  ok(!g7.hung, 'a whole game reaches its end', `${g7.ticks} ticks`);
+  ok(g7.st.game.over, 'the game ends over');
+  eq(g7.st.game.quarter, 4, 'it ends in the fourth quarter');
+  ok(g7.st.playCount > 60 && g7.st.playCount < 260, 'a game is a plausible number of downs',
+    `${g7.st.playCount}`);
+  for (const sc of g7.st.game.score) ok(sc >= 0 && sc < 200, 'final scores are sane', `${sc}`);
+
+  // DETERMINISM, the invariant everything rests on: same seed, same game, tick for tick.
+  {
+    const a = flow.create({ seed: 7 }), b = flow.create({ seed: 7 });
+    for (let t = 0; t < 40000; t++) { flow.step(a, t); flow.step(b, t); }
+    eq(flow.hash(a), flow.hash(b), 'the same seed replays the same game');
+    const c = flow.create({ seed: 8 });
+    for (let t = 0; t < 40000; t++) flow.step(c, t);
+    ok(flow.hash(c) !== flow.hash(a), 'a different seed gives a different game');
+  }
+
+  // THE PLAY BOUNDARY IS THE ONLY PLACE AN EXPENSIVE RUNG CHANGE MAY LAND. This is a
+  // performance contract, not a nicety: committing one mid-play is a visible stall.
+  {
+    const st = flow.create({ seed: 3 });
+    let t = 0, commitsOutsideBoundary = 0, last = st.commits;
+    while (!st.game.over && t < 60000) {
+      if (t % 997 === 0) flow.queueRung(st, 5, 1);      // the scaler asking, at random ticks
+      const before = st.state;
+      flow.step(st, t++);
+      if (st.commits !== last) {
+        last = st.commits;
+        // A commit may only happen on the tick the machine ENTERS the play state.
+        if (!(st.state === flow.STATE.PLAY && before !== flow.STATE.PLAY)) commitsOutsideBoundary++;
+      }
+    }
+    ok(st.commits > 0, 'queued rung changes do get committed', `${st.commits}`);
+    eq(commitsOutsideBoundary, 0, 'no rung change is ever committed mid-play');
+  }
+
+  // THE PLAY CALLER. The reason this piece exists: a uniform sweep of all nine defensive
+  // calls blitzes on 44% of downs, because four of the nine send more rushers than there
+  // are blockers -- and that single fact, not the simulation, is what put the league-wide
+  // sack rate at 16.7% against real football's ~7%.
+  const stats = () => {
+    const mix = {};
+    let plays = 0, blitz = 0, yards = 0, resolved = 0;
+    const byDown = {};
+    for (let seed = 1; seed <= 12; seed++) {
+      const st = flow.create({ seed });
+      let t = 0, guard = 0;
+      const seen = new Set();
+      while (!st.game.over && guard++ < 300000) {
+        flow.step(st, t++);
+        if (st.state === flow.STATE.PLAY && st.play && !seen.has(st.playCount)) {
+          seen.add(st.playCount);
+          plays++;
+          const d = st.game.down;
+          byDown[d] = byDown[d] || { n: 0, b: 0 };
+          byDown[d].n++;
+          if (st.defense.rush > 3) { blitz++; byDown[d].b++; }
+        }
+        if (st.state === flow.STATE.RESULT && st.play && st.play.result !== S.RESULT.LIVE
+            && !seen.has(`r${st.playCount}`)) {
+          seen.add(`r${st.playCount}`);
+          mix[S.RESULT_NAME[st.play.result]] = (mix[S.RESULT_NAME[st.play.result]] || 0) + 1;
+          yards += st.play.yards || 0;
+          resolved++;
+        }
+      }
+    }
+    return { mix, plays, blitz, yards, resolved, byDown };
+  };
+  const K = stats();
+  const blitzRate = K.blitz / K.plays;
+  const sackRate = (K.mix.sack || 0) / K.resolved;
+  ok(K.plays > 800, 'enough called downs to measure', `${K.plays}`);
+  ok(blitzRate > 0.18 && blitzRate < 0.34, 'the defence pressures at a football rate',
+    `${(blitzRate * 100).toFixed(1)}%`);
+  ok(sackRate < 0.14, 'the sack rate under real play-calling is not the sampler artefact',
+    `${(sackRate * 100).toFixed(1)}% vs 16.7% under a uniform sweep`);
+
+  // AND IT MUST BE A TENDENCY, not a constant. A defence that blitzes third and long at the
+  // same rate as first down is not calling a game, it is rolling one die.
+  const r1 = K.byDown[1].b / K.byDown[1].n;
+  const r3 = (K.byDown[3] || { b: 0, n: 1 }).b / (K.byDown[3] || { b: 0, n: 1 }).n;
+  ok(r3 > r1 + 0.05, 'pressure rises with the down',
+    `1st ${(r1 * 100).toFixed(0)}% -> 3rd ${(r3 * 100).toFixed(0)}%`);
+
+  // The offence must actually vary its calls: all-pass is not a playbook.
+  {
+    const kinds = {};
+    const st = flow.create({ seed: 21 });
+    let t = 0, guard = 0;
+    const seen = new Set();
+    while (!st.game.over && guard++ < 300000) {
+      flow.step(st, t++);
+      if (st.state === flow.STATE.PLAY && st.play && !seen.has(st.playCount)) {
+        seen.add(st.playCount);
+        kinds[st.offense.kind] = (kinds[st.offense.kind] || 0) + 1;
+      }
+    }
+    ok(Object.keys(kinds).length >= 3, 'the offence calls runs, passes and screens',
+      JSON.stringify(kinds));
+    const tot = Object.values(kinds).reduce((a, b) => a + b, 0);
+    ok((kinds.run || 0) / tot > 0.06, 'it actually runs the ball', `${(((kinds.run || 0) / tot) * 100).toFixed(0)}%`);
+  }
+
+  const ypp = K.yards / K.resolved;
+  ok(ypp > 3 && ypp < 12, 'yards per play under real play-calling is in a football range',
+    `${ypp.toFixed(2)}`);
+  L(`    ${K.plays} coach-called downs over 12 full games`);
+  L(`    blitz ${(blitzRate * 100).toFixed(1)}% (1st ${(r1 * 100).toFixed(0)}% -> 3rd ${(r3 * 100).toFixed(0)}%), sack ${(sackRate * 100).toFixed(1)}%, ${ypp.toFixed(2)} yd/play`);
+  L(`    outcomes: ${Object.entries(K.mix).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${((v / K.resolved) * 100).toFixed(1)}%`).join(', ')}`);
+}
+
 L('\n=== A WHOLE GAME RUNS TO COMPLETION ===');
 {
   // The integration check: drive a full game with a seeded sequence and assert it ends in
