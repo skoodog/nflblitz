@@ -85,6 +85,157 @@ async function loadAdapt(edits) {
   return (await import(pathToFileURL(f).href)).default;
 }
 
+
+const FLOW = path.join(ROOT, 'src/pieces/game-flow/flow.js');
+const FLOW_SRC = fs.readFileSync(FLOW, 'utf8');
+const GF = (n) => path.join(ROOT, `src/pieces/game-flow/${n}.js`);
+
+/**
+ * Load the flow machine with `edits` applied to one of the game-flow files.
+ *
+ * `which` names the file being mutated: flow, coach, rules or kick. Only flow.js needs its
+ * JSON imports rewritten; the other three are plain modules, so they are copied verbatim
+ * unless they are the target, and flow.js is re-pointed at whichever copies exist.
+ */
+async function loadFlow(which, edits) {
+  const dir = fs.mkdtempSync(path.join(tmp, `gf${serial++}-`));
+  const names = ['coach', 'rules', 'kick', 'pad'];
+  const at = {};
+  for (const n of names) {
+    let src = fs.readFileSync(GF(n), 'utf8')
+      .replace(/from '\.\.\/\.\.\/foundation\/rng\.js'/g,
+        `from ${JSON.stringify(pathToFileURL(path.join(ROOT, 'src/foundation/rng.js')).href)}`)
+      .replace(/from '\.\/(rules|kick|pad|coach)\.js'/g, (m, g) => `from './${g}.js'`);
+    if (which === n) src = applyEdits(src, edits, n);
+    fs.writeFileSync(path.join(dir, `${n}.js`), src);
+    at[n] = path.join(dir, `${n}.js`);
+  }
+  let src = FLOW_SRC
+    .replace(/import PLAYBOOK from '[^']*playbook\.json';/,
+      `const PLAYBOOK = JSON.parse(fs.readFileSync(${JSON.stringify(path.join(ROOT, 'src/data/playbook.json'))}, 'utf8'));`)
+    .replace(/import PLAYERS from '[^']*players\.json';/,
+      `const PLAYERS = JSON.parse(fs.readFileSync(${JSON.stringify(path.join(ROOT, 'src/data/players.json'))}, 'utf8'));`)
+    .replace(/from '\.\.\/\.\.\/foundation\/rng\.js'/,
+      `from ${JSON.stringify(pathToFileURL(path.join(ROOT, 'src/foundation/rng.js')).href)}`)
+    .replace(/from '\.\.\/play-sim\/sim\.js'/,
+      `from ${JSON.stringify(pathToFileURL(SIM).href)}`);
+  if (which === 'flow') src = applyEdits(src, edits, 'flow');
+  src = `import fs from 'node:fs';\n` + src;
+  const f = path.join(dir, 'flow.mjs');
+  fs.writeFileSync(f, src);
+  return (await import(pathToFileURL(f).href)).default;
+}
+
+function applyEdits(src, edits, label) {
+  for (const [find, repl] of edits || []) {
+    const n = src.split(find).length - 1;
+    if (n !== 1) throw new Error(`${label} anchor matched ${n} times, expected 1: ${find.slice(0, 60)}`);
+    src = src.replace(find, repl);
+  }
+  return src;
+}
+
+/* --------------------------------------------------- the game-flow predicates ---- */
+// The rule set, the kick model, the control scheme and the flow machine were all stated in
+// gametest.mjs as UNPROVEN against this project's own standard -- asserted, but never shown
+// able to fail. This closes that.
+
+/** Drive a game to its end. Returns the final state, or null if it never finished. */
+function playOut(flow, seed) {
+  const st = flow.create({ seed });
+  let t = 0, guard = 0;
+  while (!st.game.over && guard++ < 300000) flow.step(st, t++);
+  return guard >= 300000 ? null : st;
+}
+
+const FLOW_PREDICATES = {
+  finishes(F) {
+    for (const seed of [7, 99, 4242]) {
+      const st = playOut(F, seed);
+      if (!st) return `seed ${seed} never finished`;
+      if (st.game.quarter !== 4) return `seed ${seed} ended in Q${st.game.quarter}`;
+      if (!(st.playCount > 60 && st.playCount < 260)) return `seed ${seed} ran ${st.playCount} downs`;
+    }
+    return null;
+  },
+
+  deterministic(F) {
+    const a = F.create({ seed: 7 }), b = F.create({ seed: 7 }), c = F.create({ seed: 8 });
+    for (let t = 0; t < 30000; t++) { F.step(a, t); F.step(b, t); F.step(c, t); }
+    if (F.hash(a) !== F.hash(b)) return 'the same seed replayed differently';
+    if (F.hash(a) === F.hash(c)) return 'a different seed replayed identically';
+    return null;
+  },
+
+  // THE PLAY BOUNDARY. An expensive rung change committed mid-play is a visible stall, and
+  // this is the only contract the flow slot exists to enforce.
+  boundaryOnly(F) {
+    const st = F.create({ seed: 3 });
+    let t = 0, outside = 0, last = st.commits;
+    while (!st.game.over && t < 60000) {
+      if (t % 997 === 0) F.queueRung(st, 5, 1);
+      const before = st.state;
+      F.step(st, t++);
+      if (st.commits !== last) {
+        last = st.commits;
+        if (!(st.state === F.STATE.PLAY && before !== F.STATE.PLAY)) outside++;
+      }
+    }
+    if (!st.commits) return 'nothing was ever committed';
+    return outside === 0 ? null : `${outside} rung changes landed mid-play`;
+  },
+
+  // THE PLAY CALLER, which exists precisely because a uniform sweep blitzes 44% of downs.
+  callingIsFootball(F) {
+    let plays = 0, blitz = 0;
+    const byDown = {};
+    const kinds = {};
+    for (let seed = 1; seed <= 8; seed++) {
+      const st = F.create({ seed });
+      let t = 0, guard = 0;
+      const seen = new Set();
+      while (!st.game.over && guard++ < 300000) {
+        F.step(st, t++);
+        if (st.state === F.STATE.PLAY && st.play && !seen.has(st.playCount)) {
+          seen.add(st.playCount);
+          plays++;
+          const d = st.game.down;
+          byDown[d] = byDown[d] || { n: 0, b: 0 };
+          byDown[d].n++;
+          if (st.defense.rush > 3) { blitz++; byDown[d].b++; }
+          kinds[st.offense.kind] = (kinds[st.offense.kind] || 0) + 1;
+        }
+      }
+    }
+    if (plays < 400) return `only ${plays} downs called`;
+    const rate = blitz / plays;
+    if (!(rate > 0.16 && rate < 0.36)) return `blitz rate ${(rate * 100).toFixed(1)}%`;
+    const r1 = byDown[1].b / byDown[1].n;
+    const r3 = (byDown[3] || { b: 0, n: 1 }).b / (byDown[3] || { b: 0, n: 1 }).n;
+    if (!(r3 > r1 + 0.04)) return `pressure flat by down: 1st ${(r1 * 100).toFixed(0)}% 3rd ${(r3 * 100).toFixed(0)}%`;
+    if (Object.keys(kinds).length < 3) return `offence only calls ${Object.keys(kinds).join('/')}`;
+    if ((kinds.run || 0) / plays < 0.05) return `it never runs the ball (${kinds.run || 0}/${plays})`;
+    return null;
+  },
+
+  // THE RULE SET, through the machine that drives it.
+  rulesHold(F) {
+    for (const seed of [11, 23]) {
+      const st = playOut(F, seed);
+      if (!st) return `seed ${seed} never finished`;
+      const g = st.game;
+      if (g.ballOn < 0 || g.ballOn > 100) return `ball off the field at ${g.ballOn}`;
+      if (g.down < 1 || g.down > 4) return `down ${g.down}`;
+      for (const s of g.score) {
+        if (s < 0 || s > 200) return `score ${s}`;
+        // Every scoring play here is worth 6+1, 3 or 2, so no score may be 1 or 5.
+        if (s === 1 || s === 5) return `score of ${s} is unreachable under this rule set`;
+      }
+    }
+    return null;
+  },
+};
+
 /* ------------------------------------------------------------ the predicates ---- */
 // Compact forms of what scripts/gametest.mjs asserts, on smaller samples so the battery
 // runs in seconds rather than minutes. Each returns null when satisfied, or a reason.
@@ -751,17 +902,60 @@ const MUTATIONS = [
     edits: [['        quat: ballQuat(-(b.ty - b.y), slope * (b.len || 1), b.tx - b.x, b.travelled * BALL_SPIRAL),',
       '        quat: [0, 0, 0, 1],']],
   },
+  {
+    target: 'flow', file: 'flow',
+    name: 'flow: an expensive rung change commits mid-play',
+    was: 'the one contract the flow slot exists for -- a commit mid-play is a visible stall',
+    edits: [['  enterPlay(st, tick) {\n    impl.go(st, STATE.PLAY, tick);', '  enterPlay(st, tick) {\n    impl.go(st, STATE.PLAY, tick);\n    if (st.tick % 7 === 0) { st.commits++; }']],
+  },
+  {
+    target: 'flow', file: 'flow',
+    name: 'flow: the clock never runs',
+    edits: [['    tickClock(g, playTicks(p));\n    impl.go(st, STATE.RESULT, tick);', '    tickClock(g, 0);\n    impl.go(st, STATE.RESULT, tick);']],
+  },
+  {
+    target: 'flow', file: 'flow',
+    name: 'flow: the down never advances because the result is discarded',
+    edits: [['    const outcome = applyPlay(g, gain, turnover);', '    const outcome = applyPlay(g, 0, false);']],
+  },
+  {
+    target: 'flow', file: 'coach',
+    name: 'coach: the defence blitzes on every down',
+    was: 'the uniform-sweep artefact that put the sack rate at 16.7%',
+    edits: [['  const blitzing = rng() < blitzRate;', '  const blitzing = true;']],
+  },
+  {
+    target: 'flow', file: 'coach',
+    name: 'coach: pressure does not rise with the down',
+    edits: [['export const BLITZ_LONG = 0.40;', 'export const BLITZ_LONG = 0.24;']],
+  },
+  {
+    target: 'flow', file: 'coach',
+    name: 'coach: the offence never runs the ball',
+    edits: [["      w *= s.shortYardage ? 2.6 : 0.55;", "      w *= 0.0001;"]],
+  },
+  {
+    target: 'flow', file: 'rules',
+    name: 'rules: a touchdown is worth the wrong points',
+    edits: [['  TOUCHDOWN: 6,', '  TOUCHDOWN: 5,']],
+  },
+  {
+    target: 'flow', file: 'rules',
+    name: 'rules: there are five downs',
+    edits: [['export const DOWNS = 4;', 'export const DOWNS = 5;']],
+  },
 ];
 
 /* --------------------------------------------------------------------- run it ---- */
 
 const names = Object.keys(PREDICATES);
 const anames = Object.keys(ADAPT_PREDICATES);
+const fnames = Object.keys(FLOW_PREDICATES);
 const list = MUTATIONS;
-const total = names.length + anames.length;
+const total = names.length + anames.length + fnames.length;
 
 console.log(`\nMUTATION BATTERY — play-sim   ${list.length} mutations x ${total} predicates`);
-console.log(`  sim.js: ${names.length} predicates   adapt.js: ${anames.length} predicates\n`);
+console.log(`  sim.js: ${names.length}   adapt.js: ${anames.length}   game-flow: ${fnames.length}\n`);
 
 /** Run every predicate for one target. Returns the list of complaints. */
 async function checkSim(S) {
@@ -769,6 +963,15 @@ async function checkSim(S) {
   for (const n of names) {
     let r;
     try { r = await PREDICATES[n](S); } catch (e) { r = `threw: ${e.message}`; }
+    if (r) out.push(`${n} (${r})`);
+  }
+  return out;
+}
+async function checkFlow(F) {
+  const out = [];
+  for (const n of fnames) {
+    let r;
+    try { r = await FLOW_PREDICATES[n](F); } catch (e) { r = `threw: ${e.message}`; }
     if (r) out.push(`${n} (${r})`);
   }
   return out;
@@ -783,7 +986,9 @@ async function checkAdapt(A) {
   return out;
 }
 
-const baseFails = (await checkSim(await load())).concat(await checkAdapt(await loadAdapt()));
+const baseFails = (await checkSim(await load()))
+  .concat(await checkAdapt(await loadAdapt()))
+  .concat(await checkFlow(await loadFlow('none')));
 if (baseFails.length) {
   console.log('  THE UNMUTATED CODE DOES NOT PASS ITS OWN PREDICATES:');
   for (const f of baseFails) console.log(`    ${f}`);
@@ -796,15 +1001,18 @@ let killed = 0;
 const survived = [];
 for (const m of list) {
   const isAdapt = m.target === 'adapt';
+  const isFlow = m.target === 'flow';
   let caught;
   try {
-    caught = isAdapt ? await checkAdapt(await loadAdapt(m.edits)) : await checkSim(await load(m.edits));
+    caught = isFlow ? await checkFlow(await loadFlow(m.file, m.edits))
+      : isAdapt ? await checkAdapt(await loadAdapt(m.edits))
+        : await checkSim(await load(m.edits));
   } catch (e) {
     console.log(`  ERROR  ${m.name}\n         ${e.message}`);
     survived.push({ ...m, error: e.message });
     continue;
   }
-  const tag = isAdapt ? '[adapt] ' : '';
+  const tag = isFlow ? `[${m.file}] ` : isAdapt ? '[adapt] ' : '';
   if (caught.length) {
     killed++;
     console.log(`  KILLED    ${tag}${m.name}`);
