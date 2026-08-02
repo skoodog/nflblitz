@@ -434,8 +434,17 @@ export function makeBall(ctx) {
       fire.mesh.visible = flame > 0.004;
       // The ball is lit BY its own fire. Without this the leather stays night-dark and
       // the flame reads as a decal stuck in front of it.
-      shellMat.emissive.setRGB(0.62 * flame, 0.20 * flame, 0.045 * flame);
-      shellMat.emissiveIntensity = 0.55 + flame * 0.75;
+      // THE HEAT MUST NOT EAT THE LEATHER. Measured on iso_impact_ball.png: the ball
+      // interior came back R mean 246.6 with a standard deviation of 7.3 -- 3% -- and ZERO
+      // pixels reading as a white stripe, on a ball whose albedo carries laces and two
+      // circumferential bands that must show at every rotation. At flame 0.95 the emissive
+      // was (0.62,0.20,0.045) x 1.30 = (0.81,0.26,0.06) linear against a leather albedo of
+      // about (0.27,0.11,0.06): the glow was three times the surface it was meant to be
+      // heating, so the whole 512x256 albedo and normal pair contributed nothing to screen.
+      // A featureless orange egg. Halved and biased warm so the heat still reads on the
+      // silhouette while the laces survive in the middle of it.
+      shellMat.emissive.setRGB(0.30 * flame, 0.093 * flame, 0.020 * flame);
+      shellMat.emissiveIntensity = 0.22 + flame * 0.38;
     },
 
     /** Revolutions per second about the ball's long axis. */

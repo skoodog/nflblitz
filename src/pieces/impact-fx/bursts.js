@@ -196,10 +196,24 @@ const CLOD_TINTS = [DIRT.soil, DIRT.soilDark, DIRT.mud, DIRT.sod];
 function clods(S, x, y, z, t0, p, n, rng, along, lift, vlo, vhi) {
   const d = S.debris;
   for (let i = 0; i < n; i++) {
-    dirIn(rng, along, 0.85, lift);
-    const v = (vlo + rng() * (vhi - vlo)) * (0.65 + 0.35 * p);
+    // ALONG THE HIT, NOT AROUND IT. `along` at 0.30 is a near-isotropic sphere sample, so
+    // the shower came out as a radially symmetric dandelion with no impact axis. The bar's
+    // leveler panel is a low, DIRECTIONAL, ground-hugging smear. 0.72 keeps the cone about
+    // the contact normal while still leaving spread.
+    dirIn(rng, Math.max(along, 0.72), 0.85, lift);
+    // AND IT HAS TO TRAVEL. Measured against the panel, scaled off the defender's helmet:
+    // the bar's debris field spans ~93% of the frame width and rises above the helmet;
+    // ours spanned 13%, because at the age the hero shots hand this piece (0.03-0.06 s)
+    // clods launched at 5.7-21 m/s against drag 4.5 have gone 0.16-0.60 m and no further.
+    // config.js already records that spark v0 was raised for exactly this reason and that
+    // the same correction was never applied to the debris. This is that correction.
+    const v = (vlo + rng() * (vhi - vlo)) * (0.65 + 0.35 * p) * 3.4;
     const q = rng();
-    const s = 0.055 + q * q * q * 0.42;
+    // AND IT HAS TO BE TURF, NOT BOULDERS. Measured p50 0.109 m / p90 0.364 m / max 0.460 m
+    // against a bar whose typical chip is 0.03-0.07 m and whose largest slab is ~0.14 m --
+    // three times too big, which is the other half of why the debris read as a smudge
+    // rather than as a field: a few big soft billboards instead of many small hard ones.
+    const s = 0.022 + q * q * q * 0.12;
     const c = CLOD_TINTS[hash(i, 3) % 4];
     emit(d, x, y, z, D[0] * v, D[1] * v, D[2] * v,
       t0, 0.85 + rng() * 0.9, s, s * 0.9,

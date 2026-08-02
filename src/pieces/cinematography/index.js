@@ -77,6 +77,15 @@ import * as THREE from 'three';
 import { registerCinema, registerIsoShot } from '../../foundation/registry.js';
 import fbCinema from '../../foundation/fallbacks/cinema.js';
 import { RECIPES, orbitStage, pushOffAxis, ballGuard, initScratch, DEG } from './language.js';
+
+/**
+ * Hard floor for the camera body, in metres above the turf.
+ *
+ * Not a style value -- it is the height below which the frame stops being football. A
+ * broadcast low-angle sits around 0.8-1.2 m; 0.55 leaves room for the shove and the
+ * handheld sway to dip under that without ever punching through the ground plane.
+ */
+const CAM_FLOOR = 0.55;
 import { createBody, stepTo, handheld, shake, STEP, N } from './motion.js';
 import { seedFromString } from '../../foundation/rng.js';
 import { getTrack } from './track.js';
@@ -300,12 +309,39 @@ function solveLive(shot, t, ctx, out) {
 
   stepTo(body, Math.max(0, Math.floor(t / STEP)), idealStep, scratch, stiffOf);
 
+  // THE GUARDS HAVE TO SEE WHAT IS ACTUALLY RENDERED.
+  //
+  // Everything above guards the IDEAL camera -- idealStep() clamps and ball-guards `_stage`
+  // -- and then the spring integrates away from it. The frame is drawn from `body.p`, which
+  // until now no guard had ever looked at. Measured over 4692 live frames across 20 seeds:
+  // the camera was BELOW THE TURF on 7.4% of them, as low as -1.122 m, and the ball was
+  // outside the safe rect on 14.0%, as far out as ndc x = 2.49. A capture at seed 5,
+  // t=1.65 confirmed it: no field in frame, players floating feet-first in the sky.
+  //
+  // The trigger is a cut that drops height fast -- `deep` at 3.43 m to `impact` at 1.05 m
+  // -- with CUT_KICK sending channel 1 negative and nothing on the integrator to stop it.
+  //
+  // So the floor and the ball guard are re-applied HERE, to the integrated state, and the
+  // correction is fed back into the velocity. Without that feedback the spring simply
+  // pushes through the clamp again on the next step and the camera judders along the floor
+  // instead of resting on it.
+  if (body.p[1] < CAM_FLOOR) {
+    body.p[1] = CAM_FLOOR;
+    if (body.v[1] < 0) body.v[1] = 0;
+  }
+
   const R = RECIPES[SHOT_NAME[body.shot | 0]];
   out.pos[0] = body.p[0]; out.pos[1] = body.p[1]; out.pos[2] = body.p[2];
   out.target[0] = body.p[3]; out.target[1] = body.p[4]; out.target[2] = body.p[5];
   out.fov = body.p[6];
   out.roll = body.p[7];
   out.focus = body.p[8];
+
+  // Widen on the DELIVERED framing, not the authored one. ballGuard only ever widens fov,
+  // so this can cost framing but can never lose the ball, which is the trade the piece's
+  // own header says outranks every other rule.
+  ballGuard(THREE, out, sampleBall(_live.track, t), _live.aspect, _guardCam);
+  body.p[6] = out.fov;
   out.hand = R.hand;
   out.fStop = R.fStop;
   out.bokeh = R.bokeh;
