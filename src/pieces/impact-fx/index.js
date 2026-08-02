@@ -152,7 +152,18 @@ registerIsoShot('iso_impact_ball', {
   // so a camera close enough to fill the frame with leather cuts the fire in half. At
   // 2.34 m on a 40 degree lens the ball is a fifth of the frame width and the whole
   // ribbon fits — the same proportion the ball has in bar/panel-qb_dropback.png.
-  camera: { pos: [1.55, 1.62, 1.75], target: [-0.45, 1.68, 0.10], fov: 40, roll: -1.0 },
+  //
+  // MOVED IN ROUND 2, and the old position made the shot unable to show what the shot
+  // exists to show. The ball's long axis is world Z (see ballGeometry) and the camera sat
+  // at z = 1.75 looking at z = 0.10, i.e. 42 degrees off the ball's own axis: the tips
+  // pointed at and away from the lens, the projected silhouette was 151 x 127 px — an
+  // aspect of 1.19 on a ball whose true aspect is 1.71 — and it read as a circle no matter
+  // what the profile did. Swinging the camera round to [2.11, 1.90, 0.91] keeps the
+  // distance (2.342 m, so focusDist is unchanged), keeps the subject 9 degrees off the
+  // frame centre, and takes the axis foreshortening from 0.665 to 0.921: 199 x 127 px,
+  // aspect 1.57. The cost is the flame ribbon, which goes from 0.944 to 0.810 of its true
+  // length — a trade worth making, because the ribbon is 1.18 m long and still reads.
+  camera: { pos: [2.11, 1.90, 0.91], target: [-0.45, 1.68, 0.10], fov: 40, roll: -1.0 },
   lens: { fStop: 2.0, focusDist: 2.34, bokehScale: 1.2, shutter: 1 / 120 },
   exposure: 1.0,
   weather: { rain: 0.2, lightning: 0.3, haze: 0.62 },
@@ -161,10 +172,12 @@ registerIsoShot('iso_impact_ball', {
   fx: [],
   hud: OFF,
   callout: NO_CALLOUT,
-  note: 'The flaming ball at 0.5 m. Lathed prolate shell with pointed tips (not a scaled '
-    + 'sphere), procedural pebble grain + normal map, laces and both stripes, self-lit by '
-    + 'the fire. The fire is a flowing ribbon: 78 tongues, 21 licks on the leather, '
-    + '30 embers, 3 heat blooms — 132 quads, one draw, animated entirely in the vertex stage.',
+  note: 'The flaming ball at 2.34 m. Lathed parabolic shell with genuinely pointed tips '
+    + '(dr/dy = -1.167 at the tip, a real corner — not a scaled sphere and not the old '
+    + '0.62 exponent, which was a rounded pole), procedural pebble grain + normal map, '
+    + 'laces and both stripes, self-lit by the fire. The fire is a flowing ribbon: '
+    + '78 tongues, 21 licks on the leather, 30 embers, 3 heat blooms — 132 quads, one '
+    + 'draw, animated entirely in the vertex stage.',
 });
 
 /**

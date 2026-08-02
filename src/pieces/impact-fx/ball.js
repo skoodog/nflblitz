@@ -76,7 +76,21 @@ function ballTextures() {
       for (let x = 0; x < W; x++) {
         const u = (x + 0.5) / W;
         // Pebble grain: worley cells make round bumps, which is what pebbling is.
-        const cellf = worley2(u * 74, v * 34, 17);
+        //
+        // THIS WAS A NaN FACTORY AND IT COST THE WHOLE TEXTURE. foundation/texlab.js's
+        // worley2() returns an OBJECT — { f1, f2, id, cx, cy } — not a distance, so
+        // `cellf * 2.1` was NaN, `pebble` was NaN, `shade` was NaN, and every channel of
+        // both canvases was written as NaN. A Uint8ClampedArray stores NaN as 0, so the
+        // 512x256 albedo was SOLID BLACK and the normal map was solid (0,0,0), i.e. a
+        // decoded normal of (-1,-1,-1). Everything orange about the ball in
+        // shots/impact-fx/iso_impact_ball.png was emissive and bloom; the laces, the
+        // stripes and the pebbling had never once reached the screen. That is the real
+        // reason the critic measured an interior R standard deviation of 3% and zero
+        // stripe pixels — the emissive was too strong as well, but this is why there was
+        // nothing underneath it to eat.
+        // f1 is the distance to the nearest feature point: 0 at a cell centre, ~1 in the
+        // crevice between cells, which is the right sense for `shade` below (crevices dark).
+        const cellf = worley2(u * 74, v * 34, 17).f1;
         const pebble = Math.pow(clamp01(cellf * 2.1), 0.7);
         const scuff = fbm2(u * 9, v * 5, { octaves: 4, seed: 91 }) * 0.5 + 0.5;
         const wm = whiteMask(u, v);
@@ -101,7 +115,10 @@ function ballTextures() {
         // differencing a luminance canvas: pebbling is high frequency and the finite
         // difference of an 8-bit canvas was visibly quantised into terraces.
         const e = 1 / W;
-        const hAt = (uu, vv) => Math.pow(clamp01(worley2(uu * 74, vv * 34, 17) * 2.1), 0.7) * 0.55
+        // Same worley2().f1 fix as above, and INVERTED relative to `pebble`: a pebble is a
+        // raised bump with a low crevice around it, so height is 1 - pebble. The old
+        // expression (had it produced a number at all) would have embossed the crevices.
+        const hAt = (uu, vv) => (1 - Math.pow(clamp01(worley2(uu * 74, vv * 34, 17).f1 * 2.1), 0.7)) * 0.55
           + whiteMask(uu, vv) * 0.45;
         const dx = (hAt(u + e, v) - hAt(u - e, v)) * 9.0;
         const dy = (hAt(u, v + e) - hAt(u, v - e)) * 9.0;
@@ -465,15 +482,17 @@ export function makeBall(ctx) {
       // the flame reads as a decal stuck in front of it.
       // THE HEAT MUST NOT EAT THE LEATHER. Measured on iso_impact_ball.png: the ball
       // interior came back R mean 246.6 with a standard deviation of 7.3 -- 3% -- and ZERO
-      // pixels reading as a white stripe, on a ball whose albedo carries laces and two
-      // circumferential bands that must show at every rotation. At flame 0.95 the emissive
-      // was (0.62,0.20,0.045) x 1.30 = (0.81,0.26,0.06) linear against a leather albedo of
-      // about (0.27,0.11,0.06): the glow was three times the surface it was meant to be
-      // heating, so the whole 512x256 albedo and normal pair contributed nothing to screen.
-      // A featureless orange egg. Halved and biased warm so the heat still reads on the
-      // silhouette while the laces survive in the middle of it.
-      shellMat.emissive.setRGB(0.30 * flame, 0.093 * flame, 0.020 * flame);
-      shellMat.emissiveIntensity = 0.22 + flame * 0.38;
+      // pixels reading as a white stripe. The first correction blamed that entirely on the
+      // emissive being (0.81,0.26,0.06) linear against a leather albedo of about
+      // (0.27,0.11,0.06), and halved it. THAT DIAGNOSIS WAS ONLY HALF RIGHT and it is
+      // recorded here because it hid the real fault for a round: the albedo was not being
+      // out-shouted, it did not exist. worley2() returns an object, `cellf * 2.1` was NaN,
+      // and both canvases were written as zeros — see the note in ballTextures(). Every
+      // orange pixel on that ball was emissive plus bloom. With a real albedo underneath
+      // it (leather ~60/255 sRGB, stripes 219/255) the emissive can come down again: it
+      // now only has to keep the silhouette warm, not stand in for the whole surface.
+      shellMat.emissive.setRGB(0.22 * flame, 0.068 * flame, 0.015 * flame);
+      shellMat.emissiveIntensity = 0.20 + flame * 0.32;
     },
 
     /** Revolutions per second about the ball's long axis. */

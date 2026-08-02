@@ -108,7 +108,7 @@ function core(S, x, y, z, t0, p, opts) {
     // core is about one HELMET across (0.26 m) with spikes reaching three or four times
     // that, and it sits behind the bodies rather than in front of them.
     emit(g, x, y, z, 0, 0, 0, t0, 0.125 * (0.7 + p * 0.15),
-      (0.24 + 0.17 * p) * flashS, (0.40 + 0.26 * p) * flashS,
+      (0.20 + 0.13 * p) * flashS, (0.34 + 0.21 * p) * flashS,
       COL.flashCore[0], COL.flashCore[1], COL.flashCore[2],
       CELL.STAR, MODE.BILLBOARD, 0, 0, 0.13, 0.9, 0, 2.6, PRIO_CORE);
     emit(g, x, y, z, 0, 0.35, 0, t0, 0.19,
@@ -225,18 +225,29 @@ function clods(S, x, y, z, t0, p, n, rng, along, lift, vlo, vhi) {
     // leveler panel is a low, DIRECTIONAL, ground-hugging smear. 0.72 keeps the cone about
     // the contact normal while still leaving spread.
     dirIn(rng, Math.max(along, 0.72), 0.85, lift);
-    // AND IT HAS TO TRAVEL — BUT MEASURE IT IN METRES, NOT IN FRACTIONS OF A FRAME.
-    // At the age the hero shots hand this piece (0.03-0.06 s) clods launched at 5.7-21 m/s
-    // against drag 4.5 travel 0.16-0.60 m and no further, which is a 25 cm ball. The first
-    // correction multiplied v0 by 3.4 in order to make the field span "93% of the frame
-    // width, like the panel", and THAT TARGET IS A CATEGORY ERROR: 93% is 93% of the BAR
-    // PANEL's frame, and the bar panel is a 2.66 m wide crop (410 px at the 154 px/m the
-    // defender's 40 px / 0.26 m helmet gives), while our own `leveler` camera sits 7.88 m
-    // out on a 37 degree lens and sees 9.38 m. The same debris field is 93% of one frame
-    // and 26% of the other. In metres the panel's chip field is 2.0-2.5 m across, and 3.4
-    // put our leading edge 1.52 m from contact at 30 ms — a 3.0 m ball, already wider than
-    // the reference. 2.4 lands it at 1.12 m, a 2.24 m field.
-    const v = (vlo + rng() * (vhi - vlo)) * (0.65 + 0.35 * p) * 2.4;
+    // A DEBRIS FIELD IS SPREAD IN SPACE, NOT IN VELOCITY — and this is the correction
+    // that finally made the chips visible, after two rounds of raising v0 did not.
+    //
+    // The capture path renders `accum` sub-frames spread across the shot's shutter (1/55 s
+    // on `leveler`) and averages them. A chip moving at v is therefore drawn as accum
+    // ghosts strung over v/55 metres, each at 1/accum of full opacity. At the v0 x 3.4 of
+    // the previous round a clod was still doing 45 m/s at 30 ms: 0.82 m of travel inside
+    // one shutter, 168 px, spread over 8 ghosts at 12.5% each — against a 7 px chip. The
+    // debris was not missing from the frame, it was DIVIDED BY TWENTY-FOUR across it, and
+    // that is why raising the count and the speed both failed to show anything.
+    //
+    // So the field is spread by BIRTH POSITION instead. The ground under a collision does
+    // not tear at a point; it tears over the patch the two bodies cover, which is about a
+    // metre. Emitting along D at a radius sampled to 0.35 + 0.33p metres puts the field
+    // where the panel has it (2.0-2.5 m across, measured off the defender's helmet at
+    // 40 px / 0.26 m = 154 px/m) while leaving v0 low enough that a chip is a chip and not
+    // a 12%-opacity streak: 2.0-7.5 m/s here, which is 6-24 px of shutter smear.
+    //
+    // Recorded because it is the trap: "93% of the frame width" in the bar panel is 93% of
+    // a 2.66 m crop. Our own `leveler` camera is 7.88 m out on a 37 degree lens and sees
+    // 9.38 m, so the SAME field is 93% of one frame and 26% of the other. Metres, always.
+    const spread = (0.35 + 0.33 * p) * Math.pow(rng(), 0.55);
+    const v = (vlo + rng() * (vhi - vlo)) * (0.65 + 0.35 * p) * 0.35;
     const q = rng();
     // AND IT HAS TO BE TURF, NOT BOULDERS. Measured against panel-leveler.png with the
     // same top-hat operator used on our own captures: the bar's chips have a MEDIAN
@@ -245,9 +256,10 @@ function clods(S, x, y, z, t0, p, n, rng, along, lift, vlo, vhi) {
     // real slabs (max 0.104 m, median 0.027 m) and puts everything else in the 0.02-0.04 m
     // grit band the panel is actually made of; over 200 quads that is 0.20 m^2 of sprite
     // against the panel's 0.147 m^2 of measured chip.
-    const s = 0.016 + q * q * q * 0.088;
+    const s = 0.020 + q * q * q * 0.100;
     const c = CLOD_TINTS[hash(i, 3) % 4];
-    emit(d, x, y, z, D[0] * v, D[1] * v, D[2] * v,
+    emit(d, x + D[0] * spread, y + D[1] * spread, z + D[2] * spread,
+      D[0] * v, D[1] * v, D[2] * v,
       t0, 1.15 + rng() * 1.0, s, s * 0.9,
       c[0], c[1], c[2],
       CLOD_CELLS[hash(i, 11) % 4], MODE.BILLBOARD, DEBRIS_DRAG, DEBRIS_GRAV,
@@ -260,14 +272,17 @@ function tufts(S, x, y, z, t0, p, n, rng, along, lift) {
   const d = S.debris;
   for (let i = 0; i < n; i++) {
     dirIn(rng, along, 0.9, lift);
-    const v = (3 + rng() * 9) * (0.65 + 0.35 * p) * 1.9;
+    // Same spatial spread and the same low v0 as clods(), for the same shutter reason.
+    const spread = (0.30 + 0.28 * p) * Math.pow(rng(), 0.55);
+    const v = (3 + rng() * 9) * (0.65 + 0.35 * p) * 0.40;
     // Tufts were the LARGEST debris in the frame after the clods were cut (p50 0.095 m
     // against the clods' 0.037 m), which is backwards — a severed clump of grass is
     // smaller than a torn clod of sod, not twice the size.
     const s = 0.022 + rng() * 0.050;
     const sod = rng() < 0.32;
     const c = sod ? DIRT.sod : DIRT.grass;
-    emit(d, x, y, z, D[0] * v, D[1] * v, D[2] * v,
+    emit(d, x + D[0] * spread, y + D[1] * spread, z + D[2] * spread,
+      D[0] * v, D[1] * v, D[2] * v,
       t0, 0.7 + rng() * 0.7, s, s * 0.85,
       c[0], c[1], c[2],
       sod ? CELL.SOD : CELL.TUFT, MODE.BILLBOARD, DEBRIS_DRAG * 1.35, DEBRIS_GRAV * 0.8,

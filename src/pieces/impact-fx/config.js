@@ -80,12 +80,19 @@ export const MODE = {
 //     lens bars: 13.6 m^2 of the 32.8, at a near-white [0.85,0.98,1.45].
 // Measured on the capture: dark-chip coverage 0.397% of frame against hot-pixel coverage
 // 3.249% — a chip:hot ratio of 0.12 where bar/panel-leveler.png measures 1.79 by the
-// same operator. The whole additive side is down by roughly an order of magnitude below,
-// the sizes are cut in bursts.js, and the dust is brought UP because in the bar panel it
-// is the lit dust cloud that the dark chips are legible AGAINST.
+// same operator. The whole additive side is down below, the sizes are cut in bursts.js,
+// and the dust is brought UP because in the bar panel it is the lit dust cloud that the
+// dark chips are legible AGAINST.
+//
+// AND IT TOOK TWO PASSES, because sprite AREA is not the same as HOT AREA. Cutting the
+// additive sprite area from 32.8 m^2 to 9.6 m^2 (a 3.4x cut) only moved measured hot
+// coverage from 3.249% to 1.698% — a 1.9x cut — because what survives is the bloom of the
+// flash CORE, and bloom is driven by radiance, not by quad size. So the second pass took
+// flashCore from 3.10 down through 2.30 to 1.35 and flashWarm from 2.20 through 1.45 to
+// 0.90, which is where a value stops clipping to white through the ACES curve.
 export const COL = {
-  flashCore: [2.30, 1.80, 1.05],
-  flashWarm: [1.45, 0.60, 0.19],
+  flashCore: [1.35, 1.02, 0.58],
+  flashWarm: [0.90, 0.38, 0.12],
   starburst: [3.6, 2.5, 1.30],
   ringHot: [1.15, 0.52, 0.16],
   ringCool: [0.9, 0.55, 0.36],
@@ -97,14 +104,16 @@ export const COL = {
   sparkCool: [0.85, 0.20, 0.04],
   ember: [1.25, 0.34, 0.07],
   // DUST AND SMOKE ARE ADDITIVE AND THEY STACK, so budget for the STACK and not for the
-  // sprite: ~26 overlapping puffs at sprite alpha 0.4 times these values lands around
-  // 0.9-1.2, which is the pale billow the turf chips are silhouetted against in
-  // bar/panel-leveler.png. Without it the chips are near-black on a near-black night
-  // field and the debris field is invisible however much of it there is.
-  dust: [0.235, 0.190, 0.148],
-  dustLit: [0.50, 0.34, 0.21],
-  smoke: [0.145, 0.120, 0.108],
-  groundPool: [0.62, 0.29, 0.10],
+  // sprite. 26 puffs of 0.29-0.73 m over a cloud about 0.9 m in radius is roughly three
+  // deep; at the DUST cell's soft alpha that is a stack of ~0.4-0.5 linear, which is the
+  // pale billow the turf chips are silhouetted against in bar/panel-leveler.png. Without
+  // it the chips are near-black on a near-black night field and the debris field is
+  // invisible however much of it there is — which is exactly what the first round-2
+  // capture showed at a third of these values.
+  dust: [0.46, 0.375, 0.292],
+  dustLit: [0.92, 0.63, 0.39],
+  smoke: [0.26, 0.216, 0.195],
+  groundPool: [0.78, 0.36, 0.13],
 };
 
 // Debris is UNLIT (see the note in quads.js on why): the shading lives in the sprite's
