@@ -65,7 +65,13 @@ export const COL = {
   starburst: [3.6, 2.5, 1.30],
   ringHot: [1.9, 0.85, 0.26],
   ringCool: [0.9, 0.55, 0.36],
-  sparkHot: [3.2, 1.90, 0.70],
+  // TURNED DOWN, MEASURED. Against panel-leveler.png the sparks-to-debris radiance ratio
+  // was 17:1 (3.2 linear against the clods' 0.185), so widening the debris field from 13%
+  // of frame width to 98% still produced a firework: the chips were spread correctly and
+  // then buried under a blown-out core. The bar's sparks are a low directional smear
+  // AROUND a dominant field of near-black turf, not a sun with grass in it. Halving the
+  // hot head of the population takes the ratio to ~8:1 and lets the debris read.
+  sparkHot: [1.55, 0.95, 0.36],
   sparkMid: [2.6, 0.95, 0.20],
   sparkCool: [1.5, 0.34, 0.06],
   ember: [1.9, 0.52, 0.10],

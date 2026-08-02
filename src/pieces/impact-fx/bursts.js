@@ -216,7 +216,7 @@ function clods(S, x, y, z, t0, p, n, rng, along, lift, vlo, vhi) {
     const s = 0.022 + q * q * q * 0.12;
     const c = CLOD_TINTS[hash(i, 3) % 4];
     emit(d, x, y, z, D[0] * v, D[1] * v, D[2] * v,
-      t0, 0.85 + rng() * 0.9, s, s * 0.9,
+      t0, 1.15 + rng() * 1.0, s, s * 0.9,
       c[0], c[1], c[2],
       CLOD_CELLS[hash(i, 11) % 4], MODE.BILLBOARD, DEBRIS_DRAG, DEBRIS_GRAV,
       rng(), (rng() - 0.5) * 26, 0, 0.55,

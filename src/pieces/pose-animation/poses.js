@@ -147,12 +147,18 @@ function stanceOffense(P, ph, c) {
  */
 function stanceDefense(P, ph, c) {
   const s = c.v[0] > 0 ? 1 : -1;
+  // THE WEIGHT SHIFT WAS DEAD CODE. `load` was computed here with this exact comment
+  // promising it, and then consumed by nothing -- so stance_defense was the ONLY id in the
+  // nineteen with zero response to phase, on all four archetypes. A defender waiting on the
+  // snap is the most COILED man on the field; a frozen one reads as furniture. Measured by
+  // hashing every bone transform across five phases: 1 distinct state before, 5 after.
   const load = 0.5 + 0.5 * Math.sin(ph * Math.PI * 2);   // subtle weight shift, cyclic
-  P.hips({ z: -0.10, pitch: 22, twist: s * 5, lean: s * 2 });
-  P.spine({ pitch: 16, twist: -s * 8, lean: -s * 3 });
-  P.look({ pitch: -30, twist: s * 5 });
-  P.leg(+1, { flex: 34 + (s > 0 ? 6 : 0), abd: 13, knee: 66, ankle: -22, toeOut: 12 });
-  P.leg(-1, { flex: 30 - (s > 0 ? 6 : 0), abd: 15, knee: 70, ankle: -26, toeOut: 14 });
+  const rock = (load - 0.5) * 2;                          // -1..1, the rock front-to-back
+  P.hips({ z: -0.10 - rock * 0.022, pitch: 22 + rock * 3.5, twist: s * 5, lean: s * 2 + rock * 1.5 });
+  P.spine({ pitch: 16 - rock * 2.5, twist: -s * 8, lean: -s * 3 });
+  P.look({ pitch: -30 + rock * 2, twist: s * 5 });
+  P.leg(+1, { flex: 34 + (s > 0 ? 6 : 0) + rock * 4, abd: 13, knee: 66 + rock * 5, ankle: -22 - rock * 3, toeOut: 12 });
+  P.leg(-1, { flex: 30 - (s > 0 ? 6 : 0) - rock * 4, abd: 15, knee: 70 - rock * 5, ankle: -26 + rock * 3, toeOut: 14 });
   P.arm(+1, { clavUp: -3, clavFwd: 12, upFlex: 30, upAbd: 26, foreFlex: 74, foreAbd: 22, handFlex: 86, handAbd: 14 });
   P.arm(-1, { clavUp: -3, clavFwd: 14, upFlex: 34, upAbd: 24, foreFlex: 80, foreAbd: 20, handFlex: 92, handAbd: 12 });
   P.groundTo(SOLE * P.gs);
