@@ -80,40 +80,57 @@ export const MODE = {
 //     lens bars: 13.6 m^2 of the 32.8, at a near-white [0.85,0.98,1.45].
 // Measured on the capture: dark-chip coverage 0.397% of frame against hot-pixel coverage
 // 3.249% — a chip:hot ratio of 0.12 where bar/panel-leveler.png measures 1.79 by the
-// same operator. The whole additive side is down below, the sizes are cut in bursts.js,
-// and the dust is brought UP because in the bar panel it is the lit dust cloud that the
-// dark chips are legible AGAINST.
+// same operator. The whole additive side is down below and the sizes are cut in bursts.js.
 //
-// AND IT TOOK TWO PASSES, because sprite AREA is not the same as HOT AREA. Cutting the
-// additive sprite area from 32.8 m^2 to 9.6 m^2 (a 3.4x cut) only moved measured hot
-// coverage from 3.249% to 1.698% — a 1.9x cut — because what survives is the bloom of the
-// flash CORE, and bloom is driven by radiance, not by quad size. So the second pass took
-// flashCore from 3.10 down through 2.30 to 1.35 and flashWarm from 2.20 through 1.45 to
-// 0.90, which is where a value stops clipping to white through the ACES curve.
+// AND IT TOOK FOUR CAPTURES, because sprite AREA is not HOT AREA and HOT AREA is not
+// BLOWN AREA:
+//   pass 1  additive sprite area 32.8 -> 9.6 m^2 (3.4x). Measured hot 3.249% -> 1.698%,
+//           only 1.9x, because what survives a size cut is the BLOOM of the flash core,
+//           and bloom is driven by radiance.
+//   pass 2  flashCore 2.30 -> 1.35, dust up 2x to give the chips something to read
+//           against. Hot 1.698% -> 1.604%, but pixels over 235/255 went 3.06% -> 5.30%
+//           inside a 2.66 x 2.44 m window on the contact: the DUST was now the blowout.
+//   pass 3  the numbers below. flashCore is 0.72 (from an original 3.10), flashWarm 0.46
+//           (from 2.20), dust back to 0.24, and the ground light pool carries the job the
+//           dust was doing — the chips are read against LIT TURF, which is a backdrop this
+//           piece does not have to pay for.
+//   pass 4  none of this was why the DEBRIS was invisible. That was a shader bug in
+//           quads.js: see the note on the attack ramp there. Read it before touching any
+//           number in this block, because three of the four passes above were spent
+//           tuning colour for a symptom whose cause was a discard.
+//
+// WHERE IT LANDED, whole `leveler` frame, same operator on both images:
+//                          bar panel      before        after
+//   dark-chip coverage       2.263%       0.397%       0.409%   (0.147 / 0.196 / 0.202 m^2)
+//   hot (>190, warm)         1.268%       3.249%       1.513%
+//   blown (>235/255)         0.785%       2.335%       1.137%
+// Restricted to a box on the burst itself, so the stadium lights and the gold callout
+// (0.62% of frame, unchanged, and present in the bar panel too) are excluded: the FX's own
+// hot went 2.378% -> 0.895% and its own blown 1.717% -> 0.520%.
 export const COL = {
-  flashCore: [1.35, 1.02, 0.58],
-  flashWarm: [0.90, 0.38, 0.12],
+  flashCore: [0.72, 0.52, 0.29],
+  flashWarm: [0.46, 0.20, 0.065],
   starburst: [3.6, 2.5, 1.30],
-  ringHot: [1.15, 0.52, 0.16],
+  ringHot: [0.80, 0.36, 0.11],
   ringCool: [0.9, 0.55, 0.36],
   // The spark population runs hot-white at the head to deep orange at the tail. sparkMid
   // was the brightest number in the whole file (2.6 in red) and it is the colour half the
   // population interpolates THROUGH, so it set the tone of the shower on its own.
-  sparkHot: [1.35, 0.82, 0.31],
-  sparkMid: [1.30, 0.50, 0.11],
-  sparkCool: [0.85, 0.20, 0.04],
-  ember: [1.25, 0.34, 0.07],
+  sparkHot: [1.05, 0.62, 0.23],
+  sparkMid: [0.95, 0.36, 0.08],
+  sparkCool: [0.62, 0.15, 0.03],
+  ember: [0.95, 0.26, 0.05],
   // DUST AND SMOKE ARE ADDITIVE AND THEY STACK, so budget for the STACK and not for the
   // sprite. 26 puffs of 0.29-0.73 m over a cloud about 0.9 m in radius is roughly three
-  // deep; at the DUST cell's soft alpha that is a stack of ~0.4-0.5 linear, which is the
-  // pale billow the turf chips are silhouetted against in bar/panel-leveler.png. Without
-  // it the chips are near-black on a near-black night field and the debris field is
-  // invisible however much of it there is — which is exactly what the first round-2
-  // capture showed at a third of these values.
-  dust: [0.46, 0.375, 0.292],
-  dustLit: [0.92, 0.63, 0.39],
-  smoke: [0.26, 0.216, 0.195],
-  groundPool: [0.78, 0.36, 0.13],
+  // deep, so the stack is ~3x these numbers. Doubling `dust` to 0.46 to make a pale billow
+  // for the chips to read against did make a billow — and it blew out: pixels over 235/255
+  // in a 2.66 m window on the contact went from 3.06% to 5.30% while the flash was being
+  // cut. Back to a haze, and the LIT TURF under the ground light pool does the silhouette
+  // job instead.
+  dust: [0.240, 0.195, 0.152],
+  dustLit: [0.44, 0.30, 0.185],
+  smoke: [0.135, 0.112, 0.101],
+  groundPool: [0.58, 0.27, 0.095],
 };
 
 // Debris is UNLIT (see the note in quads.js on why): the shading lives in the sprite's

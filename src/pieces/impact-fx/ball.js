@@ -43,7 +43,11 @@ function whiteMask(u, v) {
   // tip — ONE inch, not three — where the parabolic profile is only 0.27 R wide and a
   // stripe is a few pixels of nothing. Three inches from the point on this 0.336 m ball
   // is y = 0.455 L, which is v = acos(0.455)/pi = 0.350 (and 0.650), where the ball is
-  // 0.79 R wide and the stripe is the second thing you see after the laces.
+  // 0.79 R wide. Measured on iso_impact_ball after the move: both stripes are on screen
+  // and 766 px of the ball's 13,826 px interior read as white band, against 33 before.
+  // (The laces are a single meridian at u = 0.5 and are only visible for half a turn;
+  // the stripes are circumferential and are there at every rotation, which is why they
+  // are the thing to measure.)
   let m = sstep(0.318, 0.330, v) * sstep(0.384, 0.372, v);
   m = Math.max(m, sstep(0.682, 0.670, v) * sstep(0.616, 0.628, v));
   // The lace panel runs along one meridian. `du` wraps so the seam at u=0 is handled.

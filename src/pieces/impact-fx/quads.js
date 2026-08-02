@@ -130,9 +130,29 @@ void main() {
 
   float dist = length(mv.xyz);
   float fd = dist * uFogD;
-  // Fast attack, then a shaped decay. The attack is over 6% of the life so that even a
-  // 0.16 s flash has a real (10 ms) rise instead of popping on.
-  float rise = smoothstep(0.0, 0.06, u);
+  // Fast attack, then a shaped decay.
+  //
+  // THE ATTACK IS IN SECONDS, NOT IN A FRACTION OF LIFE, and getting that wrong made the
+  // entire debris field invisible in the hero frame for two rounds of "the debris is too
+  // small / too slow / too few". It used to be smoothstep(0.0, 0.06, u) — 6% of the
+  // particle's own life. The comment justified it as "a real 10 ms rise" for the 0.16 s
+  // flash, and for the flash it is: 6% of 0.16 s is 10 ms. But a turf clod lives 1.15-2.15
+  // s, so 6% of ITS life is 69-129 ms, and the leveler panel — the hero this piece is
+  // judged on — is captured at an age of 30 ms. (No backticks in this note: see the one
+  // in the atlas-cell comment below. This shader is a JS template literal and one stray
+  // backtick in a GLSL comment ends the string.)
+  //
+  // For the additive batch that only meant "dimmer than intended". For the DEBRIS batch it
+  // meant GONE: that material is an opaque cutout with uAlphaTest = 0.36 and uPremul = 0,
+  // and the fragment stage does  a = t.a * vFade; if (a <= uAlphaTest) discard;  At 30 ms
+  // the rise term was 0.40, so a clod texel needed a sprite alpha above 0.36/0.40 = 0.90 to
+  // survive at all. 200 clods were being emitted and all but the hardest core of each
+  // sprite was discarded before it reached the frame. iso_impact (age 0.09) was over the
+  // ramp and looked fine, which is exactly why this hid for so long.
+  //
+  // 10 ms of absolute time reproduces the old behaviour for the flash EXACTLY (its ramp
+  // was already 10 ms) and gives every other element the same honest attack.
+  float rise = smoothstep(0.0, 0.010, age);
   float fall = pow(1.0 - u, max(aOpt.w, 0.01));
   vFade = rise * fall * uGain * exp(-fd * fd * 0.85) * smoothstep(0.06, 0.55, dist);
 }`;

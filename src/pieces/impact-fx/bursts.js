@@ -105,15 +105,16 @@ function core(S, x, y, z, t0, p, opts) {
     // first correction. Projected into the `leveler` frame at 205 px/m the starburst
     // alone was a 1.52 m quad at 3.1 linear — a 311 px white disc before bloom, in a
     // frame whose entire debris field was only 380 px wide. In the bar panel the flash
-    // core is about two HELMETS across (0.26 m each) with spikes reaching three or four
-    // times that, and it sits behind the bodies rather than in front of them. At power
-    // 2.2 these numbers are a 0.49 m core growing to 0.80 m over its 0.17 s life.
+    // core is about one and a half HELMETS across (0.26 m each) with spikes reaching three
+    // or four times that, and it sits behind the bodies rather than in front of them. At
+    // power 2.2 these numbers are a 0.38 m core growing to 0.61 m over its 0.17 s life —
+    // 78 px at the hero camera, against the 311 px it was.
     emit(g, x, y, z, 0, 0, 0, t0, 0.125 * (0.7 + p * 0.15),
-      (0.20 + 0.13 * p) * flashS, (0.34 + 0.21 * p) * flashS,
+      (0.16 + 0.10 * p) * flashS, (0.26 + 0.16 * p) * flashS,
       COL.flashCore[0], COL.flashCore[1], COL.flashCore[2],
       CELL.STAR, MODE.BILLBOARD, 0, 0, 0.13, 0.9, 0, 2.6, PRIO_CORE);
     emit(g, x, y, z, 0, 0.35, 0, t0, 0.19,
-      (0.14 + 0.10 * p) * flashS, (0.32 + 0.23 * p) * flashS,
+      (0.11 + 0.075 * p) * flashS, (0.24 + 0.17 * p) * flashS,
       COL.flashWarm[0], COL.flashWarm[1], COL.flashWarm[2],
       CELL.GLOW, MODE.BILLBOARD, 2.0, 0, 0.41, 0, 0, 2.1, PRIO_CORE);
   }
@@ -300,14 +301,14 @@ function tufts(S, x, y, z, t0, p, n, rng, along, lift) {
  * [0.85,0.98,1.45], and a 0.095 s life put them at full size in the 30 ms frame the
  * `leveler` panel is captured at. 13.6 m^2 of the burst's 32.8 m^2 of additive sprite came
  * from here. A lens flare is a RESPONSE to a bright point, not the brightest thing in the
- * frame; sized to roughly three times the flash core and dimmed below it.
+ * frame; sized to roughly twice the flash core and dimmed well below it.
  */
 function lensBars(S, x, y, z, t0, p) {
   const g = S.glow;
   emit(g, x, y, z, 0, 0, 0, t0, 0.095, 0.42 * p, 0.72 * p,
-    0.52, 0.60, 0.88, CELL.BAR, MODE.BILLBOARD, 0, 0, 0.0, 0, 0, 2.4, 0.03);
+    0.30, 0.35, 0.52, CELL.BAR, MODE.BILLBOARD, 0, 0, 0.0, 0, 0, 2.4, 0.03);
   emit(g, x, y, z, 0, 0, 0, t0, 0.075, 0.27 * p, 0.45 * p,
-    0.66, 0.52, 0.38, CELL.BAR, MODE.BILLBOARD, 0, 0, 0.125, 0, 0, 2.4, 0.03);
+    0.40, 0.31, 0.23, CELL.BAR, MODE.BILLBOARD, 0, 0, 0.125, 0, 0, 2.4, 0.03);
 }
 
 /* ------------------------------------------------------------------ kinds */
@@ -324,6 +325,20 @@ function lensBars(S, x, y, z, t0, p) {
  * `flat` 0.78 -> 0.42, `lift` 0.10 -> 0.0 — 0.30 was a near-isotropic sphere sample, which
  * is exactly what "radially symmetric sunburst" means), and the debris count nearly
  * doubles while each chip gets a third of its old area.
+ *
+ * THE HONEST CAVEAT ON THAT RATIO. Ours ends at 0.409% against 1.513%, not at the panel's
+ * 1.79 to 1, and the arithmetic will not get there in this frame: the panel is a 2.66 m
+ * crop and this camera sees 9.38 m, so the same physical debris field is twelve times
+ * smaller as a FRACTION of frame area. In metres the field is now 0.202 m^2 of chip
+ * against the panel's 0.147 m^2 — MORE torn ground than the reference, in a wider shot —
+ * and the fire is down to 0.895% of frame from 2.378% once the stadium lights and the gold
+ * callout (0.62%, not this piece's) are excluded. That is the comparison that means
+ * something; frame fractions across different focal lengths are not.
+ *
+ * The ground clods' `lift` also comes down (1.45 -> 1.05). It is not a physics number, it
+ * is a legibility one: a near-black chip has no contrast against a night stadium, and the
+ * one bright backdrop in this frame that costs nothing is the TURF under the ground light
+ * pool. Keeping the bulk of the field below the horizon line puts the chips in front of it.
  */
 function hit(S, x, y, z, t0, p, rng) {
   core(S, x, y, z, t0, p, null);
@@ -341,8 +356,8 @@ function hit(S, x, y, z, t0, p, rng) {
   // field that was visibly undisturbed. bar/panel-leveler.png has the ground ERUPTING
   // under the collision, so most of the debris is launched from just above the surface
   // directly beneath the contact, and only the rest comes off the bodies themselves.
-  clods(S, x, 0.10, z, t0, p, Math.round(45 * p), rng, 0.20, 1.45, 4, 15);
-  tufts(S, x, 0.08, z, t0, p, Math.round(17 * p), rng, 0.18, 1.35);
+  clods(S, x, 0.10, z, t0, p, Math.round(45 * p), rng, 0.20, 1.05, 4, 15);
+  tufts(S, x, 0.08, z, t0, p, Math.round(17 * p), rng, 0.18, 1.00);
   clods(S, x, Math.min(y, 1.3), z, t0, p, Math.round(21 * p), rng, 0.45, 0.55, 3, 11);
   tufts(S, x, Math.min(y, 1.1), z, t0, p, Math.round(8 * p), rng, 0.40, 0.55);
 }
