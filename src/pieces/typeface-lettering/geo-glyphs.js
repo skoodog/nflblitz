@@ -72,7 +72,22 @@ export const GEO = {
     V(85, 0, 700), V(325, 0, 700), D(85, 690, 205, 250, 0, 0, 0.92), D(325, 690, 205, 250, 0, 0, 0.92),
   ] },
   N: { adv: 420, s: [V(LS, 0, 700), V(RS, 0, 700), D(LS, 690, RS, 10, 0, 0, 0.95)] },
-  O: { adv: 420, s: [V(LS, 120, 580), V(RS, 120, 580), HB(TOP, LS, RS), HB(BOT, LS, RS)] },
+  // O IS WHY THE D FAILED. Re-cutting D alone moved its pixel agreement with O from 95.3%
+  // to only 94.0% -- against a 89.6% reference for two letters that genuinely differ --
+  // because O was a perfect RECTANGLE, so there was nothing on its left side for a D's flat
+  // stem to differ FROM. At an 11 x 25 px glyph the two right-hand chamfers D gained are
+  // barely two pixels; the left half of both letters stayed identical.
+  //
+  // So O gets its corners cut. That is not a liberty with a face described as "condensed
+  // squarish": squarish is not square, and a cut corner is how a stencil face of this era
+  // says round without a curve. D keeps square corners on its stem side, O has none, and
+  // the pair now differ along their whole left edge rather than in one row of ink.
+  O: { adv: 420, s: [
+    V(LS, 190, 510, E, E), V(RS, 190, 510, E, E),
+    H(TOP, 158, 217, E, E), H(BOT, 158, 217, E, E),
+    D(LS, 510, 158, TOP, E, E), D(217, TOP, RS, 510, E, E),
+    D(LS, 190, 158, BOT, E, E), D(217, BOT, RS, 190, E, E),
+  ] },
   P: { adv: 400, s: [V(LS, 0, 700), HB(TOP, LS, 240), HB(MID, LS, 240), V(240, 470, TOP, E, E)] },
   Q: { adv: 432, s: [
     V(LS, 120, 580), V(RS, 120, 580), HB(TOP, LS, RS), HB(BOT, LS, RS),

@@ -523,6 +523,37 @@ const ADAPT_PREDICATES = {
     return simSig(two) === sigAt15 ? null : 'two seeks to the same time disagree';
   },
 
+  // THE BALL MUST POINT WHERE IT IS GOING. A football is a prolate spheroid whose long
+  // axis is Z; sending an identity quaternion pinned that axis across the field, so every
+  // pass thrown downfield was viewed end-on and rendered as a flat orange DISC. It shipped
+  // that way through every capture in this project and was mistaken twice for a defect in
+  // the ball geometry, which is in fact a correct lathe with pointed ends and laces.
+  ballNose(A) {
+    let checked = 0, offAxis = 0, nonUnit = 0;
+    for (let seed = 1; seed <= 40; seed++) {
+      const st = A.create(seed, {});
+      for (let k = 1; k <= 14; k++) {
+        A.seekTo(st, k * 0.22);
+        const snap = A.snapshot(st);
+        if (!st.ball) continue;
+        checked++;
+        const q = snap.ball.rotQ;
+        if (Math.abs(Math.hypot(q[0], q[1], q[2], q[3]) - 1) > 1e-6) nonUnit++;
+        // The long axis is +Z carried through the quaternion.
+        const [x, y, z, w] = q;
+        const ax = 2 * (x * z + w * y), ay = 2 * (y * z - w * x), az = 1 - 2 * (x * x + y * y);
+        const b = st.ball;
+        const dx = -(b.ty - b.y), dz = b.tx - b.x;
+        const dl = Math.hypot(dx, dz) || 1;
+        const align = (ax * dx / dl + az * dz / dl) / (Math.hypot(ax, ay, az) || 1);
+        if (align < 0.55) offAxis++;
+      }
+    }
+    if (checked < 30) return `only ${checked} in-flight samples`;
+    if (nonUnit) return `${nonUnit}/${checked} quaternions are not unit length`;
+    return offAxis === 0 ? null : `${offAxis}/${checked} frames have the nose off the flight line`;
+  },
+
   // The ball is where the man holding it is, or in the air on its own arc -- never adrift.
   ball(A) {
     let held = 0, air = 0, checked = 0;
@@ -708,6 +739,13 @@ const MUTATIONS = [
     name: 'adapter: the ball is not attached to the man carrying it',
     edits: [["      ball = { pos: [-carrier.y - 0.3, 1.42, carrier.x + 0.35], held: `o_${carrier.slot.toLowerCase()}` };",
       "      ball = { pos: [0, 1.42, 0], held: `o_${carrier.slot.toLowerCase()}` };"]],
+  },
+  {
+    target: 'adapt',
+    name: 'adapter: the ball never turns to face its flight path',
+    was: 'the football rendered as a flat orange disc in every capture in the project',
+    edits: [['        quat: ballQuat(-(b.ty - b.y), slope * (b.len || 1), b.tx - b.x, b.travelled * BALL_SPIRAL),',
+      '        quat: [0, 0, 0, 1],']],
   },
 ];
 

@@ -33,6 +33,9 @@ const ARCHETYPE = {
 
 const CLUBS = Object.keys(PLAYERS.byTeam);
 
+/** Radians of spiral per yard of flight. A thrown ball turns about its long axis. */
+const BALL_SPIRAL = 2.6;
+
 function poseFor(state, m) {
   if (m.side === 'OFF') {
     if (m.slot === state.carrier) {
@@ -60,6 +63,45 @@ function toActor(state, m, team, variant) {
     airborne: false,
     phase: 0,
   };
+}
+
+
+/**
+ * Quaternion that points the ball's LONG AXIS along `dir` and spirals it about that axis.
+ *
+ * THE BALL WAS A FLAT DISC and it was this file's fault. impact-fx lathes a real prolate
+ * football with pointed ends, laces and stripes, and its long axis is Z because that is
+ * the axis world.js spins it about. This adapter sent `rotQ: [0,0,0,1]` on every frame --
+ * identity -- so the long axis stayed pinned to world +Z, which runs ACROSS the field. A
+ * pass thrown downfield was therefore viewed exactly END-ON, and a prolate spheroid seen
+ * end-on is a circle. Every captured frame in this project shows the ball as an orange
+ * disc for that reason, mine included, and I blamed the ball geometry for it twice.
+ *
+ * Done with plain arithmetic rather than three.js on purpose: this module has to stay
+ * importable by plain node so the mutation battery can load it.
+ *
+ *   aim  = shortest rotation taking +Z onto dir      -> [cross(z,d), 1 + dot(z,d)], normalised
+ *   roll = rotation about dir by `roll` radians      -> [d*sin(r/2), cos(r/2)]
+ *   out  = roll * aim
+ */
+function ballQuat(dx, dy, dz, roll) {
+  const L = Math.hypot(dx, dy, dz);
+  if (L < 1e-9) return [0, 0, 0, 1];
+  const bx = dx / L, by = dy / L, bz = dz / L;
+  // cross((0,0,1), b) and 1 + dot((0,0,1), b)
+  let qx = -by, qy = bx, qz = 0, qw = 1 + bz;
+  if (qw < 1e-6) { qx = 1; qy = 0; qz = 0; qw = 0; }   // exactly antiparallel: spin about X
+  const n = Math.hypot(qx, qy, qz, qw);
+  qx /= n; qy /= n; qz /= n; qw /= n;
+  const h = roll * 0.5, sr = Math.sin(h), cr = Math.cos(h);
+  const rx = bx * sr, ry = by * sr, rz = bz * sr, rw = cr;
+  // Hamilton product: roll * aim
+  return [
+    rw * qx + rx * qw + ry * qz - rz * qy,
+    rw * qy - rx * qz + ry * qw + rz * qx,
+    rw * qz + rx * qy - ry * qx + rz * qw,
+    rw * qw - rx * qx - ry * qy - rz * qz,
+  ];
 }
 
 const impl = {
@@ -149,18 +191,33 @@ const impl = {
       const b = state.ball;
       const u = b.len <= 0 ? 1 : Math.min(1, b.travelled / b.len);
       const x = b.x + (b.tx - b.x) * u, y = b.y + (b.ty - b.y) * u;
-      ball = { pos: [-y, 1.4 + Math.sin(u * Math.PI) * (0.9 + b.len * 0.06), x], held: null };
+      const amp = 0.9 + b.len * 0.06;
+      // The nose follows the tangent of the flight path, arc included: the horizontal part
+      // is the straight line from release to arrival, the vertical part is the derivative
+      // of that arc, so the ball noses UP out of the hand and DOWN into the receiver.
+      const slope = b.len <= 0 ? 0 : Math.cos(u * Math.PI) * Math.PI * amp / b.len;
+      ball = {
+        pos: [-y, 1.4 + Math.sin(u * Math.PI) * amp, x],
+        held: null,
+        quat: ballQuat(-(b.ty - b.y), slope * (b.len || 1), b.tx - b.x, b.travelled * BALL_SPIRAL),
+      };
     } else if (carrier) {
-      ball = { pos: [-carrier.y - 0.3, 1.42, carrier.x + 0.35], held: `o_${carrier.slot.toLowerCase()}` };
+      // Tucked: the long axis follows the man's own heading rather than the world axis.
+      const hx = -(carrier.y - carrier.py), hz = carrier.x - carrier.px;
+      ball = {
+        pos: [-carrier.y - 0.3, 1.42, carrier.x + 0.35],
+        held: `o_${carrier.slot.toLowerCase()}`,
+        quat: ballQuat(hx, 0, hz || 1e-6, 0),
+      };
     } else {
-      ball = { pos: [0, 1.42, 0], held: null };
+      ball = { pos: [0, 1.42, 0], held: null, quat: [0, 0, 0, 1] };
     }
 
     const h = state.hudSeed || {};
     return {
       actors,
       ball: {
-        pos: ball.pos, rotQ: [0, 0, 0, 1],
+        pos: ball.pos, rotQ: ball.quat,
         flame: ball.held ? 0.9 : 0.35, visible: true, spin: ball.held ? 0 : 4,
       },
       hud: {
