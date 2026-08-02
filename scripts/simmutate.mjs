@@ -105,7 +105,11 @@ async function loadFlow(which, edits) {
     let src = fs.readFileSync(GF(n), 'utf8')
       .replace(/from '\.\.\/\.\.\/foundation\/rng\.js'/g,
         `from ${JSON.stringify(pathToFileURL(path.join(ROOT, 'src/foundation/rng.js')).href)}`)
-      .replace(/from '\.\/(rules|kick|pad|coach)\.js'/g, (m, g) => `from './${g}.js'`);
+      .replace(/from '\.\/(rules|kick|pad|coach)\.js'/g, (m, g) => `from './${g}.js'`)
+      // pad.js reaches sideways into another piece for its touch-parity table; the copies
+      // live in a temp tree, so that one has to be re-pointed at the real file too.
+      .replace(/from '\.\.\/([a-z-]+)\/([a-z-]+)\.js'/g,
+        (m, piece, mod) => `from ${JSON.stringify(pathToFileURL(path.join(ROOT, `src/pieces/${piece}/${mod}.js`)).href)}`);
     if (which === n) src = applyEdits(src, edits, n);
     fs.writeFileSync(path.join(dir, `${n}.js`), src);
     at[n] = path.join(dir, `${n}.js`);
@@ -215,6 +219,47 @@ const FLOW_PREDICATES = {
     if (!(r3 > r1 + 0.04)) return `pressure flat by down: 1st ${(r1 * 100).toFixed(0)}% 3rd ${(r3 * 100).toFixed(0)}%`;
     if (Object.keys(kinds).length < 3) return `offence only calls ${Object.keys(kinds).join('/')}`;
     if ((kinds.run || 0) / plays < 0.05) return `it never runs the ball (${kinds.run || 0}/${plays})`;
+    return null;
+  },
+
+  // THE BALL HAS TO MOVE AND POINTS HAVE TO BE SCORED. `rulesHold` only checked that the
+  // state stayed inside legal bounds, which a game where every play gains exactly zero
+  // satisfies perfectly -- that mutation survived the first run. A game of football is not
+  // just a legal game state.
+  gameProgresses(F) {
+    let scored = 0, moved = 0, games = 0;
+    for (const seed of [7, 31, 77]) {
+      const st = F.create({ seed });
+      let t = 0, guard = 0, spots = new Set(), gains = 0;
+      while (!st.game.over && guard++ < 300000) {
+        F.step(st, t++);
+        spots.add(st.game.ballOn);
+        if (st.state === F.STATE.RESULT && st.lastGain > 0) gains++;
+      }
+      games++;
+      if (st.game.score[0] + st.game.score[1] > 0) scored++;
+      if (spots.size > 12 && gains > 20) moved++;
+    }
+    if (scored < games) return 'a whole game finished without a single point';
+    if (moved < games) return 'the ball never really moved';
+    return null;
+  },
+
+  // FOUR DOWNS. A series that does not convert must turn the ball over on the fourth, and
+  // nothing in the suite could see that number change.
+  fourDowns(F) {
+    let maxDown = 0, sawFourth = 0;
+    for (const seed of [5, 41]) {
+      const st = F.create({ seed });
+      let t = 0, guard = 0;
+      while (!st.game.over && guard++ < 300000) {
+        F.step(st, t++);
+        if (st.game.down > maxDown) maxDown = st.game.down;
+        if (st.game.down === 4) sawFourth++;
+      }
+    }
+    if (maxDown !== 4) return `the down counter reached ${maxDown}, not 4`;
+    if (!sawFourth) return 'no fourth down ever happened';
     return null;
   },
 
@@ -906,7 +951,10 @@ const MUTATIONS = [
     target: 'flow', file: 'flow',
     name: 'flow: an expensive rung change commits mid-play',
     was: 'the one contract the flow slot exists for -- a commit mid-play is a visible stall',
-    edits: [['  enterPlay(st, tick) {\n    impl.go(st, STATE.PLAY, tick);', '  enterPlay(st, tick) {\n    impl.go(st, STATE.PLAY, tick);\n    if (st.tick % 7 === 0) { st.commits++; }']],
+    // The first version of this mutation incremented commits INSIDE enterPlay -- which is
+    // the boundary, so it tested nothing and survived. It has to commit while the down is
+    // actually running.
+    edits: [['      case STATE.PLAY: {', '      case STATE.PLAY: {\n        if (st.pendingRung >= 0) { st.committedRung = st.pendingRung; st.pendingRung = -1; st.commits++; }']],
   },
   {
     target: 'flow', file: 'flow',
@@ -935,8 +983,8 @@ const MUTATIONS = [
     edits: [["      w *= s.shortYardage ? 2.6 : 0.55;", "      w *= 0.0001;"]],
   },
   {
-    target: 'flow', file: 'rules',
-    name: 'rules: a touchdown is worth the wrong points',
+    target: 'flow', file: 'kick',
+    name: 'kick: a touchdown is worth the wrong points',
     edits: [['  TOUCHDOWN: 6,', '  TOUCHDOWN: 5,']],
   },
   {

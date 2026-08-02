@@ -11,6 +11,9 @@
 //   events[]     the simulation's OWN event log — throw, catch, tackle, sack, fumble,
 //                scramble, broken-tackle, interception, incomplete, throwaway — with the
 //                tick each one fired on
+//   result       WHICH way the down ended ('tackled', 'sack', 'touchdown', 'out-of-bounds',
+//                ...), and `endedAt`, the second it ended. A touchdown is a result and not
+//                an event, so without this the camera cannot see a score.
 //
 // WHY IT RE-RUNS THE SIM INSTEAD OF READING THE SHOT. foundation/scenes.js resolves a
 // live spec by running the sim to exactly params.t and freezing the result into the
@@ -37,10 +40,23 @@ export const TRACK_DT = 1 / TRACK_HZ;
 const TRACK_MAX_S = 11.0;
 const TRAIL_S = 1.4;          // keep sampling this long after the whistle
 
-/** Beats the editor is allowed to cut on, and how hard each one hits the camera. */
+/**
+ * Beats the editor is allowed to cut on, and how hard each one hits the camera.
+ *
+ * TWO OF THE SIX RECIPES USED TO BE DEAD CODE IN THE LIVE PATH, and both entries below are
+ * the fix. `catch` mapped to `pursuit`, so the money shot of the bar sheet —
+ * bar/panel-catch.png, a receiver at full extension — was framed as a trailing wide from
+ * behind, and the `catch` recipe (35 deg, f/1.9, aimed at the ball rather than the helmet)
+ * never fired on a live down at all. `six` was worse: play-sim emits no `touchdown` EVENT
+ * because a touchdown is a RESULT, and build() below read `snap.result` only to decide when
+ * to stop sampling — it threw away WHICH result, so the camera could not tell six points
+ * from a man stepping out of bounds. The result is now carried on the track and a score
+ * synthesises the beat the event log does not contain.
+ */
 export const BEAT = {
   throw: { shot: 'deep', delay: 0.00, power: 0.0 },
-  catch: { shot: 'pursuit', delay: 0.30, power: 0.30 },
+  catch: { shot: 'catch', delay: 0.10, power: 0.30, hold: 0.85 },
+  touchdown: { shot: 'six', delay: 0.00, power: 0.60 },
   interception: { shot: 'pursuit', delay: 0.34, power: 0.45 },
   incomplete: { shot: 'pursuit', delay: 0.20, power: 0.20 },
   throwaway: { shot: 'pursuit', delay: 0.20, power: 0.15 },
@@ -79,6 +95,7 @@ function build(seed) {
   let n = 0;
   let events = [];
   let endedAt = -1;
+  let result = 'live';
 
   for (let k = 0; k < nMax; k++) {
     const t = k * TRACK_DT;
@@ -117,8 +134,14 @@ function build(seed) {
     // so every cut after 1.4 s silently never happened. Found by running the editor
     // against the real sim in plain node rather than by looking at a frame, which is the
     // only way a 1.4 s track and an 11 s track look different.
+    //
+    // AND WHICH RESULT IT WAS MATTERS AS MUCH AS THAT IT ENDED. This test used to discard
+    // `snap.result` the instant it had answered "is the play over", which is why the `six`
+    // recipe was unreachable: a touchdown is a RESULT in play-sim (RESULT_NAME[5]) and
+    // never an entry in the event log, so an editor that only reads events cannot see a
+    // score at all. It is kept, and the FIRST tick it appears on is the beat time.
     if (snap.result && String(snap.result).toLowerCase() !== 'live') {
-      if (endedAt < 0) endedAt = t;
+      if (endedAt < 0) { endedAt = t; result = String(snap.result).toLowerCase(); }
       // Keep rolling a little past the whistle so the impact shot has somewhere to settle.
       if (t - endedAt > TRAIL_S) break;
     }
@@ -135,6 +158,15 @@ function build(seed) {
     const t = e.t !== undefined ? e.t : (e.tick !== undefined ? e.tick / 60 : 0);
     beats.push({ kind: e.kind, t, shot: spec.shot, at: t + spec.delay, power: spec.power, hold: spec.hold || 0 });
   }
+
+  // THE SYNTHETIC SCORE BEAT. There is no `touchdown` event to read, so one is made from
+  // the result and the tick it first showed up on. It is the only beat in this file that is
+  // not verbatim out of the simulation's own log, and it is here rather than in director.js
+  // because "what happened" is the track's job and "when do we cut" is the editor's.
+  if (result === 'touchdown' && endedAt >= 0) {
+    const spec = BEAT.touchdown;
+    beats.push({ kind: 'touchdown', t: endedAt, shot: spec.shot, at: endedAt + spec.delay, power: spec.power, hold: 0 });
+  }
   beats.sort((a, b) => a.at - b.at);
 
   // LINE OF SCRIMMAGE, taken from where the ball actually starts. The offence attacks
@@ -145,7 +177,8 @@ function build(seed) {
   const los = ball[0];
 
   return {
-    seed, n, ball, carry, vel, beats, los,
+    seed, n, ball, carry, vel, beats, los, result,
+    endedAt: endedAt < 0 ? -1 : endedAt,
     endT: (n - 1) * TRACK_DT,
   };
 }

@@ -10,14 +10,27 @@
 // broken tackle from a leveller inside the 'hit' family.
 //
 // EMISSION COUNTS AT power = 2.2 (the `leveler` hero shot), counted by instrumenting
-// emit() and running the recipe under plain node:
-//     hit    161 glow +  84 debris = 245 quads   (490 triangles)
-//     truck   77 glow + 111 debris = 188
-//     catch   61 glow +  29 debris =  90
-//     cleat   12 glow +  75 debris =  87
-// The glow pool holds 1100 and the debris pool 760, so six concurrent maximum-power hits
-// fit before the ring buffer starts eating its own tail — and a hit is only 0.9 s long,
-// so six at once is already an unreasonable amount of football.
+// emit() and running the recipe under plain node. The previous version of this table was
+// wrong for all four kinds and its derived headroom figures were wrong too; both columns
+// below are re-counted, and the harness is a fake batch object with the same fields emit()
+// writes, so `head` after one emitBurst IS the quad count.
+//
+//                         BEFORE round 2      AFTER round 2     the table used to claim
+//     hit     glow            174                  91                   161
+//             debris          110                 200                    84
+//     truck   glow             82                  53                    77
+//             debris          130                 224                   111
+//     catch   glow             65                  42                    61
+//             debris           33                  61                    29
+//     cleat   glow             14                  14                    12
+//             debris           81                 138                    75
+//
+// The glow pool holds 1100 and the debris pool 760, so a power-2.2 hit fits 12.0 times
+// over in the glow pool and 3.8 times in the debris pool before the ring buffer starts
+// eating its own tail. At the clamp (power 3) it is 8.8 and 2.8. The old note claimed
+// "six concurrent maximum-power hits"; at the counts it was written against the true
+// figures were 6.3 and 6.9, and after round 2 the debris pool is deliberately the tight
+// one — see the note on POOL_DEBRIS in config.js.
 
 import { makeRng, hash } from '../../foundation/rng.js';
 import { emit } from './quads.js';
@@ -86,30 +99,31 @@ function core(S, x, y, z, t0, p, opts) {
   const flashS = o.flash === undefined ? 1 : o.flash;
   if (flashS > 0) {
     // The instant of contact: a starburst that lives 0.17 s and a warm core behind it.
-    // SIZES ARE QUAD DIAMETERS IN METRES and the first pass got them badly wrong — a
-    // 5 m starburst and an 8 m shockwave, which at the hero shots' 7-9 m camera distance
-    // filled the frame with orange and buried the actors. Halved after looking at the
-    // first capture: in bar/panel-leveler.png the flash core is roughly one player's
-    // shoulder width across, with thin spikes reaching maybe three times that.
+    // SIZES ARE QUAD DIAMETERS IN METRES, and they were still 2.4x too big after the
+    // first correction. Projected into the `leveler` frame at 205 px/m the starburst
+    // alone was a 1.52 m quad at 3.1 linear — a 311 px white disc before bloom, in a
+    // frame whose entire debris field was only 380 px wide. In the bar panel the flash
+    // core is about one HELMET across (0.26 m) with spikes reaching three or four times
+    // that, and it sits behind the bodies rather than in front of them.
     emit(g, x, y, z, 0, 0, 0, t0, 0.125 * (0.7 + p * 0.15),
-      (0.60 + 0.42 * p) * flashS, (1.00 + 0.62 * p) * flashS,
+      (0.24 + 0.17 * p) * flashS, (0.40 + 0.26 * p) * flashS,
       COL.flashCore[0], COL.flashCore[1], COL.flashCore[2],
       CELL.STAR, MODE.BILLBOARD, 0, 0, 0.13, 0.9, 0, 2.6, PRIO_CORE);
     emit(g, x, y, z, 0, 0.35, 0, t0, 0.19,
-      (0.30 + 0.20 * p) * flashS, (0.70 + 0.50 * p) * flashS,
+      (0.14 + 0.10 * p) * flashS, (0.32 + 0.23 * p) * flashS,
       COL.flashWarm[0], COL.flashWarm[1], COL.flashWarm[2],
       CELL.GLOW, MODE.BILLBOARD, 2.0, 0, 0.41, 0, 0, 2.1, PRIO_CORE);
   }
   // A pool of warm light thrown down onto the turf, and the ground shockwave riding it.
   // Without the pool the flash floats; with it, the hit is attached to the field.
   emit(g, x, 0.012, z, 0, 0, 0, t0, 0.30,
-    0.9 * p, 3.2 * p,
+    0.55 * p, 1.9 * p,
     COL.groundPool[0], COL.groundPool[1], COL.groundPool[2],
     CELL.GLOW, MODE.GROUND, 0, 0, 0, 0, 0, 1.9, PRIO_CORE);
   // The RING sprite's bright annulus sits at 0.82 of the quad radius, so the visible
-  // shockwave diameter is 0.82 * this number: 4.0 m at power 2.2.
+  // shockwave diameter is 0.82 * this number: 2.9 m at power 2.2.
   emit(g, x, 0.014, z, 0, 0, 0, t0, 0.40,
-    0.5, (o.ring === undefined ? 2.2 : o.ring) * p,
+    0.4, (o.ring === undefined ? 1.6 : o.ring) * p,
     COL.ringHot[0], COL.ringHot[1], COL.ringHot[2],
     CELL.RING, MODE.GROUND, 0, 0, 0, 0, 0, 1.45, PRIO_CORE);
 }
@@ -124,17 +138,19 @@ function sparks(S, x, y, z, t0, p, n, rng, along, flat, lift, vlo, vhi) {
     // spark shower is not one colour.
     lerp3(CTMP, heat < 0.5 ? COL.sparkHot : COL.sparkMid, heat < 0.5 ? COL.sparkMid : COL.sparkCool,
       heat < 0.5 ? heat * 2 : (heat - 0.5) * 2);
-    const s = 0.042 + rng() * 0.055;
-    // STRETCH is the sprite length multiplier per m/s of current speed, and 0.05 was far
-    // too timid: at 18 m/s (a spark 85 ms after a power-2.2 hit) it gave a 15 cm dash,
-    // ~24 px at the hero camera distance. In bar/panel-leveler.png the spark trails are
-    // nearer an eighth of the frame width. 0.15-0.25 puts them at 30-45 cm before the
-    // shutter's own motion blur (which at 1/55 s adds another ~30 cm) is applied.
+    const s = 0.030 + rng() * 0.038;
+    // STRETCH is the sprite length multiplier per m/s of CURRENT speed, and it is a
+    // multiplier, which is why 0.15-0.25 turned into needles. At the `leveler` age of
+    // 30 ms a power-2.2 spark is still doing 29 m/s, so 0.25 made the sprite 1 + 7.25 =
+    // 8.25x its own length: a 0.097 m sprite drawn 0.80 m long, 164 px, and then the
+    // 1/55 s shutter smeared another 0.53 m on top of that. Ninety-seven of those
+    // radiating from one point IS the firework the critic saw. 0.045-0.080 puts the
+    // drawn streak at 0.10-0.19 m and lets the shutter do the rest.
     emit(g, x, y, z, D[0] * v, D[1] * v, D[2] * v,
       t0, 0.26 + rng() * 0.38, s, s * 0.35,
       CTMP[0], CTMP[1], CTMP[2],
       CELL.SPARK, MODE.STREAK, SPARK_DRAG, SPARK_GRAV,
-      rng(), 0, 0.150 + rng() * 0.100, 1.35,
+      rng(), 0, 0.045 + rng() * 0.035, 1.35,
       0.05 + (i / n) * 0.55);
   }
 }
@@ -158,11 +174,17 @@ function dust(S, x, y, z, t0, p, n, rng, lift) {
   for (let i = 0; i < n; i++) {
     dirIn(rng, 0.15, 0.7, lift);
     const v = 1.6 + rng() * 4.2 * p;
-    const s0 = 0.30 + rng() * 0.45;
+    // SMALLER PUFFS, MORE OF THEM. At (0.30 + rng*0.45) * p a single puff was up to
+    // 1.65 m across — one sprite covering a third of the frame height, which reads as a
+    // flat wash rather than as a billow, and thirteen of them stacked into the white core
+    // rather than into a cloud with structure. The dust is doing real work now (the turf
+    // chips are legible against it and not against the night sky) so it has to have
+    // texture: 31 puffs of 0.29-0.73 m instead of 13 of 0.66-1.65 m.
+    const s0 = 0.13 + rng() * 0.20;
     // Dust nearest the flash is lit by it; dust further out is not.
     lerp3(CTMP, COL.dustLit, COL.dust, i / Math.max(1, n - 1));
     emit(g, x, y + 0.05, z, D[0] * v, D[1] * v, D[2] * v,
-      t0, 0.55 + rng() * 0.7, s0 * p, (0.85 + rng() * 0.95) * p,
+      t0, 0.55 + rng() * 0.7, s0 * p, (0.36 + rng() * 0.42) * p,
       CTMP[0], CTMP[1], CTMP[2],
       CELL.DUST, MODE.BILLBOARD, DUST_DRAG, DUST_GRAV,
       rng(), (rng() - 0.5) * 1.2, 0, 1.3,
@@ -176,7 +198,7 @@ function smoke(S, x, y, z, t0, p, n, rng) {
     dirIn(rng, 0.1, 0.6, 0.8);
     const v = 1.0 + rng() * 2.6;
     emit(g, x, y + 0.12, z, D[0] * v, D[1] * v, D[2] * v,
-      t0, 0.9 + rng() * 0.8, (0.4 + rng() * 0.4) * p, (1.05 + rng() * 0.95) * p,
+      t0, 0.9 + rng() * 0.8, (0.22 + rng() * 0.22) * p, (0.55 + rng() * 0.50) * p,
       COL.smoke[0], COL.smoke[1], COL.smoke[2],
       rng() < 0.45 ? CELL.WISP : CELL.SMOKE, MODE.BILLBOARD, 2.4, -0.7,
       rng(), (rng() - 0.5) * 0.8, 0, 1.5,
@@ -207,13 +229,18 @@ function clods(S, x, y, z, t0, p, n, rng, along, lift, vlo, vhi) {
     // clods launched at 5.7-21 m/s against drag 4.5 have gone 0.16-0.60 m and no further.
     // config.js already records that spark v0 was raised for exactly this reason and that
     // the same correction was never applied to the debris. This is that correction.
-    const v = (vlo + rng() * (vhi - vlo)) * (0.65 + 0.35 * p) * 3.4;
+    // 2.4, not 3.4. The 3.4 that got the field out of a 25 cm ball overshot: measured off
+    // the `leveler` capture the clods reached 1.52 m from contact at 30 ms, a 3.0 m ball,
+    // where the bar panel's chip field is 2.0-2.5 m wide when scaled off the defender's
+    // helmet (40 px = 0.26 m, 154 px/m). 2.4 lands the leading edge at 1.07 m.
+    const v = (vlo + rng() * (vhi - vlo)) * (0.65 + 0.35 * p) * 2.4;
     const q = rng();
-    // AND IT HAS TO BE TURF, NOT BOULDERS. Measured p50 0.109 m / p90 0.364 m / max 0.460 m
-    // against a bar whose typical chip is 0.03-0.07 m and whose largest slab is ~0.14 m --
-    // three times too big, which is the other half of why the debris read as a smudge
-    // rather than as a field: a few big soft billboards instead of many small hard ones.
-    const s = 0.022 + q * q * q * 0.12;
+    // AND IT HAS TO BE TURF, NOT BOULDERS. Measured against panel-leveler.png with the
+    // same top-hat operator used on our own captures: the bar's chips have a MEDIAN
+    // diameter of 0.019 m and 264 of them are separable in a 2.66 x 2.44 m frame. Ours
+    // measured p50 0.061 m over 110 quads. The cube keeps a few real slabs (max 0.104 m)
+    // and puts everything else in the 0.02-0.04 m grit band the panel is actually made of.
+    const s = 0.016 + q * q * q * 0.088;
     const c = CLOD_TINTS[hash(i, 3) % 4];
     emit(d, x, y, z, D[0] * v, D[1] * v, D[2] * v,
       t0, 1.15 + rng() * 1.0, s, s * 0.9,
@@ -228,8 +255,11 @@ function tufts(S, x, y, z, t0, p, n, rng, along, lift) {
   const d = S.debris;
   for (let i = 0; i < n; i++) {
     dirIn(rng, along, 0.9, lift);
-    const v = (3 + rng() * 9) * (0.65 + 0.35 * p);
-    const s = 0.045 + rng() * 0.10;
+    const v = (3 + rng() * 9) * (0.65 + 0.35 * p) * 1.9;
+    // Tufts were the LARGEST debris in the frame after the clods were cut (p50 0.095 m
+    // against the clods' 0.037 m), which is backwards — a severed clump of grass is
+    // smaller than a torn clod of sod, not twice the size.
+    const s = 0.022 + rng() * 0.050;
     const sod = rng() < 0.32;
     const c = sod ? DIRT.sod : DIRT.grass;
     emit(d, x, y, z, D[0] * v, D[1] * v, D[2] * v,
@@ -241,42 +271,59 @@ function tufts(S, x, y, z, t0, p, n, rng, along, lift) {
   }
 }
 
-/** Anamorphic lens response on the flash. Two bars, crossed, very short. */
+/**
+ * Anamorphic lens response on the flash. Two bars, crossed, very short.
+ *
+ * THESE TWO QUADS WERE 41% OF THE ENTIRE ADDITIVE AREA OF A HERO BURST. At 1.7p/2.9p they
+ * were 3.74 m growing to 6.38 m — 765 to 1307 px across a 1920 px frame — at a near-white
+ * [0.85,0.98,1.45], and a 0.095 s life put them at full size in the 30 ms frame the
+ * `leveler` panel is captured at. 13.6 m^2 of the burst's 32.8 m^2 of additive sprite came
+ * from here. A lens flare is a RESPONSE to a bright point, not the brightest thing in the
+ * frame; sized to roughly three times the flash core and dimmed below it.
+ */
 function lensBars(S, x, y, z, t0, p) {
   const g = S.glow;
-  emit(g, x, y, z, 0, 0, 0, t0, 0.095, 1.7 * p, 2.9 * p,
-    0.85, 0.98, 1.45, CELL.BAR, MODE.BILLBOARD, 0, 0, 0.0, 0, 0, 2.4, 0.03);
-  emit(g, x, y, z, 0, 0, 0, t0, 0.075, 1.1 * p, 1.8 * p,
-    1.10, 0.86, 0.62, CELL.BAR, MODE.BILLBOARD, 0, 0, 0.125, 0, 0, 2.4, 0.03);
+  emit(g, x, y, z, 0, 0, 0, t0, 0.095, 0.42 * p, 0.72 * p,
+    0.52, 0.60, 0.88, CELL.BAR, MODE.BILLBOARD, 0, 0, 0.0, 0, 0, 2.4, 0.03);
+  emit(g, x, y, z, 0, 0, 0, t0, 0.075, 0.27 * p, 0.45 * p,
+    0.66, 0.52, 0.38, CELL.BAR, MODE.BILLBOARD, 0, 0, 0.125, 0, 0, 2.4, 0.03);
 }
 
 /* ------------------------------------------------------------------ kinds */
 
 /**
  * hit — the leveller. bar/panel-leveler.png and bar/panel-midair_hit.png.
- * A near-spherical shower of sparks flattened toward the turf, a full skirt of torn
- * ground, warm dust hanging in the flash, and a ground shockwave under it all.
+ *
+ * THE BALANCE, WHICH IS THE WHOLE RECIPE. In the bar panel the dominant FX element by
+ * pixel count is a field of small near-black turf chips; the fire is a low directional
+ * smear underneath it. Measured with a top-hat chip operator, the panel gives chip
+ * coverage 2.263% of frame against hot-pixel coverage 1.268% — chips outweigh fire 1.79
+ * to 1. Our own `leveler` capture before this pass gave 0.397% against 3.249%: 0.12 to 1.
+ * So the sparks come down (97 -> 57) and go DIRECTIONAL and LOW (`along` 0.30 -> 0.82,
+ * `flat` 0.78 -> 0.42, `lift` 0.10 -> 0.0 — 0.30 was a near-isotropic sphere sample, which
+ * is exactly what "radially symmetric sunburst" means), and the debris count nearly
+ * doubles while each chip gets a third of its old area.
  */
 function hit(S, x, y, z, t0, p, rng) {
   core(S, x, y, z, t0, p, null);
   lensBars(S, x, y, z, t0, p);
   // A second, wider air ring reads as the pressure wave leaving the bodies.
-  emit(S.glow, x, y, z, 0, 0, 0, t0, 0.22, 0.35, 1.5 * p,
+  emit(S.glow, x, y, z, 0, 0, 0, t0, 0.22, 0.28, 1.1 * p,
     COL.ringCool[0], COL.ringCool[1], COL.ringCool[2],
     CELL.RING, MODE.BILLBOARD, 0, 0, 0, 0, 0, 1.6, 0.02);
-  sparks(S, x, y, z, t0, p, Math.round(52 * p), rng, 0.30, 0.78, 0.10, 9, 27);
-  embers(S, x, y, z, t0, p, Math.round(15 * p), rng);
-  dust(S, x, y, z, t0, p, Math.round(6 * p), rng, 0.45);
-  smoke(S, x, y, z, t0, p, Math.round(3 * p), rng);
+  sparks(S, x, y, z, t0, p, Math.round(26 * p), rng, 0.82, 0.42, 0.0, 8, 20);
+  embers(S, x, y, z, t0, p, Math.round(6 * p), rng);
+  dust(S, x, y, z, t0, p, Math.round(14 * p), rng, 0.45);
+  smoke(S, x, y, z, t0, p, Math.round(5 * p), rng);
   // TURF COMES FROM THE TURF. My first version spawned every clod at the contact point,
   // which for a chest-height hit meant dirt appearing out of thin air 1.3 m above a
   // field that was visibly undisturbed. bar/panel-leveler.png has the ground ERUPTING
   // under the collision, so most of the debris is launched from just above the surface
   // directly beneath the contact, and only the rest comes off the bodies themselves.
-  clods(S, x, 0.10, z, t0, p, Math.round(23 * p), rng, 0.20, 1.45, 4, 15);
-  tufts(S, x, 0.08, z, t0, p, Math.round(11 * p), rng, 0.18, 1.35);
-  clods(S, x, Math.min(y, 1.3), z, t0, p, Math.round(12 * p), rng, 0.45, 0.55, 3, 11);
-  tufts(S, x, Math.min(y, 1.1), z, t0, p, Math.round(4 * p), rng, 0.40, 0.55);
+  clods(S, x, 0.10, z, t0, p, Math.round(45 * p), rng, 0.20, 1.45, 4, 15);
+  tufts(S, x, 0.08, z, t0, p, Math.round(17 * p), rng, 0.18, 1.35);
+  clods(S, x, Math.min(y, 1.3), z, t0, p, Math.round(21 * p), rng, 0.45, 0.55, 3, 11);
+  tufts(S, x, Math.min(y, 1.1), z, t0, p, Math.round(8 * p), rng, 0.40, 0.55);
 }
 
 /**
@@ -285,20 +332,20 @@ function hit(S, x, y, z, t0, p, rng) {
  * the direction of travel in a wake rather than radiating.
  */
 function truck(S, x, y, z, t0, p, rng) {
-  core(S, x, y, z, t0, p, { flash: 0.62, ring: 3.4 });
-  sparks(S, x, y, z, t0, p, Math.round(18 * p), rng, 0.75, 0.72, 0.05, 10, 24);
-  dust(S, x, y, z, t0, p, Math.round(10 * p), rng, 0.30);
-  smoke(S, x, y, z, t0, p, Math.round(5 * p), rng);
-  clods(S, x, 0.10, z, t0, p, Math.round(30 * p), rng, 0.85, 1.05, 4, 14);
-  tufts(S, x, 0.08, z, t0, p, Math.round(15 * p), rng, 0.80, 1.00);
-  clods(S, x, Math.min(y, 1.1), z, t0, p, Math.round(10 * p), rng, 0.90, 0.45, 3, 12);
-  tufts(S, x, Math.min(y, 0.9), z, t0, p, Math.round(4 * p), rng, 0.85, 0.45);
+  core(S, x, y, z, t0, p, { flash: 0.62, ring: 2.5 });
+  sparks(S, x, y, z, t0, p, Math.round(9 * p), rng, 0.88, 0.40, 0.0, 9, 20);
+  dust(S, x, y, z, t0, p, Math.round(16 * p), rng, 0.30);
+  smoke(S, x, y, z, t0, p, Math.round(6 * p), rng);
+  clods(S, x, 0.10, z, t0, p, Math.round(52 * p), rng, 0.85, 1.05, 4, 14);
+  tufts(S, x, 0.08, z, t0, p, Math.round(24 * p), rng, 0.80, 1.00);
+  clods(S, x, Math.min(y, 1.1), z, t0, p, Math.round(17 * p), rng, 0.90, 0.45, 3, 12);
+  tufts(S, x, Math.min(y, 0.9), z, t0, p, Math.round(9 * p), rng, 0.85, 0.45);
   // The wake: low, wide, ground-hugging dust dragged along behind the runner.
   for (let i = 0; i < 5; i++) {
     const f = i / 4;
     emit(S.glow, x - N[0] * f * 1.5 * p, 0.10 + f * 0.15, z - N[2] * f * 1.5 * p,
       -N[0] * 1.2, 0.5, -N[2] * 1.2,
-      t0 + f * 0.02, 0.8 + f * 0.4, 0.5 * p, (1.6 + f) * p,
+      t0 + f * 0.02, 0.8 + f * 0.4, 0.30 * p, (0.85 + 0.5 * f) * p,
       COL.dust[0], COL.dust[1], COL.dust[2],
       CELL.SMOKE, MODE.BILLBOARD, 2.2, -0.5, i * 0.19, 0.3, 0, 1.4, 0.30 + f * 0.2);
   }
@@ -306,12 +353,12 @@ function truck(S, x, y, z, t0, p, rng) {
 
 /** catch — the ball arriving in the gloves. bar/panel-catch.png: a bright glove glint. */
 function catchFx(S, x, y, z, t0, p, rng) {
-  core(S, x, y, z, t0, p * 0.55, { flash: 0.62, ring: 1.6 });
+  core(S, x, y, z, t0, p * 0.55, { flash: 0.62, ring: 1.2 });
   lensBars(S, x, y, z, t0, p * 0.7);
-  sparks(S, x, y, z, t0, p, Math.round(22 * p), rng, 0.25, 0.9, 0.15, 7, 19);
-  dust(S, x, y, z, t0, p * 0.6, Math.round(5 * p), rng, 0.5);
-  clods(S, x, 0.08, z, t0, p * 0.6, Math.round(10 * p), rng, 0.2, 1.2, 3, 10);
-  tufts(S, x, 0.06, z, t0, p * 0.6, Math.round(5 * p), rng, 0.2, 1.2);
+  sparks(S, x, y, z, t0, p, Math.round(12 * p), rng, 0.55, 0.7, 0.05, 7, 16);
+  dust(S, x, y, z, t0, p * 0.6, Math.round(8 * p), rng, 0.5);
+  clods(S, x, 0.08, z, t0, p * 0.6, Math.round(19 * p), rng, 0.2, 1.2, 3, 10);
+  tufts(S, x, 0.06, z, t0, p * 0.6, Math.round(9 * p), rng, 0.2, 1.2);
 }
 
 /** cleat — a plant or a cut. No fire at all, just turf leaving the ground. */
@@ -320,8 +367,8 @@ function cleatFx(S, x, y, z, t0, p, rng) {
     COL.dust[0], COL.dust[1], COL.dust[2],
     CELL.DUST, MODE.GROUND, 0, 0, 0, 0, 0, 1.4, PRIO_CORE);
   dust(S, x, 0.06, z, t0, p * 0.7, Math.round(6 * p), rng, 0.5);
-  clods(S, x, 0.05, z, t0, p, Math.round(22 * p), rng, 0.75, 1.0, 3, 11);
-  tufts(S, x, 0.05, z, t0, p, Math.round(15 * p), rng, 0.7, 1.0);
+  clods(S, x, 0.05, z, t0, p, Math.round(38 * p), rng, 0.75, 1.0, 3, 11);
+  tufts(S, x, 0.05, z, t0, p, Math.round(25 * p), rng, 0.7, 1.0);
 }
 
 const KIND = { hit, truck, catch: catchFx, cleat: cleatFx };

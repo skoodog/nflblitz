@@ -112,12 +112,42 @@ export function cutList(track) {
   return cuts;
 }
 
+/**
+ * THE POSSESSION FLIP, and it cost the flagship shot its subject.
+ *
+ * `track.carry` is the man holding the ball, and on the tick a pass is caught that is a
+ * DIFFERENT MAN twenty metres away. On seed 5 the catch and the tackle fire on the same
+ * tick; the impact cut sampled `carry` at exactly that tick, got the QB at x=+7.0, and
+ * staged the hit around a man 17 m behind the one being hit. Measured: the impact camera
+ * sat 18.7 m from the actual hero for the whole shot, on a recipe authored at 3.9 m.
+ *
+ * So the subject is sampled 50 ms AFTER the beat — the hit shot is about the aftermath
+ * anyway — and the heading is taken from the last sample walking backwards that is both
+ * CONTINUOUS with that subject and moving at a plausible football speed. A discontinuity in
+ * `carry` shows up in `vel` as a ~1000 m/s spike, so "plausible" is all the test needs.
+ */
+const SUB_LAG = 3 * TRACK_DT;      // 50 ms
+const HEAD_SCAN = 0.40;            // how far back to look for a usable heading
+
+function headingAt(track, tS, sub, out) {
+  for (let dt = 0; dt <= HEAD_SCAN; dt += TRACK_DT) {
+    sample(out, track.carry, track.n, tS - dt);
+    const gap = Math.hypot(out[0] - sub[0], out[2] - sub[2]);
+    if (gap > 9) break;            // walked back past a change of possession
+    sample(out, track.vel, track.n, tS - dt);
+    const sp = Math.hypot(out[0], out[2]);
+    if (sp > 0.4 && sp < 16) return sp;
+  }
+  out[0] = 0; out[2] = 0;
+  return 0;
+}
+
 function makeCut(track, t, shot, scratch) {
-  sample(scratch, track.vel, track.n, t);
+  const c = { t, shot, id: SHOT_ID[shot], az: 0, roll: 0, sub: [0, 0, 0], speed: 0 };
+  sample(c.sub, track.carry, track.n, t + SUB_LAG);
+  const sp = headingAt(track, t + SUB_LAG, c.sub, scratch);
   const vx = scratch[0], vz = scratch[2];
-  const sp = Math.hypot(vx, vz);
-  const c = { t, shot, id: SHOT_ID[shot], az: 0, roll: 0, sub: [0, 0, 0], speed: sp };
-  sample(c.sub, track.carry, track.n, t);
+  c.speed = sp;
   if (shot === 'impact') {
     // BROADSIDE. A hit shot down the axis of the collision is two men overlapping.
     // Rotate the runner's heading by +-90 and keep whichever puts the camera nearer the
@@ -250,9 +280,44 @@ export function stageAt(track, cut, t, out, aspect) {
     return out;
   }
 
-  // catch / six are staged from the recipe against the current carrier; they are not
-  // reachable from the live cut list today but the entry points exist so the hero panels
-  // and the live director share one code path.
+  if (cut.shot === 'catch') {
+    // FROM DOWNFIELD, LOOKING BACK UP THE FIELD AT HIM. The offence attacks -X, so a camera
+    // at -X of the receiver has him coming toward the lens and his face and his hands
+    // toward us, which is bar/panel-catch.png. Behind him it would be a number on a back.
+    const az = clampAz(-Math.PI * 0.5 + R.side);
+    // AND IT AIMS AT THE BALL, not at his helmet. Every other recipe composes against
+    // subject + 1.75; a receiver at full extension has the ball a good half metre above
+    // that, and composing against the helmet is what put this shot's horizon at 23% on the
+    // live path while the hero panel — which passed topY by hand — sat at 71%.
+    const reach = _sub[1] + (R.reachY || 2.25);
+    orbitStage(out, _sub, az, {
+      fov: R.fov, fill: R.fill, height: R.height,
+      topY: Math.max(_ball[1], reach), topAt: R.topAt,
+    });
+    pushOffAxis(out, _sub, R.offAxis, aspect, DOWNFIELD);
+    out.roll = R.rollDeg || 0;
+    return out;
+  }
+
+  if (cut.shot === 'six') {
+    // FROM INSIDE THE END ZONE. Downfield is -X, so the end zone the runner is crossing
+    // into is at -X of him and the camera belongs there, swung 32 degrees to the near
+    // touchline so the goal line, the paint and the man are one image. Rolled the opposite
+    // way from `impact` so a score never reads as a collision.
+    const az = clampAz(-Math.PI * 0.5 + R.side);
+    orbitStage(out, _sub, az, {
+      fov: R.fov, fill: R.fill, height: R.height, topY, topAt: R.topAt,
+    });
+    // Open the frame BACK UP THE FIELD, toward the men he beat, rather than downfield into
+    // empty paint.
+    _prefer[0] = 1; _prefer[1] = 0;
+    pushOffAxis(out, _sub, R.offAxis, aspect, _prefer);
+    out.roll = R.rollDeg || 0;
+    return out;
+  }
+
+  // Anything unrecognised degrades to a near-sideline stage on the recipe rather than
+  // throwing; a camera piece that throws takes the whole capture down with it.
   orbitStage(out, _sub, clampAz(Math.PI * 0.5 - R.side), {
     fov: R.fov, fill: R.fill, height: R.height, topY, topAt: R.topAt,
   });

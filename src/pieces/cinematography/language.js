@@ -12,7 +12,7 @@
 // ------------------------------------------------------------------ THE MEASUREMENT
 // Every number below was set from the bar sheet in bar/, by measuring how tall the hero
 // stands in the frame and where his head and feet sit. Read off bar/panel-truck.png,
-// bar/panel-touchdown.png and bar/panel-catch.png at 1920x1080:
+// bar/panel-touchdown.png and bar/panel-catch.png:
 //
 //   panel-truck      hero spans ~8%..95% of frame height   -> fill ~0.87 (but that hero
 //                                                              is mid-stride and leaning,
@@ -20,15 +20,51 @@
 //   panel-touchdown  hero spans ~14%..86%                  -> fill ~0.72
 //   panel-catch      hero spans ~10%..92%, ball at ~6%     -> fill ~0.80
 //   panel-qb_dropback QB spans ~18%..100%, ~30% of width   -> over-the-shoulder, ~2.8 m
-//   horizon (crowd/turf boundary) sits at 40%..62% down the frame in all five in-game
-//   panels, i.e. THE CAMERA IS BELOW CHEST HEIGHT AND LOOKING SLIGHTLY UP.
 //
-// WHAT THAT COST US, measured. The foundation fallback stages `truck` at 7.28 m from the
-// hero on a 36 degree lens. Frame height at 7.28 m is 2*7.28*tan(18) = 4.73 m, so a
-// 1.88 m player fills 0.40 of the frame — less than half the bar. Confirmed against
-// shots/character-anatomy/truck.png, where the ball carrier occupies about 45% of the
-// frame height and the composition reads as a wide, neutral, broadcast frame. The bar is
-// not a broadcast frame. Every recipe here is therefore built around a FILL FRACTION
+// THE HORIZON, AND A NUMBER THIS FILE GOT BACKWARDS FOR A WHOLE ROUND.
+//
+// This comment used to claim the crowd/turf boundary sits at "40%..62% down the frame".
+// It does not. Every panel in bar/ was decoded and classified ROW BY ROW — turf in this
+// grade is yellow-green ((g-b)/(g+10) > 0.42 with g >= 0.72r), the crowd and the bowl are
+// neutral or warm — and the boundary is the topmost row from which that classification
+// holds for the next 6% of the frame:
+//
+//   panel-qb_dropback  66%      panel-truck      76%      panel-catch    70%
+//   panel-midair_hit   70%      panel-leveler    60%      panel-touchdown 39% (end-zone
+//                                                          paint defeats the classifier)
+//
+// So the band is 60%..76% down the frame, not 40%..62%, and the difference is not
+// cosmetic: it is the difference between a camera that looks DOWN at grass and a camera
+// that looks UP at men against a crowd. The bar is the second thing.
+//
+// WHAT THE PIECE WAS ACTUALLY DELIVERING, measured the same way but geometrically, off
+// the solved camera rather than off a PNG. For a camera pitched by theta on a lens of
+// half-angle h, a level ray lands at (1 + tan(theta)/tan(h))/2 down the frame. Round 1
+// delivered pocket 32%, pursuit 39%, deep 22%, impact 49% — every one of them ABOVE the
+// bar's band, i.e. tilted down, with turf covering half the frame. iso_pocket.png bears
+// it out: turf covers more than 0.44 of every row from 50% down.
+//
+// THE CAUSE IS MECHANICAL, not stylistic. `fill`, `topAt` and `height` OVER-DETERMINE the
+// solve. For a man standing on the ground the horizon crosses his body at exactly the
+// camera's own height, so
+//
+//     horizonFrac  =  topAt  +  fill * (1 - height / 1.75)
+//
+// is an identity, not a preference. Round 1 asked for topAt 0.15, fill 0.64 and a 1.18 m
+// camera, which is 0.15 + 0.64*0.326 = 0.36 — the solver was doing exactly what it was
+// told and what it was told was wrong. Only two of the three are free. `fill` is the bar's
+// number and stays; `topAt` and `height` are now solved TOGETHER so the identity lands in
+// 60%..70%, which is why every camera below dropped to 0.80-0.95 m and every `topAt` grew.
+// The heights are low because the bar's heights are low: a 1.88 m man at fill 0.76 with
+// his feet on the frame edge and the horizon at 63% pins the camera at 0.86 m and there is
+// no other answer.
+//
+// WHAT THE FILL FRACTION COST US, measured. The foundation fallback stages `truck` at
+// 7.28 m from the hero on a 36 degree lens. Frame height at 7.28 m is 2*7.28*tan(18) =
+// 4.73 m, so a 1.88 m player fills 0.40 of the frame — less than half the bar. Confirmed
+// against shots/character-anatomy/truck.png, where the ball carrier occupies about 45% of
+// the frame height and the composition reads as a wide, neutral, broadcast frame. The bar
+// is not a broadcast frame. Every recipe here is therefore built around a FILL FRACTION
 // rather than a distance, and the distance falls out of the lens.
 
 export const DEG = Math.PI / 180;
@@ -119,10 +155,12 @@ export function orbitStage(out, subject, azimuth, o) {
 // point of calling this a camera language rather than a set of camera positions.
 //
 //  fill     how much of the frame height a 1.88 m man occupies -> sets the DISTANCE
-//  height   camera height in metres (all of them are below chest height; see MEASUREMENT)
-//  topAt    where the TOP of the subject sits, as a fraction down the frame. 0.15 means
-//           "his helmet is 15% from the top". This is the number the bar sheet was
-//           measured into and it, not a look-at height, is what composes the shot.
+//  height   camera height in metres. Solved WITH topAt against the horizon identity in
+//           THE MEASUREMENT, never picked; all of them are hip height or lower because
+//           that is what a 60-70% horizon costs.
+//  topAt    where the TOP of the subject sits, as a fraction down the frame. 0.24 means
+//           "his helmet is 24% from the top". topAt + fill is where his FEET land, so a
+//           value just under 1.0 is a full figure and just over is the bar's shin crop.
 //  fov      VERTICAL fov, degrees (three.js convention)
 //  fStop    aperture; small = shallow = the crowd dissolves
 //  bokeh    artistic multiplier on the aperture, see index.js apertureOffset()
@@ -144,9 +182,12 @@ export const RECIPES = {
    * free. So the aim is rotated DOWNFIELD until he sits 52% of the way to the frame edge:
    * he ends up large and off-centre, and the geometry of the rush is the subject.
    * Measured on the panel, the QB's helmet sits at 22% from the top and 38% across.
+   *
+   * HORIZON 0.24 + 0.76*(1 - 0.86/1.75) = 0.627, against the panel's measured 0.66. His
+   * feet land at 0.24 + 0.76 = 1.00, on the frame edge, which is the panel's crop.
    */
   pocket: {
-    fov: 38, fill: 0.76, height: 1.42, topAt: 0.18,
+    fov: 38, fill: 0.76, height: 0.86, topAt: 0.24,
     fStop: 3.4, bokeh: 1.0, shutter: 1 / 160,
     stiff: 30, hand: 0.55, prio: 1,
     offAxis: 0.52,        // fraction of the horizontal half-frame the passer is pushed
@@ -157,12 +198,16 @@ export const RECIPES = {
    * PURSUIT — the open field. Low, wide, trailing quarter.
    *
    * "The pocket wants a different lens from the open field": this one is 42 degrees
-   * against the pocket's 38 and sits 0.65 m lower. Wide + low is what makes ground speed
-   * read; the same run on the pocket's lens looks like a jog. The frame is opened ahead
-   * of the runner (offAxis 0.40) so he is chasing space rather than centred in it.
+   * against the pocket's 38. Wide + low is what makes ground speed read; the same run on
+   * the pocket's lens looks like a jog. The frame is opened ahead of the runner
+   * (offAxis 0.40) so he is chasing space rather than centred in it.
+   *
+   * HORIZON 0.28 + 0.68*(1 - 0.82/1.75) = 0.641, against panel-truck's 0.76 and
+   * panel-catch's 0.70. `fill` went 0.64 -> 0.68 because a runner is the subject of this
+   * shot and 0.64 was under the fallback wide it exists to replace.
    */
   pursuit: {
-    fov: 42, fill: 0.64, height: 1.18, topAt: 0.15,
+    fov: 42, fill: 0.68, height: 0.82, topAt: 0.28,
     fStop: 2.4, bokeh: 1.1, shutter: 1 / 90,
     stiff: 14, hand: 1.0, prio: 2,
     offAxis: 0.40,
@@ -178,8 +223,14 @@ export const RECIPES = {
    * two men look ten yards apart. The subject is THE BALL, and the camera pushes in as
    * the ball travels (see director.js: `fill` ramps 0.16 -> 0.30 over the flight).
    */
+  // THE HORIZON IDENTITY DOES NOT APPLY HERE — the subject is a point in the air, not a
+  // man standing on the ground, so the horizon is topAt + ((ballY - height)/horiz) /
+  // (2 tan(fov/2)). At 18 m the camera height barely moves it and `topAt` does all the
+  // work. Round 1 used topAt 0.30 with a 2.60 m camera and delivered 22%: the deep shot,
+  // the one shot in the language that is entirely about something in the AIR, was looking
+  // down at the grass.
   deep: {
-    fov: 28, fill: 0.38, height: 2.60, topAt: 0.30,
+    fov: 28, fill: 0.38, height: 1.80, topAt: 0.34,
     fStop: 2.8, bokeh: 1.15, shutter: 1 / 320,
     stiff: 20, hand: 0.7, prio: 3,
     offAxis: 0.0,
@@ -199,8 +250,11 @@ export const RECIPES = {
    *      pass actually smears the bodies.
    * The spring is deliberately soft (stiff 9): the operator is thrown by the hit.
    */
+  // HORIZON 0.22 + 0.72*(1 - 0.80/1.75) = 0.611, against panel-midair_hit's measured 0.70
+  // and panel-leveler's 0.60. This is the shot where getting it wrong shows most: round 1
+  // delivered 49%, which puts the collision on a bed of grass instead of against the bowl.
   impact: {
-    fov: 39, fill: 0.68, height: 1.05, topAt: 0.15,
+    fov: 39, fill: 0.72, height: 0.80, topAt: 0.22,
     fStop: 1.8, bokeh: 1.3, shutter: 1 / 48,
     stiff: 9, hand: 1.6, prio: 4,
     offAxis: 0.10,
@@ -211,17 +265,26 @@ export const RECIPES = {
   /**
    * CATCH — the ball at full extension. bar/panel-catch.png.
    *
-   * Aimed HIGH (2.35 m) and staged close, so the receiver's hands and the ball sit in the
-   * top quarter of the frame against dark sky rather than against the crowd. That single
+   * Aimed HIGH and staged close, so the receiver's hands and the ball sit in the top
+   * quarter of the frame against dark sky rather than against the crowd. That single
    * choice is most of why the panel reads: the ball has nothing behind it.
+   *
+   * `reachY` is what makes it aim high in the LIVE path and it is the one recipe that
+   * needs its own field. The other five compose against the top of a man's helmet
+   * (subject + 1.75); this one composes against the ball, which is above his hands. The
+   * hero panel passed topY 2.85 by hand and the live director passed 1.75, so the same
+   * recipe delivered a 71% horizon on the panel and 23% live — the same class of bug as
+   * the horizon itself, and found the same way. director.js now uses
+   * max(ball.y, subject.y + reachY) for both.
    */
   catch: {
-    fov: 35, fill: 0.80, height: 1.55, topAt: 0.14,
+    fov: 35, fill: 0.80, height: 1.20, topAt: 0.16,
     fStop: 1.9, bokeh: 1.25, shutter: 1 / 110,
     stiff: 16, hand: 0.9, prio: 3,
     offAxis: 0.20,
     side: 12 * DEG,
     rollDeg: 1.6,
+    reachY: 2.25,         // a jumping receiver's hands, not his helmet crown
   },
 
   /**
@@ -231,11 +294,15 @@ export const RECIPES = {
    * only angle where the goal line, the painted end zone and the man crossing it are all
    * one image. Low and rolled hard the other way from `impact`, so a score never feels
    * like a hit.
+   *
+   * HORIZON 0.24 + 0.72*(1 - 0.88/1.75) = 0.598. PRIORITY 5, above the hit — the only
+   * recipe that outranks `impact`, because a score is the end of the down and nothing that
+   * happens in the same tick is a bigger story than six points.
    */
   six: {
-    fov: 40, fill: 0.72, height: 1.16, topAt: 0.14,
+    fov: 40, fill: 0.72, height: 0.88, topAt: 0.24,
     fStop: 2.2, bokeh: 1.15, shutter: 1 / 70,
-    stiff: 13, hand: 1.0, prio: 4,
+    stiff: 13, hand: 1.0, prio: 5,
     offAxis: 0.30,
     side: 32 * DEG,
     rollDeg: -3.4,

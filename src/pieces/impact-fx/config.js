@@ -8,11 +8,20 @@
 /* ------------------------------------------------------------------- pools */
 
 // Pool sizes are the ONLY allocation this piece ever does at runtime, and they are done
-// once in build(). A `hit` at power 2.2 emits 161 glow quads + 84 debris quads (counted
-// by instrumenting emit(); see the header of bursts.js), so the glow pool holds 6.8
-// concurrent maximum-power hits and the debris pool 9.0. Both are ring buffers: the
-// oldest quad is overwritten rather than dropped, which is right for this piece because
-// the oldest quad is always the one closest to being dead anyway.
+// once in build(). A `hit` at power 2.2 emits 91 glow quads + 200 debris quads (counted
+// by instrumenting emit(); see the header of bursts.js), so the glow pool holds 12.0
+// concurrent power-2.2 hits and the debris pool 3.8. Both are ring buffers: the oldest
+// quad is overwritten rather than dropped, which is right for this piece because the
+// oldest quad is always the one closest to being dead anyway.
+//
+// THE DEBRIS POOL IS THE TIGHT ONE AND THAT IS DELIBERATE. The counts moved a long way
+// in round 2 — glow down, debris up — because the measured hero frame was 117:1 additive
+// sprite area to debris sprite area and read as a firework (see the header of bursts.js
+// for the numbers). Trading pool headroom for debris density is the right trade: three
+// simultaneous maximum-power collisions is not a thing that happens in a down, and a hero
+// frame that reads as a collision is the whole job. The totals are unchanged, so
+// scripts/budget.mjs still attributes exactly 2 draw calls / 3720 triangles to this piece
+// (it bills the whole pool, not the live draw range).
 export const POOL_GLOW = 1100;
 export const POOL_DEBRIS = 760;
 export const POOL_FLAME = 132;
@@ -59,34 +68,43 @@ export const MODE = {
 // bloom. cinematography owns the bloom pass; these values assume there is one, and they
 // still read (as plain white-hot) if there is not.
 
+// ROUND 2, AND THIS IS WHERE THE FIREWORK WAS. The previous note in this block claimed
+// the problem was a 17:1 sparks-to-debris RADIANCE ratio and halved sparkHot to fix it.
+// That claim was wrong twice over, and the correction is recorded here rather than
+// deleted because the wrong reasoning is what produced the wrong numbers.
+//   * The ratio that matters is not radiance, it is RADIANCE x AREA. Projected into the
+//     `leveler` hero frame (camera 7.88 m out, 205 px/m) the burst laid down 32.8 m^2 of
+//     additive sprite against 0.28 m^2 of debris sprite — 117:1 by area. Halving one
+//     colour could not touch that.
+//   * The single biggest emitter was not the sparks at all. It was the two anamorphic
+//     lens bars: 13.6 m^2 of the 32.8, at a near-white [0.85,0.98,1.45].
+// Measured on the capture: dark-chip coverage 0.397% of frame against hot-pixel coverage
+// 3.249% — a chip:hot ratio of 0.12 where bar/panel-leveler.png measures 1.79 by the
+// same operator. The whole additive side is down by roughly an order of magnitude below,
+// the sizes are cut in bursts.js, and the dust is brought UP because in the bar panel it
+// is the lit dust cloud that the dark chips are legible AGAINST.
 export const COL = {
-  flashCore: [3.1, 2.55, 1.70],
-  flashWarm: [2.2, 0.95, 0.30],
+  flashCore: [2.30, 1.80, 1.05],
+  flashWarm: [1.45, 0.60, 0.19],
   starburst: [3.6, 2.5, 1.30],
-  ringHot: [1.9, 0.85, 0.26],
+  ringHot: [1.15, 0.52, 0.16],
   ringCool: [0.9, 0.55, 0.36],
-  // TURNED DOWN, MEASURED. Against panel-leveler.png the sparks-to-debris radiance ratio
-  // was 17:1 (3.2 linear against the clods' 0.185), so widening the debris field from 13%
-  // of frame width to 98% still produced a firework: the chips were spread correctly and
-  // then buried under a blown-out core. The bar's sparks are a low directional smear
-  // AROUND a dominant field of near-black turf, not a sun with grass in it. Halving the
-  // hot head of the population takes the ratio to ~8:1 and lets the debris read.
-  sparkHot: [1.55, 0.95, 0.36],
-  sparkMid: [2.6, 0.95, 0.20],
-  sparkCool: [1.5, 0.34, 0.06],
-  ember: [1.9, 0.52, 0.10],
+  // The spark population runs hot-white at the head to deep orange at the tail. sparkMid
+  // was the brightest number in the whole file (2.6 in red) and it is the colour half the
+  // population interpolates THROUGH, so it set the tone of the shower on its own.
+  sparkHot: [1.35, 0.82, 0.31],
+  sparkMid: [1.30, 0.50, 0.11],
+  sparkCool: [0.85, 0.20, 0.04],
+  ember: [1.25, 0.34, 0.07],
   // DUST AND SMOKE ARE ADDITIVE AND THEY STACK, so budget for the STACK and not for the
-  // sprite: ~13 overlapping puffs at sprite alpha 0.4 times these values lands around
-  // 0.8-1.1, which is a warm haze you can still see sparks through.
-  //
-  // These were driven down to a third of this while I was chasing a white blob in the
-  // first two probe captures. The blob was not the dust — it was the FLASH, drawing the
-  // dust sprite, because of the atlas row bug documented in quads.js. Numbers restored
-  // once the sprites were coming out of the right cells.
-  dust: [0.205, 0.166, 0.129],
-  dustLit: [0.44, 0.30, 0.185],
-  smoke: [0.125, 0.104, 0.094],
-  groundPool: [0.95, 0.44, 0.15],
+  // sprite: ~30 overlapping puffs at sprite alpha 0.4 times these values lands around
+  // 0.9-1.2, which is the pale billow the turf chips are silhouetted against in
+  // bar/panel-leveler.png. Without it the chips are near-black on a near-black night
+  // field and the debris field is invisible however much of it there is.
+  dust: [0.285, 0.232, 0.180],
+  dustLit: [0.58, 0.40, 0.245],
+  smoke: [0.165, 0.138, 0.124],
+  groundPool: [0.62, 0.29, 0.10],
 };
 
 // Debris is UNLIT (see the note in quads.js on why): the shading lives in the sprite's
