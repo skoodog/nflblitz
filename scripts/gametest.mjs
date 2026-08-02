@@ -22,7 +22,7 @@
 //
 // THE STANDARD THIS IS HELD TO. "The assertions look specific" is not evidence -- a sister
 // piece in this project shipped a suite where 20 of 38 deliberate mutations left it green.
-// The play-sim section is now backed by an automated battery that reintroduces 29 real
+// The play-sim section is now backed by an automated battery that reintroduces 30 real
 // defects across both sim.js and adapt.js and requires each to be caught:
 //
 //   node scripts/simmutate.mjs
