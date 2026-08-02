@@ -37,7 +37,26 @@ export const GEO = {
     V(240, 470, TOP, E, E), V(252, 120, 232, E, E),
   ] },
   C: { adv: 400, s: [V(LS, 130, 570, E, E), HB(TOP, LS, RS), HB(BOT, LS, RS)] },
-  D: { adv: 408, s: [V(LS, 0, 700), HB(TOP, LS, RS), HB(BOT, LS, RS), V(RS, 130, 570, E, E)] },
+  // D WAS AN O. Measured off the shipped play-call sheet, where DOG HOOK read as "OOG
+  // HOOK": the rendered D and the rendered O agreed on 95.3% of their pixels, differing by
+  // a single row of ink out of 25. For scale, K and H -- two letters that merely share a
+  // stem -- agree on 89.6%, and two instances of the same O agree on 100%. So D was LESS
+  // distinguishable from O than two genuinely different letters are from each other.
+  //
+  // The cause was that both were closed rectangles. D's only differentiator was a
+  // full-height left stem against O's inset one (0..700 vs 120..580), and at a 25 px cap
+  // the pen width and the bar overlap swallow that nub entirely.
+  //
+  // Fixed on D rather than on O, deliberately: O reads correctly as an O, and this face
+  // sets every label in the game, so re-cutting it would ripple somewhere I cannot cheaply
+  // re-verify. A geometric D is a flat left stem and a bowl, so the bowl is what it gets --
+  // bars that stop short of RS and two chamfers down to a shortened right side. Square-left
+  // and cut-right against O's square-everywhere is a silhouette difference, which survives
+  // being small in a way that a 4 px stem extension does not.
+  D: { adv: 408, s: [
+    V(LS, 0, 700), H(TOP, LS, 212, E, E), H(BOT, LS, 212, E, E),
+    V(RS, 168, 532, E, E), D(212, TOP, RS, 532, E, E), D(212, BOT, RS, 168, E, E),
+  ] },
   E: { adv: 385, s: [V(LS, 0, 700), HB(TOP, LS, RS), HF(MID, LS, 248), HB(BOT, LS, RS)] },
   F: { adv: 375, s: [V(LS, 0, 700), HB(TOP, LS, RS), HF(MID, LS, 248)] },
   G: { adv: 415, s: [
