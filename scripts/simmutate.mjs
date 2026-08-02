@@ -737,8 +737,12 @@ const MUTATIONS = [
   {
     target: 'adapt',
     name: 'adapter: the ball is not attached to the man carrying it',
-    edits: [["      ball = { pos: [-carrier.y - 0.3, 1.42, carrier.x + 0.35], held: `o_${carrier.slot.toLowerCase()}` };",
-      "      ball = { pos: [0, 1.42, 0], held: `o_${carrier.slot.toLowerCase()}` };"]],
+    // Anchor re-pointed after the ball gained an orientation: the held branch became a
+    // multi-line object literal and this mutation silently stopped applying. The battery
+    // reported it as an ERROR rather than counting a kill, which is the third time it has
+    // caught a fault in itself rather than in the code -- exactly what it is for.
+    edits: [['        pos: [-carrier.y - 0.3, 1.42, carrier.x + 0.35],',
+      '        pos: [0, 1.42, 0],']],
   },
   {
     target: 'adapt',
