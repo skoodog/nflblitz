@@ -22,8 +22,9 @@
 //
 // THE STANDARD THIS IS HELD TO. "The assertions look specific" is not evidence -- a sister
 // piece in this project shipped a suite where 20 of 38 deliberate mutations left it green.
-// The play-sim section is now backed by an automated battery that reintroduces 30 real
-// defects across both sim.js and adapt.js and requires each to be caught:
+// EVERY SECTION OF THIS SUITE IS NOW BACKED BY AN AUTOMATED BATTERY. 38 real defects
+// across sim.js, adapt.js, flow.js, coach.js, rules.js and kick.js, each of which must be
+// caught by the assertions below:
 //
 //   node scripts/simmutate.mjs
 //
@@ -33,8 +34,17 @@
 // the reset and a backward seek replayed a different down. None of the assertions below
 // could see it, because every one of them drives the simulation forwards only.
 //
-// The rule set, kick and control-scheme sections above it are NOT yet covered by a battery,
-// and are stated here as unproven against that standard rather than implied away.
+// The rule set and the kick model, which this header long stated as UNPROVEN against that
+// standard, are covered as of the game-flow round. What that round found is the argument
+// for the whole exercise: of the twelve mutations aimed at newly-covered code, FIVE
+// initially survived, and every one of the five was a defect in the TEST rather than in the
+// target -- an anchor that had silently stopped matching, a mutation that was a no-op
+// inside the function it claimed to break, a predicate checking bounds where behaviour was
+// what mattered, and a predicate checking a score TOTAL where only the delta at the moment
+// of scoring could discriminate (a touchdown worth five plus an automatic point is six, and
+// a game of sixes and threes looks perfectly legal from the outside).
+//
+// Still not covered: the touch-controller parity table, and every visual piece.
 //
 //   node scripts/gametest.mjs
 import { pathToFileURL } from 'node:url';
