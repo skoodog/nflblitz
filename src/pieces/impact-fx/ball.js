@@ -36,10 +36,16 @@ function sstep(a, b, x) {
  * ball, v tip to tip. Returns 0..1 "how white is this texel".
  */
 function whiteMask(u, v) {
-  // Two stripes, one near each tip. Real balls have them at roughly 3 inches from the
-  // point; on this profile that is v = 0.175 and v = 0.825.
-  let m = sstep(0.152, 0.166, v) * sstep(0.216, 0.202, v);
-  m = Math.max(m, sstep(0.784, 0.798, v) * sstep(0.848, 0.834, v));
+  // Two stripes, one near each end. Real balls have them about 3 inches from the point,
+  // and THE OLD NUMBERS HERE DID NOT PUT THEM THERE. v is the lathe's ring index over
+  // M = 22 rings, and the rings are cos-spaced, so v does not run linearly along the
+  // ball: y = -cos(v * pi) * L. v = 0.175 is y = -0.853 L, which is 0.025 m from the
+  // tip — ONE inch, not three — where the parabolic profile is only 0.27 R wide and a
+  // stripe is a few pixels of nothing. Three inches from the point on this 0.336 m ball
+  // is y = 0.455 L, which is v = acos(0.455)/pi = 0.350 (and 0.650), where the ball is
+  // 0.79 R wide and the stripe is the second thing you see after the laces.
+  let m = sstep(0.318, 0.330, v) * sstep(0.384, 0.372, v);
+  m = Math.max(m, sstep(0.682, 0.670, v) * sstep(0.616, 0.628, v));
   // The lace panel runs along one meridian. `du` wraps so the seam at u=0 is handled.
   let du = Math.abs(u - 0.5);
   const inPanel = sstep(0.660, 0.640, v) * sstep(0.340, 0.360, v);
@@ -126,22 +132,45 @@ function ballTextures() {
 /* ----------------------------------------------------------------- geometry */
 
 /**
- * A real prolate profile with POINTED ends, not a scaled sphere.
- *   r(y) = R * (1 - (y/L)^2) ^ 0.62
- * The 0.62 exponent is what makes the tips come to a point instead of rounding off; a
- * scaled sphere (exponent 0.5) reads as an egg, and the foundation fallback's
- * SphereGeometry scaled 1.72 in z reads as a rugby ball.
+ * A prolate profile with GENUINELY POINTED ends — a parabola of revolution.
+ *
+ *   r(y) = R * (1 - (y/L)^2)          i.e. the exponent is 1, not 0.62
+ *
+ * THE OLD COMMENT HERE WAS FALSE AND THE SHAPE WAS WRONG. It read "the 0.62 exponent is
+ * what makes the tips come to a point instead of rounding off". For r = R(1-(y/L)^2)^p
+ * the tip slope is
+ *      dr/dy = -2pR/L^2 * y * (1-(y/L)^2)^(p-1)
+ * and for ANY p < 1 that exponent is negative, so |dr/dy| -> INFINITY as y -> ±L. An
+ * infinite slope is the profile meeting the axis at a right angle: a rounded pole, the
+ * same C1 class as the sphere the comment claimed it beat. Measured on the old profile,
+ * |dr/dy| was 3.2 at y = 0.99L, 7.7 at 0.999L and 44.2 at 0.99999L — still climbing,
+ * never settling on a tip angle. At 90% of the half-length it was 0.357R against a
+ * sphere's 0.436R: 18% narrower than an egg, not a point.
+ *
+ * p = 1 is the only exponent in the family that gives a real corner: dr/dy at the tip is
+ * exactly -2R/L = -1.167, a tip half-angle of atan(1.167) = 49.4 degrees from the long
+ * axis (98.8 degrees included). For comparison, the classic two-circular-arc "lens"
+ * football profile through the same R and L has a tip half-angle of 60.5 degrees, so this
+ * ball is slightly sharper-nosed than a regulation one — which is the right side to err on
+ * for an arcade ball. p > 1 would be sharper still, but the slope goes to ZERO at the tip
+ * (a cusp, a needle) and the whole middle of the ball gets thinner: at 90% of the
+ * half-length p=1 gives 0.190R, p=1.25 gives 0.125R, and the ball stops reading as a ball.
  */
 function ballGeometry() {
   return cached('impactfx:ball:geo', () => {
     const M = 22, SEG = 24;
     const pts = [];
     for (let i = 0; i <= M; i++) {
-      // cos spacing puts more rings near the tips, where the curvature is
+      // COS SPACING, and the reason is not curvature — for a parabola the profile
+      // curvature is HIGHEST at the equator (r'' is constant and r' = 0 there) and
+      // lowest at the tips, so "more rings where the curvature is" would argue for the
+      // opposite. It is here for the SILHOUETTE: cos spacing puts 4 of the 23 rings
+      // inside the outer 10% of each end where uniform spacing puts 2, and the tip is
+      // the one place on a lathe where losing a ring turns a point into a chopped cone.
       const t = i / M;
       const y = -Math.cos(t * Math.PI) * BALL_HALF_LEN;
       const k = Math.max(0, 1 - (y / BALL_HALF_LEN) * (y / BALL_HALF_LEN));
-      const r = BALL_RADIUS * Math.pow(k, 0.62);
+      const r = BALL_RADIUS * k;
       pts.push(new THREE.Vector2(Math.max(r, 0.0004), y));
     }
     const geo = new THREE.LatheGeometry(pts, SEG);

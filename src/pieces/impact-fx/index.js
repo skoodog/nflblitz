@@ -12,11 +12,16 @@
 //   ball.js     the football and its fire
 //   fx.js       the slot implementation, including the live-event recovery
 //
-// COST, by construction (the numbers scripts/budget.mjs attributes to `impact-fx`):
-//   draw calls  4   fx.debris, fx.glow, ball.shell, ball.fire — 3 when the ball is hidden
+// COST, by construction. RE-COUNTED in round 2; every number in the previous version of
+// this block was wrong, including the one that disagreed with itself (it called 490 quads
+// 1,040 triangles).
+//   draw calls  4   fx.debris, fx.glow, ball.shell, ball.fire — 3 with an unlit ball,
+//               2 with no ball, which is what scripts/budget.mjs reports for iso_impact
 //   programs    2   the quad program (glow and debris share it) + the fire program
-//   triangles   1,040 for a live `hit` (490 quads' worth), 4,048 if every pool were full
-//               at once, plus 1,056 for the ball shell
+//   triangles   624 for a live power-2.2 `hit` (312 quads), 3,720 if both pools were full
+//               at once (1,860 quads) — and 3,720 is the number budget.mjs attributes to
+//               this piece at every tier, because it bills the whole pool and not the live
+//               draw range. Plus 1,056 for the ball shell and 264 for its fire.
 //   textures    2   atlas 512x512 RGBA + the ball's 512x256 albedo/normal pair
 //   per frame   3 uniform writes and one Euler assignment. No allocation, and no work
 //               proportional to the number of live particles — see quads.js.
@@ -76,18 +81,37 @@ registerIsoShot('iso_impact', {
   ],
   hud: OFF,
   callout: NO_CALLOUT,
-  note: 'THE HERO IMPACT, 90 ms after contact, power 2.2. Starburst + anamorphic bars, '
-    + 'ground light pool, ground shockwave, ~97 velocity-stretched sparks, turf erupting '
-    + 'from under the collision, severed grass, warm dust. No actors: this is the FX alone.',
+  note: 'THE HERO IMPACT, 90 ms after contact, power 2.2. 200 quads of torn turf — the '
+    + 'dominant element by pixel count — 57 low directional sparks, 26 dust puffs for the '
+    + 'chips to read against, a one-helmet-wide flash core, ground light pool and ground '
+    + 'shockwave. No actors: this is the FX alone.',
 });
 
 /**
- * THE TIMELINE, in one frame. The same power-1.9 hit at 40 ms, 170 ms and 460 ms, three
- * metres apart. A single still cannot show that an effect is animated, so this shot
- * shows three points on its curve at once: the flash is still white at 40 ms, the sparks
- * have travelled and started to fall by 170 ms, and by 460 ms there is nothing left but
- * settling dirt and dust. Every one of the three is the same function evaluated at a
- * different age — that is the whole determinism claim, made visible.
+ * THE TIMELINE, in one frame. A power-1.9 hit at 40 ms, 170 ms and 460 ms, three metres
+ * apart. A single still cannot show that an effect is animated, so this shot shows three
+ * points on the RECIPE's curve at once: the flash is still white at 40 ms, the sparks have
+ * travelled and started to fall by 170 ms, and by 460 ms there is nothing left but
+ * settling dirt and dust.
+ *
+ * WHAT THIS SHOT DOES NOT SHOW, corrected — the note here used to claim "same seed, same
+ * power, same closed-form evaluation at a different t", and that is false. fx.js seeds
+ * burst i with `S.seed + i * 7919`, and emitBurst additionally hashes the quantised
+ * position into the RNG (bursts.js documents why: so two simultaneous hits at different
+ * places are not mirror images). Both inputs differ across these three entries, so they
+ * are three UNRELATED showers of the same recipe. Counted directly: of the 294 birth
+ * velocity components in a power-1.9 hit's glow batch (98 quads x 3), exactly 21 are
+ * identical across all three bursts, and all 21 belong to the seven quads that have no
+ * emitted velocity at all — the starburst, the warm core, the ground pool, the two rings
+ * and the two lens bars. Zero of the other 273 components coincide. Give the three
+ * entries the same seed AND the same position and all 294 match, which is the check that
+ * shows the divergence is the seed and the position hash and not sloppiness.
+ *
+ * The determinism claim is real, but this is not where it is demonstrated. It is
+ * demonstrated by scripts/lint-determinism.mjs (no wall clock, no unseeded randomness in
+ * this directory) and by the closed-form vertex integration in quads.js, which is what
+ * makes a re-capture at the same t reproduce the same bytes. What THIS shot proves is
+ * that the effect has a life.
  */
 registerIsoShot('iso_impact_timeline', {
   piece: PIECE,
@@ -110,9 +134,10 @@ registerIsoShot('iso_impact_timeline', {
   ],
   hud: OFF,
   callout: NO_CALLOUT,
-  note: 'One impact at three ages — 40 ms, 170 ms, 460 ms, left to right. Same seed, same '
-    + 'power, same closed-form evaluation at a different t. Proves the effect has a life, '
-    + 'not just a look.',
+  note: 'The same recipe at three ages — 40 ms, 170 ms, 460 ms, left to right, power 1.9. '
+    + 'Three independent showers (different seed and different position hash), not one '
+    + 'shower re-evaluated: what this proves is that the effect has a life, not that it is '
+    + 'deterministic. See the comment above this shot.',
 });
 
 /**

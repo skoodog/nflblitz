@@ -55,7 +55,7 @@ const TRAIL_S = 1.4;          // keep sampling this long after the whistle
  */
 export const BEAT = {
   throw: { shot: 'deep', delay: 0.00, power: 0.0 },
-  catch: { shot: 'catch', delay: 0.10, power: 0.30, hold: 0.85 },
+  catch: { shot: 'catch', delay: 0.00, power: 0.30, hold: 0.85 },
   touchdown: { shot: 'six', delay: 0.00, power: 0.60 },
   interception: { shot: 'pursuit', delay: 0.34, power: 0.45 },
   incomplete: { shot: 'pursuit', delay: 0.20, power: 0.20 },
@@ -92,6 +92,7 @@ function build(seed) {
   const ball = new Float32Array(nMax * 3);
   const carry = new Float32Array(nMax * 3);
   const vel = new Float32Array(nMax * 3);
+  const flip = new Uint8Array(nMax);
   let n = 0;
   let events = [];
   let endedAt = -1;
@@ -120,9 +121,22 @@ function build(seed) {
     }
     const hp = hero ? hero.pos : [0, 0, 0];
     carry[k * 3] = hp[0]; carry[k * 3 + 1] = hp[1]; carry[k * 3 + 2] = hp[2];
+    // A CHANGE OF POSSESSION IS NOT A VELOCITY. On the tick a pass is caught `carry` stops
+    // being the passer and starts being the receiver, twenty metres away, and the finite
+    // difference below reads that as ~1200 m/s. Left in, it swung the pursuit azimuth right
+    // round for one tick and poisoned every consumer downstream. The tick is marked and
+    // patched from its neighbour after the loop.
     if (k > 0) {
-      vel[k * 3] = (carry[k * 3] - carry[(k - 1) * 3]) / TRACK_DT;
-      vel[k * 3 + 2] = (carry[k * 3 + 2] - carry[(k - 1) * 3 + 2]) / TRACK_DT;
+      const dx = carry[k * 3] - carry[(k - 1) * 3];
+      const dz = carry[k * 3 + 2] - carry[(k - 1) * 3 + 2];
+      if (dx * dx + dz * dz > JUMP_M * JUMP_M) {
+        flip[k] = 1;
+        vel[k * 3] = vel[(k - 1) * 3];
+        vel[k * 3 + 2] = vel[(k - 1) * 3 + 2];
+      } else {
+        vel[k * 3] = dx / TRACK_DT;
+        vel[k * 3 + 2] = dz / TRACK_DT;
+      }
     }
     if (snap.events && snap.events.length > events.length) events = snap.events;
     n = k + 1;
@@ -148,14 +162,27 @@ function build(seed) {
   }
   if (n < 2) return null;
   vel[0] = vel[3]; vel[2] = vel[5];
+  // The flip tick now carries the OLD carrier's velocity; take the new one's instead, which
+  // is the first clean sample after the change.
+  for (let k = 1; k < n - 1; k++) {
+    if (flip[k] && !flip[k + 1]) { vel[k * 3] = vel[(k + 1) * 3]; vel[k * 3 + 2] = vel[(k + 1) * 3 + 2]; }
+  }
 
   // The event log, normalised to seconds and sorted, with the beat table resolved so the
   // director does not have to look anything up per frame.
+  //
+  // EVENT_LAG, ONE TICK, AND IT IS NOT A FUDGE. play-sim stamps an event with `state.tick`
+  // from inside the advance that produces it, so the sample where the WORLD shows the event
+  // is tick + 1: on seed 18 the catch is stamped 235 and `carry[235]` is still the passer at
+  // x=+7.1 while `carry[236]` is the receiver at x=-36.7. Cutting on the stamped tick staged
+  // the catch around the passer and left the camera 44 m from its subject for the whole
+  // shot. Every beat is therefore read one tick late, which is the tick it is true on.
+  const EVENT_LAG = TRACK_DT;
   const beats = [];
   for (const e of events) {
     const spec = BEAT[e.kind];
     if (!spec) continue;
-    const t = e.t !== undefined ? e.t : (e.tick !== undefined ? e.tick / 60 : 0);
+    const t = (e.t !== undefined ? e.t : (e.tick !== undefined ? e.tick / 60 : 0)) + EVENT_LAG;
     beats.push({ kind: e.kind, t, shot: spec.shot, at: t + spec.delay, power: spec.power, hold: spec.hold || 0 });
   }
 
@@ -183,14 +210,37 @@ function build(seed) {
   };
 }
 
-/** Sample a Float32Array triple track at continuous time, clamped at both ends. */
-export function sample(out, arr, n, t) {
+/**
+ * Sample a Float32Array triple track at continuous time, clamped at both ends.
+ *
+ * `jump` (metres) TURNS OFF THE INTERPOLATION ACROSS A TELEPORT, and it is not optional on
+ * the position tracks. `carry` changes man on the tick a pass is caught and play-sim puts
+ * the ball back in the passer's hands on an incomplete; lerping across either gives a
+ * position that is on NEITHER man. Measured on seed 18: the `catch` cut landed on
+ * [-1.7, 0, -2.8], halfway between the QB at +7.1 and the receiver at -36.7, so the camera
+ * teleported to a staging point 35 m from its subject and spent the entire 0.2 s shot
+ * flying — delivered 22.6 m against an authored 3.7 m. Snapping to the nearer sample makes
+ * the discontinuity a discontinuity, which is what it is.
+ */
+export const JUMP_M = 3.0;
+
+export function sample(out, arr, n, t, jump) {
   let f = t / TRACK_DT;
   if (!(f > 0)) f = 0;
   if (f > n - 1) f = n - 1;
   const i = Math.floor(f);
   const j = i + 1 < n ? i + 1 : i;
   const u = f - i;
+  if (jump > 0 && j !== i) {
+    const dx = arr[j * 3] - arr[i * 3];
+    const dy = arr[j * 3 + 1] - arr[i * 3 + 1];
+    const dz = arr[j * 3 + 2] - arr[i * 3 + 2];
+    if (dx * dx + dy * dy + dz * dz > jump * jump) {
+      const m = u < 0.5 ? i : j;
+      out[0] = arr[m * 3]; out[1] = arr[m * 3 + 1]; out[2] = arr[m * 3 + 2];
+      return out;
+    }
+  }
   out[0] = arr[i * 3] + (arr[j * 3] - arr[i * 3]) * u;
   out[1] = arr[i * 3 + 1] + (arr[j * 3 + 1] - arr[i * 3 + 1]) * u;
   out[2] = arr[i * 3 + 2] + (arr[j * 3 + 2] - arr[i * 3 + 2]) * u;

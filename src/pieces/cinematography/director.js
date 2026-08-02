@@ -15,29 +15,34 @@
 //   MIN_HOLD (0.50 s)  a beat of EQUAL OR LOWER priority than the shot already running is
 //                      ignored unless the current shot has been on screen this long.
 //   PRIORITY           a HIGHER-priority beat cuts immediately regardless. Priorities are
-//                      in language.js: impact 4 > deep 3 > pursuit 2 > pocket 1. The
-//                      arcade rule is that the hit is always the story, so a tackle
-//                      interrupts anything, including a cut made 80 ms earlier.
+//                      in language.js: six 5 > impact 4 > deep 3 = catch 3 > pursuit 2 >
+//                      pocket 1. The arcade rule is that the hit is always the story, so a
+//                      tackle interrupts anything, including a cut made 80 ms earlier — and
+//                      the one thing that outranks the hit is six points.
 //
 // MEASURED, not asserted. The editor was run against the real play-sim in plain node
-// (no browser, no renderer) over several seeds; these are its actual outputs, and the
-// first version of this comment invented a seed-33 down with a broken tackle in it that
-// the simulation does not produce:
+// (no browser, no renderer) over 20 seeds; these are its actual outputs after round 2
+// (`catch` and `six` were unreachable before it — see track.js BEAT):
 //
-//   seed 7   dog_hook v goal_line, ends in a SACK
-//            0.00 pocket -> 0.68 pursuit (scramble@0.62) -> 1.77 impact (sack)
-//   seed 5   post_wheel v goal_line, ends TACKLED
-//            0.00 pocket -> 0.65 deep (throw) -> 1.28 impact (tackle)
-//            catch and tackle both fire on tick 77. The catch wants `pursuit` (prio 2) and
+//   seed 7   sack.      0.00 pocket -> 0.68 pursuit (scramble@0.62) -> 1.78 impact (sack)
+//   seed 5   tackled.   0.00 pocket -> 0.65 deep (throw) -> 1.30 impact (tackle)
+//            catch and tackle both fire on tick 77. The catch wants `catch` (prio 3) and
 //            the tackle wants `impact` (prio 4); the tackle wins on the same tick. That is
-//            the priority rule doing the job it exists for.
-//   seed 12  power_right v deep_zone — A RUN, and it fires no throw and no scramble at all
-//            0.00 pocket -> 0.20 pursuit (LINE-OF-SCRIMMAGE CROSS) -> 1.08 impact (tackle)
+//            the priority rule doing the job it exists for, and it is why the catch shot
+//            only survives on downs where the receiver is not hit as he takes it.
+//   seed 12  tackled — A RUN, no throw and no scramble at all.
+//            0.00 pocket -> 0.20 pursuit (LINE-OF-SCRIMMAGE CROSS) -> 1.10 impact (tackle)
 //            Without the geometric beat below, this down would be one static pocket shot
 //            from the snap to the whistle.
-//   seed 33  utb_deep v all_out, 8.55 s, ends in a TOUCHDOWN
-//            0.00 pocket -> 0.71 pursuit (scramble@0.65), and then it holds, because
-//            nothing else happens: a 40-yard scramble is one shot, not four.
+//   seed 3   tackled.   0.00 pocket -> 0.53 deep -> 1.18 pursuit -> 1.28 CATCH -> 1.43
+//            impact -> 2.13 pursuit. The full grammar on one down.
+//   seed 16  TOUCHDOWN. 0.00 pocket -> 0.72 pursuit (scramble) -> 7.25 SIX. The score beat
+//            is synthesised in track.js from `snap.result`, because play-sim has no
+//            touchdown EVENT to cut on.
+//
+// ACROSS THOSE 20 SEEDS, 4732 live frames at 60 Hz: pocket 1235, pursuit 1837, deep 617,
+// impact 842, six 172, catch 29. The catch count is small and honest — of 7 downs with a
+// completion, 4 have the tackle on the SAME TICK as the catch and a fifth 30 ms later.
 //
 // ------------------------------------------------------- WHAT IT REFUSES TO KNOW
 // The editor is CAUSAL: it only ever looks at beats whose time is <= now. It would be
@@ -47,7 +52,7 @@
 // on replays is not a camera language. The one exception is documented at `focus`.
 
 import { RECIPES, orbitStage, pushOffAxis, DEG } from './language.js';
-import { sample, TRACK_DT } from './track.js';
+import { sample, TRACK_DT, JUMP_M } from './track.js';
 
 const MIN_HOLD = 0.50;
 
@@ -103,7 +108,14 @@ export function cutList(track) {
     const prio = RECIPES[b.shot].prio;
     const curPrio = RECIPES[cur].prio;
     if (prio <= curPrio && b.at - lastCut < MIN_HOLD) continue;
-    cuts.push(makeCut(track, b.at, b.shot, scratch));
+    // A CUT WITH NO FRAMES IN IT IS NOT A CUT. play-sim fires the catch and the tackle on
+    // the same tick on 4 of the 7 completions in the first 20 seeds; the catch beat wins
+    // the sort and the tackle then out-ranks it on the same timestamp, which used to leave
+    // a zero-length `catch` entry in the list that nothing could ever render. Overwrite it
+    // instead, so the list is the edit rather than a log of what was considered.
+    const prev = cuts[cuts.length - 1];
+    if (prev && Math.abs(prev.t - b.at) < 1e-9) cuts[cuts.length - 1] = makeCut(track, b.at, b.shot, scratch);
+    else cuts.push(makeCut(track, b.at, b.shot, scratch));
     cur = b.shot;
     lastCut = b.at;
   }
@@ -131,7 +143,7 @@ const HEAD_SCAN = 0.40;            // how far back to look for a usable heading
 
 function headingAt(track, tS, sub, out) {
   for (let dt = 0; dt <= HEAD_SCAN; dt += TRACK_DT) {
-    sample(out, track.carry, track.n, tS - dt);
+    sample(out, track.carry, track.n, tS - dt, JUMP_M);
     const gap = Math.hypot(out[0] - sub[0], out[2] - sub[2]);
     if (gap > 9) break;            // walked back past a change of possession
     sample(out, track.vel, track.n, tS - dt);
@@ -144,7 +156,7 @@ function headingAt(track, tS, sub, out) {
 
 function makeCut(track, t, shot, scratch) {
   const c = { t, shot, id: SHOT_ID[shot], az: 0, roll: 0, sub: [0, 0, 0], speed: 0 };
-  sample(c.sub, track.carry, track.n, t + SUB_LAG);
+  sample(c.sub, track.carry, track.n, t + SUB_LAG, JUMP_M);
   const sp = headingAt(track, t + SUB_LAG, c.sub, scratch);
   const vx = scratch[0], vz = scratch[2];
   c.speed = sp;
@@ -208,8 +220,8 @@ const _prefer = [0, 0];
  */
 export function stageAt(track, cut, t, out, aspect) {
   const R = RECIPES[cut.shot];
-  sample(_sub, track.carry, track.n, t);
-  sample(_ball, track.ball, track.n, t);
+  sample(_sub, track.carry, track.n, t, JUMP_M);
+  sample(_ball, track.ball, track.n, t, JUMP_M);
   sample(_vel, track.vel, track.n, t);
   // The top of the subject: a 1.88 m man's helmet crown is 1.75 m above his feet, and his
   // feet are wherever the sim put his root. This is what `topAt` composes against.
@@ -249,7 +261,7 @@ export function stageAt(track, cut, t, out, aspect) {
   if (cut.shot === 'deep') {
     // The camera flies behind the ball. Its heading comes from the ball's own motion, so
     // a crossing route and a go route are not the same shot.
-    sample(_ballPrev, track.ball, track.n, Math.max(0, t - 0.08));
+    sample(_ballPrev, track.ball, track.n, Math.max(0, t - 0.08), JUMP_M);
     const bvx = _ball[0] - _ballPrev[0], bvz = _ball[2] - _ballPrev[2];
     const bsp = Math.hypot(bvx, bvz);
     const trail = bsp > 0.05 ? Math.atan2(-bvx, -bvz) : Math.PI * 0.5;
@@ -262,7 +274,11 @@ export function stageAt(track, cut, t, out, aspect) {
     // has to have room for the men running under it.
     orbitStage(out, _ball, az, {
       fov: R.fov, fill, subjectH: R.subjectH,
-      height: Math.max(R.height, _ball[1] * 0.45 + 1.1),
+      // The camera rises with the ball, but at 0.28 of its height rather than 0.45: at
+      // 0.45 a ball peaking at 6 m put the lens at 3.8 m, and a camera ABOVE a ball in
+      // flight looks down at the grass under it — measured horizon 22%, the worst in the
+      // language. Rising less than the ball is what keeps the shot pointed up.
+      height: Math.max(R.height, _ball[1] * 0.28 + 0.90),
       topY: _ball[1], topAt: R.topAt,
     });
     out.roll = 1.1;
@@ -337,8 +353,8 @@ export function stageAt(track, cut, t, out, aspect) {
  * the deep recipe shoots at f/2.8.
  */
 export function focusAt(track, t, camPos) {
-  sample(_ball, track.ball, track.n, t);
-  sample(_sub, track.carry, track.n, t);
+  sample(_ball, track.ball, track.n, t, JUMP_M);
+  sample(_sub, track.carry, track.n, t, JUMP_M);
   const db = Math.hypot(_ball[0] - camPos[0], _ball[1] - camPos[1], _ball[2] - camPos[2]);
   const dh = Math.hypot(_sub[0] - camPos[0], _sub[1] + 1.25 - camPos[1], _sub[2] - camPos[2]);
   if (db < 0.3) return Math.max(0.6, dh);

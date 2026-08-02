@@ -83,9 +83,16 @@ export function createBody() {
  * low-passed (DFILT, ~80 ms) because `ballGuard` can step the aim point discontinuously,
  * and each channel is capped (LEAD_CAP) so one such step cannot fling the camera.
  */
-const LEAD = 0.90;             // fraction of the computed lag to cancel; 1.0 rings slightly
-const DFILT = 0.10;            // per-step pole of the derivative filter at 120 Hz
-const LEAD_CAP = new Float64Array([5, 2.5, 5, 6, 3, 6, 5, 4, 12]);
+const LEAD = 1.00;             // fraction of the computed lag to cancel
+const DFILT = 0.10;            // per-step pole of the derivative filter at 120 Hz (tau ~83 ms)
+const LEAD_CAP = new Float64Array([12, 2.5, 12, 13, 3, 13, 5, 4, 14]);
+// A DISCONTINUITY IS NOT A VELOCITY, and this is the guard that lets LEAD_CAP be generous
+// enough for the deep shot. `track.carry` changes MAN on the tick a pass is caught, and
+// play-sim puts the ball back in the passer's hands on an incomplete — both are ~17 m in a
+// single 8.3 ms step, which the finite difference reads as 2000 m/s and the feed-forward
+// would turn into a metres-long yank. Nothing in football moves 0.8 m between two 120 Hz
+// samples, so a step bigger than that is dropped from the derivative and the filter coasts.
+const JUMP_MAX = new Float64Array([0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 3, 2, 3]);
 
 /**
  * Step the body to grid index `kTarget`, calling `ideal(k, out)` to get the director's
@@ -147,9 +154,11 @@ export function stepTo(body, kTarget, ideal, scratch, stiffOf) {
         const s = i >= 6 ? kk * 2.4 : kk;
         const w = Math.sqrt(s);
         // FEED-FORWARD. Filtered rate of the ideal, times the closed-form lag 2*zeta/omega.
-        const raw = (scratch[i] - body.pi[i]) / STEP;
+        const step = scratch[i] - body.pi[i];
         body.pi[i] = scratch[i];
-        body.d[i] += (raw - body.d[i]) * DFILT;
+        if (step < JUMP_MAX[i] && step > -JUMP_MAX[i]) {
+          body.d[i] += (step / STEP - body.d[i]) * DFILT;
+        }
         let lead = (2 * ZETA / w) * body.d[i] * LEAD;
         const cap = LEAD_CAP[i];
         if (lead > cap) lead = cap; else if (lead < -cap) lead = -cap;

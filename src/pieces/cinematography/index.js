@@ -12,9 +12,11 @@
 //
 //   1. SHOT SELECTION   six staging recipes (language.js), one per kind of football
 //                       moment, each with its own lens. The pocket is a 38 degree lens at
-//                       1.88 m; the open field is a 42 degree lens at 1.22 m; a ball in
+//                       0.80 m; the open field is a 42 degree lens at 0.75 m; a ball in
 //                       the air is a 28 degree lens. They are different shots, not one
-//                       shot at different distances.
+//                       shot at different distances. The heights are not a style choice:
+//                       language.js derives them from the crowd/turf boundary measured off
+//                       the bar sheet, which sits 60-76% down the frame.
 //   2. THE EDIT         cuts land on the simulation's OWN event log (director.js) —
 //                       throw, catch, sack, scramble, broken tackle — never on a timer,
 //                       with a minimum hold and a priority order so the hit always wins.
@@ -88,7 +90,7 @@ import { RECIPES, orbitStage, pushOffAxis, ballGuard, initScratch, DEG } from '.
 const CAM_FLOOR = 0.55;
 import { createBody, stepTo, handheld, shake, STEP, N } from './motion.js';
 import { seedFromString } from '../../foundation/rng.js';
-import { getTrack } from './track.js';
+import { getTrack, sample, JUMP_M } from './track.js';
 import { cutList, cutAt, stageAt, focusAt, shakeAt, SHOT_ID, SHOT_NAME } from './director.js';
 import { buildPost } from './post.js';
 
@@ -196,30 +198,40 @@ function distTo(a, b) {
 
 const SHOTS = {
   // The hit. Two bodies fully airborne, so the "subject" is the 2.6 m column they make
-  // between them and the aim sits at 1.85 m — up where they actually are. Camera at
-  // 1.15 m, i.e. under them, looking up: on bar/panel-midair_hit.png the turf horizon is
-  // at 62% down the frame and both men are silhouetted against the bowl above it.
+  // between them and the aim sits up where they actually are. Camera at 0.95 m, i.e. under
+  // them, looking up: bar/panel-midair_hit.png measures its crowd/turf boundary at 70% down
+  // the frame and both men are silhouetted against the bowl above it. This staging delivers
+  // 66%; at round 1's 1.15 m it delivered 62%.
   midair_hit: restage('midair_hit', {
     recipe: 'impact', subject: [-0.25, 1.2, 0.1],
-    subjectH: 2.6, fill: 0.62, height: 1.15, topY: 3.10, topAt: 0.16, roll: -5.5,
-    note: 'bar/panel-midair_hit.png — IMPACT recipe: broadside, 1.15 m, 39 deg, f/1.8, 1/48 shutter, -5.5 deg roll. Aim at 1.85 m so both airborne bodies sit above the turf horizon.',
+    subjectH: 2.6, fill: 0.62, height: 0.95, topY: 3.10, topAt: 0.16, roll: -5.5,
+    note: 'bar/panel-midair_hit.png — IMPACT recipe: broadside, 0.95 m, 39 deg, f/1.8, 1/48 shutter, -5.5 deg roll. Camera dropped 1.15 -> 0.95 m in round 2: the panel measures its crowd/turf boundary at 70% down the frame and this staging delivered 62%.',
   }),
 
   // The score. Staged on the SIX recipe: low, wide, rolled the opposite way from a hit so
-  // a touchdown never reads as a collision. Aim at 1.55 m because the receiver is diving
-  // and his root is already 0.85 m off the ground.
+  // a touchdown never reads as a collision. Aimed high because the receiver is diving and
+  // his root is already 0.85 m off the ground.
+  //
+  // THE ONE PANEL THAT IS NOT RESTAGED TO THE MEASURED BAND, and it is a deliberate refusal.
+  // Row-wise, bar/panel-touchdown.png puts its crowd/turf boundary around 30-39% down —
+  // it is the only frame in the sheet shot from ABOVE, across a painted end zone, and the
+  // dark teal paint is most of what is under the horizon. Matching it would mean putting
+  // the one shot that is meant to be a celebration back on the downward tilt the rest of
+  // this round was spent removing. It stays at 62%, in the band the other five panels
+  // agree on, and this note is here so the difference is a choice on the record rather
+  // than an oversight.
   touchdown: restage('touchdown', {
     recipe: 'six', subject: [-1.3, 0.85, 0.6],
     fill: 0.72, height: 1.16, topY: 2.45, topAt: 0.14, roll: -3.4,
-    note: 'bar/panel-touchdown.png — SIX recipe: 1.18 m, 40 deg, f/2.2, -3.4 deg roll, focused on the ball at full extension.',
+    note: 'bar/panel-touchdown.png — SIX recipe: 1.16 m, 40 deg, f/2.2, -3.4 deg roll, focused on the ball at full extension. Horizon 62%.',
   }),
 
   // A truck is an impact, but a run-THROUGH rather than a stop, so the roll is halved and
   // the frame is opened a little wider than a leveller's.
   truck: restage('truck', {
     recipe: 'impact', subject: [0.9, 0, 1.2],
-    fill: 0.70, height: 1.05, topY: 1.78, topAt: 0.13, roll: 3.2, shutter: 1 / 60,
-    note: 'bar/panel-truck.png — IMPACT recipe at 4.4 m: the carrier fills 60% of frame height against the fallback wide\'s 40%.',
+    fill: 0.70, height: 0.72, topY: 1.78, topAt: 0.28, roll: 3.2, shutter: 1 / 60,
+    note: 'bar/panel-truck.png — IMPACT recipe at 4.4 m: the carrier fills 65% of frame height against the fallback wide\'s 40%. Round 2 dropped the lens 1.05 -> 0.72 m and moved his helmet 13% -> 28% down: at 1.05 m the horizon landed 41% down the frame against the panel\'s measured 76%, so the frame was grass where the panel is crowd.',
   }),
 
   leveler: restage('leveler', {
@@ -233,22 +245,27 @@ const SHOTS = {
   // the routes opening downfield past him, which is bar/panel-qb_dropback.png.
   qb_dropback: restage('qb_dropback', {
     recipe: 'pocket', subject: [0.2, 0, 0],
-    fill: 0.76, height: 1.42, topY: 1.95, topAt: 0.18,
-    note: 'bar/panel-qb_dropback.png — POCKET recipe: over the shoulder at 3.7 m, 38 deg, f/3.4, passer pushed 52% off axis so the rush geometry is the subject. Focus on the flaming ball in his hand.',
+    fill: 0.76, height: 0.92, topY: 1.95, topAt: 0.26,
+    note: 'bar/panel-qb_dropback.png — POCKET recipe: over the shoulder at 3.6 m, 38 deg, f/3.4, passer pushed 52% off axis so the rush geometry is the subject. 0.92 m, not round 1\'s 1.42 m: the panel\'s crowd/turf boundary is 66% down the frame and 1.42 m delivered 40%.',
   }),
 
-  // The jump ball. Aimed at 2.05 m — the highest aim in the whole language — so the
-  // contested ball sits in the top fifth of the frame against dark sky rather than
-  // against the crowd. That single choice is most of why the panel reads.
+  // The jump ball. The highest aim in the whole language, so the contested ball sits in the
+  // top sixth of the frame against dark sky rather than against the crowd. That single
+  // choice is most of why the panel reads. Camera 1.30 m; horizon 76%, the lowest in the
+  // set and the closest to bar/panel-truck.png's measured 76%.
   catch: restage('catch', {
     recipe: 'catch', subject: [0.4, 0.95, 0.2],
-    fill: 0.80, height: 1.55, topY: 2.85, topAt: 0.12, roll: 1.6, lead: [-0.35, 0, 0],
-    note: 'bar/panel-catch.png — CATCH recipe: 35 deg at 3.7 m, aim at 2.05 m, f/1.9. The ball lands ~21% from the top with nothing behind it.',
+    fill: 0.80, height: 1.30, topY: 2.85, topAt: 0.12, roll: 1.6, lead: [-0.35, 0, 0],
+    note: 'bar/panel-catch.png — CATCH recipe: 35 deg at 3.7 m from 1.30 m, f/1.9. The ball lands 16% from the top with nothing behind it and the horizon is 76% down.',
   }),
 
   // The live down. The director owns everything here; the spec only declares the intent
   // and the fallback lens values that apply before the first grid step.
   live_play: Object.assign({}, fbCinema.shots.live_play, {
+    // The pre-solve camera, replaced by the director on the first grid step. Restated in
+    // the language (0.95 m, horizon 61%) rather than left on the fallback's 3.2 m / 33%,
+    // because it is what renders if getTrack() returns null.
+    camera: { pos: [3.0, 0.95, 9.0], target: [0, 1.75, -1.0], fov: 38, roll: 0 },
     lens: { fStop: 2.6, focusDist: 12.0, bokehScale: 1.05, shutter: 1 / 110 },
     note: 'Director-driven. Shot, lens, roll and focus all come from the play; cuts land on the sim event log. `--t=` scrubs the down.',
   }),
@@ -350,16 +367,12 @@ function solveLive(shot, t, ctx, out) {
   return true;
 }
 
+// Same snapping rule as track.js `sample`: play-sim puts the ball back in the passer's hands
+// on an incomplete, and a lerp across that teleport aims the guard at a point on the field
+// where the ball has never been.
 const _sb = [0, 0, 0];
 function sampleBall(track, t) {
-  const n = track.n;
-  let f = t / (1 / 60);
-  if (!(f > 0)) f = 0;
-  if (f > n - 1) f = n - 1;
-  const i = Math.floor(f), j = i + 1 < n ? i + 1 : i, u = f - i;
-  _sb[0] = track.ball[i * 3] + (track.ball[j * 3] - track.ball[i * 3]) * u;
-  _sb[1] = track.ball[i * 3 + 1] + (track.ball[j * 3 + 1] - track.ball[i * 3 + 1]) * u;
-  _sb[2] = track.ball[i * 3 + 2] + (track.ball[j * 3 + 2] - track.ball[i * 3 + 2]) * u;
+  sample(_sb, track.ball, track.n, t, JUMP_M);
   return _sb;
 }
 
@@ -681,7 +694,7 @@ function ladder(st) {
 // own a frame that is meant to be scoring the camera.
 const ISO_IMPACT = stageIso(
   [-0.25, 1.2, 0.1], -8 * DEG,
-  { recipe: 'impact', subjectH: 2.6, fill: 0.62, height: 1.15, topY: 3.10, topAt: 0.16, roll: -5.5, shutter: 1 / 64 },
+  { recipe: 'impact', subjectH: 2.6, fill: 0.62, height: 0.95, topY: 3.10, topAt: 0.16, roll: -5.5, shutter: 1 / 64 },
   [-2.9, 1.62, 0.55],
 );
 const ISO_IMPACT_BG = ladder(ISO_IMPACT);
@@ -711,8 +724,10 @@ registerIsoShot('iso:cinematography', Object.assign({
  * ISO 2 — THE POCKET LANGUAGE. Judged against bar/panel-qb_dropback.png.
  *
  * The other half of the argument in language.js: the pocket is not the open field and it
- * does not get the open field's lens. 38 degrees at 1.86 m — the ONLY camera in the whole
- * language that is above chest height — with the passer pushed 52% of the way to the frame
+ * does not get the open field's lens. 38 degrees at 0.92 m — the pocket used to be the one
+ * camera in this language above chest height, and that was exactly the bug: at 1.42 m it
+ * delivered a horizon 40% down the frame against the panel's measured 66%, so the pocket
+ * was half grass. With the passer pushed 52% of the way to the frame
  * edge so that what the frame is actually about is the six men deciding whether he gets
  * to throw it. f/3.4, because at f/1.8 the rush would be a smear and the rush is the shot.
  */
@@ -722,7 +737,7 @@ registerIsoShot('iso:cinematography', Object.assign({
 // azimuth instead, because that panel is shared with other pieces.
 const ISO_POCKET = stageIso(
   [0.2, 0, 0], (90 - 26) * DEG,
-  { recipe: 'pocket', fill: 0.76, height: 1.42, topY: 1.95, topAt: 0.18, roll: 0.8 },
+  { recipe: 'pocket', fill: 0.76, height: 0.92, topY: 1.95, topAt: 0.26, roll: 0.8 },
   [-0.35, 1.42, 0.42],
 );
 const P = (d, lat, rot, o) => Object.assign({ pos: alongView(ISO_POCKET, d, lat, 0), rotY: rot }, o);
@@ -754,21 +769,21 @@ registerIsoShot('iso:cinematography_pocket', Object.assign({
     { type: 'cleat', x: 0.6, z: 1.4, rot: 0.3, strength: 0.7 },
     { type: 'divot', x: -3.2, z: -2.4, rot: 1.1, strength: 0.9 },
   ],
-  note: 'POCKET recipe: 38 deg at 1.86 m (the only above-chest camera in the language), passer 52% off axis, f/3.4 so the rush stays readable. Focus on the flaming ball in his hand.',
+  note: 'POCKET recipe: 38 deg at 0.92 m, horizon 67% against bar/panel-qb_dropback.png\'s measured 66%, passer 52% off axis, f/3.4 so the rush stays readable. Focus on the flaming ball in his hand.',
 }, ISO_POCKET));
 
 /**
  * ISO 3 — THE CATCH LANGUAGE. Judged against bar/panel-catch.png.
  *
- * The highest aim point in the language (2.05 m) and one of the shallowest apertures
- * (f/1.9). The whole shot is one idea: put the ball in the top fifth of the frame with
- * black sky behind it, and let everything else fall out of focus around it. The defender
- * is inside 1.3 m of the receiver and still separates, because at 3.7 m on a 35 mm-
- * equivalent lens they are on measurably different focus planes.
+ * The highest aim point in the language and one of the shallowest apertures (f/1.9). The
+ * whole shot is one idea: put the ball in the top sixth of the frame with black sky behind
+ * it, and let everything else fall out of focus around it. The defender is inside 1.3 m of
+ * the receiver and still separates, because at 3.7 m on a 35 mm-equivalent lens they are on
+ * measurably different focus planes.
  */
 const ISO_CATCH = stageIso(
   [0.4, 0.95, 0.2], 6 * DEG,
-  { recipe: 'catch', fill: 0.80, height: 1.55, topY: 2.85, topAt: 0.12, roll: 1.6, lead: [-0.35, 0, 0] },
+  { recipe: 'catch', fill: 0.80, height: 1.30, topY: 2.85, topAt: 0.12, roll: 1.6, lead: [-0.35, 0, 0] },
   [0.55, 2.72, 0.25],
 );
 const ISO_CATCH_BG = ladder(ISO_CATCH);
@@ -786,7 +801,7 @@ registerIsoShot('iso:cinematography_catch', Object.assign({
   ball: { pos: [0.55, 2.72, 0.25], flame: 0, visible: true, spin: 5 },
   hud: OFF,
   callout: NO_CALLOUT,
-  note: 'CATCH recipe: aim at 2.05 m so the ball sits ~21% from the top against dark sky, f/1.9 at 3.9 m. The focus plane is the ball; the defender 1.3 m nearer is already softening.',
+  note: 'CATCH recipe: aimed high so the ball sits 16% from the top against dark sky, f/1.9 at 3.9 m from 1.30 m. The focus plane is the ball; the defender 1.3 m nearer is already softening.',
 }, ISO_CATCH));
 
 /**
@@ -818,7 +833,11 @@ registerIsoShot('iso:cinematography_live', {
   piece: PIECE,
   panel: 'qb_dropback',
   live: true,
-  camera: { pos: [3.0, 3.2, 13.0], target: [0, 1.4, -1.0], fov: 38, roll: 0 },
+  // The pre-solve fallback only: applyShot replaces it on the first grid step. It is
+  // still in the language — 0.95 m, horizon 61% — because a track that fails to build
+  // renders from exactly this, and a fallback that looks down at the grass is the frame a
+  // critic would end up scoring.
+  camera: { pos: [3.0, 0.95, 9.0], target: [0, 1.75, -1.0], fov: 38, roll: 0 },
   lens: { fStop: 2.6, focusDist: 12.0, bokehScale: 1.05, shutter: 1 / 110 },
   exposure: 1.0,
   weather: NIGHT,

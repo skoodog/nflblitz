@@ -263,6 +263,34 @@ const FLOW_PREDICATES = {
     return null;
   },
 
+  // WHAT A SCORE IS WORTH, watched as it happens. Checking only that no total is
+  // "unreachable" cannot see a touchdown worth five: five plus the automatic extra point
+  // is six, and a game full of sixes and threes looks perfectly legal from the outside.
+  // The delta at the moment of the score is the only thing that pins the number.
+  scoreValues(F) {
+    const deltas = new Set();
+    for (const seed of [7, 31, 55]) {
+      const st = F.create({ seed });
+      let t = 0, guard = 0;
+      let prev = [0, 0];
+      while (!st.game.over && guard++ < 300000) {
+        F.step(st, t++);
+        const cur = st.game.score;
+        for (let i = 0; i < 2; i++) {
+          if (cur[i] !== prev[i]) deltas.add(cur[i] - prev[i]);
+        }
+        prev = [cur[0], cur[1]];
+      }
+    }
+    // A touchdown plus its automatic point is SEVEN, a field goal THREE, a safety TWO.
+    // The PAT lands on the same tick as the touchdown, so 7 is what a score reads as.
+    const legal = new Set([7, 3, 2]);
+    const bad = [...deltas].filter((d) => !legal.has(d));
+    if (bad.length) return `scores awarded worth ${bad.join(', ')} — legal are 7, 3, 2`;
+    if (!deltas.has(7)) return 'no touchdown was ever worth seven';
+    return null;
+  },
+
   // THE RULE SET, through the machine that drives it.
   rulesHold(F) {
     for (const seed of [11, 23]) {

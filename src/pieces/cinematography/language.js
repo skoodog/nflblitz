@@ -183,11 +183,11 @@ export const RECIPES = {
    * he ends up large and off-centre, and the geometry of the rush is the subject.
    * Measured on the panel, the QB's helmet sits at 22% from the top and 38% across.
    *
-   * HORIZON 0.24 + 0.76*(1 - 0.86/1.75) = 0.627, against the panel's measured 0.66. His
-   * feet land at 0.24 + 0.76 = 1.00, on the frame edge, which is the panel's crop.
+   * HORIZON 0.26 + 0.76*(1 - 0.80/1.75) = 0.673, against the panel's measured 0.66. His
+   * feet land at 0.26 + 0.76 = 1.02, on the frame edge, which is the panel's crop.
    */
   pocket: {
-    fov: 38, fill: 0.76, height: 0.86, topAt: 0.24,
+    fov: 38, fill: 0.76, height: 0.80, topAt: 0.26,
     fStop: 3.4, bokeh: 1.0, shutter: 1 / 160,
     stiff: 30, hand: 0.55, prio: 1,
     offAxis: 0.52,        // fraction of the horizontal half-frame the passer is pushed
@@ -202,12 +202,12 @@ export const RECIPES = {
    * the pocket's lens looks like a jog. The frame is opened ahead of the runner
    * (offAxis 0.40) so he is chasing space rather than centred in it.
    *
-   * HORIZON 0.28 + 0.68*(1 - 0.82/1.75) = 0.641, against panel-truck's 0.76 and
+   * HORIZON 0.30 + 0.68*(1 - 0.75/1.75) = 0.689, against panel-truck's 0.76 and
    * panel-catch's 0.70. `fill` went 0.64 -> 0.68 because a runner is the subject of this
    * shot and 0.64 was under the fallback wide it exists to replace.
    */
   pursuit: {
-    fov: 42, fill: 0.68, height: 0.82, topAt: 0.28,
+    fov: 42, fill: 0.68, height: 0.75, topAt: 0.30,
     fStop: 2.4, bokeh: 1.1, shutter: 1 / 90,
     stiff: 14, hand: 1.0, prio: 2,
     offAxis: 0.40,
@@ -230,9 +230,9 @@ export const RECIPES = {
   // the one shot in the language that is entirely about something in the AIR, was looking
   // down at the grass.
   deep: {
-    fov: 28, fill: 0.38, height: 1.80, topAt: 0.34,
+    fov: 28, fill: 0.38, height: 1.55, topAt: 0.36,
     fStop: 2.8, bokeh: 1.15, shutter: 1 / 320,
-    stiff: 20, hand: 0.7, prio: 3,
+    stiff: 26, hand: 0.7, prio: 3,
     offAxis: 0.0,
     side: 18 * DEG,
     subjectH: 3.4,        // the "subject" is a ball-plus-receiver column, not a man
@@ -250,11 +250,11 @@ export const RECIPES = {
    *      pass actually smears the bodies.
    * The spring is deliberately soft (stiff 9): the operator is thrown by the hit.
    */
-  // HORIZON 0.22 + 0.72*(1 - 0.80/1.75) = 0.611, against panel-midair_hit's measured 0.70
+  // HORIZON 0.25 + 0.72*(1 - 0.72/1.75) = 0.674, against panel-midair_hit's measured 0.70
   // and panel-leveler's 0.60. This is the shot where getting it wrong shows most: round 1
   // delivered 49%, which puts the collision on a bed of grass instead of against the bowl.
   impact: {
-    fov: 39, fill: 0.72, height: 0.80, topAt: 0.22,
+    fov: 39, fill: 0.72, height: 0.72, topAt: 0.25,
     fStop: 1.8, bokeh: 1.3, shutter: 1 / 48,
     stiff: 9, hand: 1.6, prio: 4,
     offAxis: 0.10,
@@ -278,7 +278,7 @@ export const RECIPES = {
    * max(ball.y, subject.y + reachY) for both.
    */
   catch: {
-    fov: 35, fill: 0.80, height: 1.20, topAt: 0.16,
+    fov: 35, fill: 0.80, height: 1.05, topAt: 0.18,
     fStop: 1.9, bokeh: 1.25, shutter: 1 / 110,
     stiff: 16, hand: 0.9, prio: 3,
     offAxis: 0.20,
@@ -295,12 +295,12 @@ export const RECIPES = {
    * one image. Low and rolled hard the other way from `impact`, so a score never feels
    * like a hit.
    *
-   * HORIZON 0.24 + 0.72*(1 - 0.88/1.75) = 0.598. PRIORITY 5, above the hit — the only
+   * HORIZON 0.26 + 0.72*(1 - 0.78/1.75) = 0.659. PRIORITY 5, above the hit — the only
    * recipe that outranks `impact`, because a score is the end of the down and nothing that
    * happens in the same tick is a bigger story than six points.
    */
   six: {
-    fov: 40, fill: 0.72, height: 0.88, topAt: 0.24,
+    fov: 40, fill: 0.72, height: 0.78, topAt: 0.26,
     fStop: 2.2, bokeh: 1.15, shutter: 1 / 70,
     stiff: 13, hand: 1.0, prio: 5,
     offAxis: 0.30,

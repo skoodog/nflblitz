@@ -8,8 +8,8 @@
 /* ------------------------------------------------------------------- pools */
 
 // Pool sizes are the ONLY allocation this piece ever does at runtime, and they are done
-// once in build(). A `hit` at power 2.2 emits 91 glow quads + 200 debris quads (counted
-// by instrumenting emit(); see the header of bursts.js), so the glow pool holds 12.0
+// once in build(). A `hit` at power 2.2 emits 112 glow quads + 200 debris quads (counted
+// by instrumenting emit(); see the header of bursts.js), so the glow pool holds 9.8
 // concurrent power-2.2 hits and the debris pool 3.8. Both are ring buffers: the oldest
 // quad is overwritten rather than dropped, which is right for this piece because the
 // oldest quad is always the one closest to being dead anyway.
@@ -97,13 +97,13 @@ export const COL = {
   sparkCool: [0.85, 0.20, 0.04],
   ember: [1.25, 0.34, 0.07],
   // DUST AND SMOKE ARE ADDITIVE AND THEY STACK, so budget for the STACK and not for the
-  // sprite: ~30 overlapping puffs at sprite alpha 0.4 times these values lands around
+  // sprite: ~26 overlapping puffs at sprite alpha 0.4 times these values lands around
   // 0.9-1.2, which is the pale billow the turf chips are silhouetted against in
   // bar/panel-leveler.png. Without it the chips are near-black on a near-black night
   // field and the debris field is invisible however much of it there is.
-  dust: [0.285, 0.232, 0.180],
-  dustLit: [0.58, 0.40, 0.245],
-  smoke: [0.165, 0.138, 0.124],
+  dust: [0.235, 0.190, 0.148],
+  dustLit: [0.50, 0.34, 0.21],
+  smoke: [0.145, 0.120, 0.108],
   groundPool: [0.62, 0.29, 0.10],
 };
 
@@ -136,9 +136,19 @@ export const DIRT = {
 //
 // THEN I OVERSHOT, and the first capture (shots/impact-fx/probe_hit.png) showed it:
 // sparks at v0 up to 50 m/s put the leading edge of the shower 3.1 m from the contact at
-// 90 ms, a 6 m ball of sparks. The `leveler` hero camera is 8 m out at 37 degrees, which
-// is 5.3 m of frame width, so the effect was wider than the shot. In the panel the whole
-// shower is about half the frame — call it 2.5-3 m. Top speeds came down by a third.
+// 90 ms, a 6 m ball of sparks.
+//
+// THE FRAME NUMBER IN THIS PARAGRAPH USED TO BE WRONG, and it is worth keeping the
+// correction because two later mistakes were built on top of it. The `leveler` camera is
+// 7.88 m from the contact on a 37 degree lens; three.js fov is VERTICAL, so 5.27 m is the
+// frame HEIGHT, and at 16:9 the frame is 9.38 m WIDE. Calling 5.3 m "frame width" made
+// the effect look 1.8x more contained than it was, and later encouraged chasing the bar
+// panel's "93% of frame width" in a frame 3.5x wider than the panel's. See the note in
+// clods() in bursts.js.
+//
+// In the panel the whole spark shower is about half of a 2.66 m frame — call it 1.3 m at
+// 30 ms. Round 2 takes hit sparks to v0 = 11.6-29.1 m/s, which against k = 9 is 0.31-0.76 m
+// at 30 ms and 0.72-1.80 m at 90 ms.
 export const SPARK_DRAG = 9.0;
 export const SPARK_GRAV = 7.0;
 export const DEBRIS_DRAG = 4.5;

@@ -16,21 +16,23 @@
 // writes, so `head` after one emitBurst IS the quad count.
 //
 //                         BEFORE round 2      AFTER round 2     the table used to claim
-//     hit     glow            174                  91                   161
+//     hit     glow            174                 112                   161
 //             debris          110                 200                    84
-//     truck   glow             82                  53                    77
+//     truck   glow             82                  77                    77
 //             debris          130                 224                   111
-//     catch   glow             65                  42                    61
-//             debris           33                  61                    29
+//     catch   glow             65                  50                    61
+//             debris           33                  62                    29
 //     cleat   glow             14                  14                    12
-//             debris           81                 138                    75
+//             debris           81                 139                    75
 //
-// The glow pool holds 1100 and the debris pool 760, so a power-2.2 hit fits 12.0 times
+// A power-2.2 hit is therefore 312 quads / 624 triangles.
+//
+// The glow pool holds 1100 and the debris pool 760, so a power-2.2 hit fits 9.8 times
 // over in the glow pool and 3.8 times in the debris pool before the ring buffer starts
-// eating its own tail. At the clamp (power 3) it is 8.8 and 2.8. The old note claimed
-// "six concurrent maximum-power hits"; at the counts it was written against the true
-// figures were 6.3 and 6.9, and after round 2 the debris pool is deliberately the tight
-// one — see the note on POOL_DEBRIS in config.js.
+// eating its own tail. At the clamp (power 3, 151 glow + 273 debris) it is 7.3 and 2.8.
+// The old note claimed "six concurrent maximum-power hits"; at the counts it was actually
+// written against, the true figures were 6.3 and 6.9. After round 2 the debris pool is
+// deliberately the tight one — see the note on POOL_DEBRIS in config.js.
 
 import { makeRng, hash } from '../../foundation/rng.js';
 import { emit } from './quads.js';
@@ -179,7 +181,7 @@ function dust(S, x, y, z, t0, p, n, rng, lift) {
     // flat wash rather than as a billow, and thirteen of them stacked into the white core
     // rather than into a cloud with structure. The dust is doing real work now (the turf
     // chips are legible against it and not against the night sky) so it has to have
-    // texture: 31 puffs of 0.29-0.73 m instead of 13 of 0.66-1.65 m.
+    // texture: 26 puffs of 0.29-0.73 m instead of 13 of 0.66-1.65 m.
     const s0 = 0.13 + rng() * 0.20;
     // Dust nearest the flash is lit by it; dust further out is not.
     lerp3(CTMP, COL.dustLit, COL.dust, i / Math.max(1, n - 1));
@@ -223,23 +225,26 @@ function clods(S, x, y, z, t0, p, n, rng, along, lift, vlo, vhi) {
     // leveler panel is a low, DIRECTIONAL, ground-hugging smear. 0.72 keeps the cone about
     // the contact normal while still leaving spread.
     dirIn(rng, Math.max(along, 0.72), 0.85, lift);
-    // AND IT HAS TO TRAVEL. Measured against the panel, scaled off the defender's helmet:
-    // the bar's debris field spans ~93% of the frame width and rises above the helmet;
-    // ours spanned 13%, because at the age the hero shots hand this piece (0.03-0.06 s)
-    // clods launched at 5.7-21 m/s against drag 4.5 have gone 0.16-0.60 m and no further.
-    // config.js already records that spark v0 was raised for exactly this reason and that
-    // the same correction was never applied to the debris. This is that correction.
-    // 2.4, not 3.4. The 3.4 that got the field out of a 25 cm ball overshot: measured off
-    // the `leveler` capture the clods reached 1.52 m from contact at 30 ms, a 3.0 m ball,
-    // where the bar panel's chip field is 2.0-2.5 m wide when scaled off the defender's
-    // helmet (40 px = 0.26 m, 154 px/m). 2.4 lands the leading edge at 1.07 m.
+    // AND IT HAS TO TRAVEL — BUT MEASURE IT IN METRES, NOT IN FRACTIONS OF A FRAME.
+    // At the age the hero shots hand this piece (0.03-0.06 s) clods launched at 5.7-21 m/s
+    // against drag 4.5 travel 0.16-0.60 m and no further, which is a 25 cm ball. The first
+    // correction multiplied v0 by 3.4 in order to make the field span "93% of the frame
+    // width, like the panel", and THAT TARGET IS A CATEGORY ERROR: 93% is 93% of the BAR
+    // PANEL's frame, and the bar panel is a 2.66 m wide crop (410 px at the 154 px/m the
+    // defender's 40 px / 0.26 m helmet gives), while our own `leveler` camera sits 7.88 m
+    // out on a 37 degree lens and sees 9.38 m. The same debris field is 93% of one frame
+    // and 26% of the other. In metres the panel's chip field is 2.0-2.5 m across, and 3.4
+    // put our leading edge 1.52 m from contact at 30 ms — a 3.0 m ball, already wider than
+    // the reference. 2.4 lands it at 1.12 m, a 2.24 m field.
     const v = (vlo + rng() * (vhi - vlo)) * (0.65 + 0.35 * p) * 2.4;
     const q = rng();
     // AND IT HAS TO BE TURF, NOT BOULDERS. Measured against panel-leveler.png with the
     // same top-hat operator used on our own captures: the bar's chips have a MEDIAN
     // diameter of 0.019 m and 264 of them are separable in a 2.66 x 2.44 m frame. Ours
-    // measured p50 0.061 m over 110 quads. The cube keeps a few real slabs (max 0.104 m)
-    // and puts everything else in the 0.02-0.04 m grit band the panel is actually made of.
+    // measured p50 0.061 m over 110 quads (clods 0.037, tufts 0.095). The cube keeps a few
+    // real slabs (max 0.104 m, median 0.027 m) and puts everything else in the 0.02-0.04 m
+    // grit band the panel is actually made of; over 200 quads that is 0.20 m^2 of sprite
+    // against the panel's 0.147 m^2 of measured chip.
     const s = 0.016 + q * q * q * 0.088;
     const c = CLOD_TINTS[hash(i, 3) % 4];
     emit(d, x, y, z, D[0] * v, D[1] * v, D[2] * v,
@@ -313,8 +318,8 @@ function hit(S, x, y, z, t0, p, rng) {
     CELL.RING, MODE.BILLBOARD, 0, 0, 0, 0, 0, 1.6, 0.02);
   sparks(S, x, y, z, t0, p, Math.round(26 * p), rng, 0.82, 0.42, 0.0, 8, 20);
   embers(S, x, y, z, t0, p, Math.round(6 * p), rng);
-  dust(S, x, y, z, t0, p, Math.round(14 * p), rng, 0.45);
-  smoke(S, x, y, z, t0, p, Math.round(5 * p), rng);
+  dust(S, x, y, z, t0, p, Math.round(12 * p), rng, 0.45);
+  smoke(S, x, y, z, t0, p, Math.round(4 * p), rng);
   // TURF COMES FROM THE TURF. My first version spawned every clod at the contact point,
   // which for a chest-height hit meant dirt appearing out of thin air 1.3 m above a
   // field that was visibly undisturbed. bar/panel-leveler.png has the ground ERUPTING
