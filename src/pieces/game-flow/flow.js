@@ -26,6 +26,7 @@ import {
   newGame, applyPlay, applyPat, tickClock, OUTCOME, OUTCOME_NAME, yardsToGoal,
 } from './rules.js';
 import { PHASE } from './pad.js';
+import { ACT, DIR } from '../touch-controller/tuning.js';
 
 export const STATE = Object.freeze({
   BOOT: 0, TITLE: 1, TEAM_SELECT: 2, PLAYCALL: 3, PLAY: 4, RESULT: 5,
@@ -70,6 +71,12 @@ const impl = {
       // What the score callout is showing, and for how long.
       overlay: null,
       overlayUntil: 0,
+      // Player-facing bits: the highlighted call, the committed call, and turbo.
+      callPage: 1,
+      callIndex: 0,
+      playerCall: null,
+      turbo: false,
+      lastInput: null,
       // The scaler's queued expensive commit.
       pendingRung: -1,
       pendingReason: 0,
@@ -104,7 +111,10 @@ const impl = {
     impl.go(st, STATE.PLAY, tick);
     const g = st.game;
     const salt = hash(st.seed, st.playCount, g.down, g.ballOn) >>> 0;
-    st.offense = callOffense(PLAYBOOK, g, salt);
+    // The player's chosen call wins if there is one; the coordinator fills in otherwise,
+    // which is what keeps an unattended build playing itself as an attract mode.
+    st.offense = st.playerCall || callOffense(PLAYBOOK, g, salt);
+    st.playerCall = null;
     st.defense = callDefense(PLAYBOOK, g, salt);
     st.play = sim.createPlay(salt, st.offense, st.defense,
       PLAYERS.byTeam[g.possession === 1 ? g.home : g.away],
@@ -222,6 +232,76 @@ const impl = {
     if (p.tick <= 0) return PHASE.PRESNAP;
     if (p.carrier !== 'QB' || p.scrambling || p.offense.kind === 'run') return PHASE.OFFENSE_CARRY;
     return PHASE.OFFENSE_POCKET;
+  },
+
+  /**
+   * THE PLAYER'S HANDS ON THE GAME. This is the wire that was missing.
+   *
+   * Everything needed to play existed and none of it was connected: the touch bus drained,
+   * the controller resolved gestures into `st.action` on the correct tick, pad.js mapped
+   * every Xbox button onto the same vocabulary -- and NOTHING ANYWHERE READ THE RESULT. A
+   * grep across the whole tree for a call site turning an input into a simulation action
+   * returned zero hits. The game played itself beautifully while the controller resolved
+   * into a void.
+   *
+   * `act` is an ACT.* from touch-controller/tuning.js, which is deliberately the one
+   * vocabulary both devices resolve to, so this function never learns what a gamepad is.
+   * Returns true if the input was consumed, which the caller uses for feedback.
+   */
+  input(st, act, dir, tick) {
+    if (!act || act === ACT.NONE) return false;
+
+    // ---- choosing the play -------------------------------------------------------
+    if (st.state === STATE.PLAYCALL) {
+      const page = PLAYBOOK.offense.filter((p) => (p.page || 1) === (st.callPage || 1));
+      if (act === ACT.SWITCH_NEXT) { st.callIndex = ((st.callIndex || 0) + 1) % page.length; return true; }
+      if (act === ACT.SWITCH_PREV) { st.callIndex = ((st.callIndex || 0) + page.length - 1) % page.length; return true; }
+      if (act === ACT.TURBO_ON) { st.callPage = (st.callPage || 1) === 1 ? 2 : 1; st.callIndex = 0; return true; }
+      // SNAP commits the highlighted call and starts the down early. The AI coordinator
+      // still picks the DEFENCE -- the player is one side of the ball, not both.
+      if (act === ACT.SNAP || act === ACT.PASS) {
+        st.playerCall = page[st.callIndex || 0];
+        impl.enterPlay(st, tick);
+        return true;
+      }
+      return false;
+    }
+
+    if (st.state !== STATE.PLAY || !st.play || st.play.result !== sim.RESULT.LIVE) return false;
+    const p = st.play;
+
+    // ---- the passer --------------------------------------------------------------
+    if (p.carrier === 'QB' && !p.ball && p.offense.kind !== 'run' && !p.scrambling) {
+      if (act === ACT.PASS) {
+        // The direction picks the receiver, which is the N64 C-button idiom pad.js records:
+        // left/up/right are receivers 1, 2 and 3. Without a direction it is the open man.
+        const slot = dir === DIR.LEFT ? 'REC1' : dir === DIR.UP ? 'REC2' : dir === DIR.RIGHT ? 'REC3' : null;
+        const target = slot || sim.pickOpenReceiver(p);
+        if (target && sim.throwTo(p, target)) { st.lastInput = 'pass'; return true; }
+        return false;
+      }
+      if (act === ACT.TUCK) { p.scrambling = true; p.scrambleAt = p.tick; st.lastInput = 'tuck'; return true; }
+      if (act === ACT.THROW_AWAY) {
+        p.result = sim.RESULT.INCOMPLETE;
+        p.yards = 0;
+        p.events.push({ tick: p.tick, kind: 'throwaway' });
+        st.lastInput = 'throwaway';
+        return true;
+      }
+    }
+
+    // ---- the ball carrier --------------------------------------------------------
+    const car = p.off.find((m) => m.slot === p.carrier);
+    if (car && !p.ball) {
+      if (act === ACT.TURBO_ON) { st.turbo = true; return true; }
+      if (act === ACT.TURBO_OFF) { st.turbo = false; return true; }
+      // A juke moves the carrier laterally NOW. The simulation is a pure tick function, so
+      // an input is just a nudge to its state on the tick the controller resolved it.
+      if (act === ACT.JUKE_L) { car.x -= 0.9; st.lastInput = 'juke'; return true; }
+      if (act === ACT.JUKE_R) { car.x += 0.9; st.lastInput = 'juke'; return true; }
+      if (act === ACT.DIVE) { car.y += 1.1; st.lastInput = 'dive'; return true; }
+    }
+    return false;
   },
 
   /** The onside kick is the one kick that is played rather than given. */

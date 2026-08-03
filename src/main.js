@@ -120,6 +120,11 @@ function bootPlay(glCanvas, uiCanvas) {
   const ctrlState = REG.controller.create();
   const flowState = REG.flow.create();
   const timingState = REG.timing.create();
+  // THE RENDERED SIM IS THE FLOW'S SIM. It used to be a SECOND, unrelated simulation
+  // created here and ticked alongside the one game-flow was actually playing: two games
+  // running side by side, one on screen and one keeping score. Nothing the player could
+  // ever do would affect the one being drawn. `simView` is now a thin wrapper whose state
+  // is whatever down the flow machine currently has live.
   let simState = null;
   try { simState = REG.sim.create(params.seed, { teamA: 'NYC', teamB: 'CHI' }); } catch (e) { simState = null; }
   // DEBUG ONLY. The game must be fully playable with thumbs and nothing else; this
@@ -194,7 +199,21 @@ function bootPlay(glCanvas, uiCanvas) {
       // and not inside the scaler's 0.10 ms span.
       rt.commitActorLod();
     }
-    if (simState && REG.sim.step) {
+    // THE PLAYER'S INPUT REACHES THE GAME. The controller resolves gestures into
+    // `ctrlState.action` on the tick they happened; until this line existed nothing
+    // anywhere read that field, so a fully-built touch controller resolved every swipe
+    // and tap into a void while the game played itself.
+    if (ctrlState.action && REG.flow.input) {
+      try {
+        REG.flow.input(flowState, ctrlState.action, ctrlState.actionDir, tick);
+      } catch (e) { /* an input must never take the frame down */ }
+    }
+
+    // The flow machine advances its own live down inside step(); only fall back to the
+    // standalone sim when the flow has no down running (title, team select, playcall).
+    if (flowState.play && flowState.state === REG.flow.STATE.PLAY) {
+      simState = flowState.play;
+    } else if (simState && REG.sim.step) {
       try { REG.sim.step(simState, TICK); } catch (e) { simState = null; }
     }
   }

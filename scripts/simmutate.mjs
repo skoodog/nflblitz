@@ -122,7 +122,9 @@ async function loadFlow(which, edits) {
     .replace(/from '\.\.\/\.\.\/foundation\/rng\.js'/,
       `from ${JSON.stringify(pathToFileURL(path.join(ROOT, 'src/foundation/rng.js')).href)}`)
     .replace(/from '\.\.\/play-sim\/sim\.js'/,
-      `from ${JSON.stringify(pathToFileURL(SIM).href)}`);
+      `from ${JSON.stringify(pathToFileURL(SIM).href)}`)
+    .replace(/from '\.\.\/touch-controller\/tuning\.js'/,
+      `from ${JSON.stringify(pathToFileURL(path.join(ROOT, 'src/pieces/touch-controller/tuning.js')).href)}`);
   if (which === 'flow') src = applyEdits(src, edits, 'flow');
   src = `import fs from 'node:fs';\n` + src;
   const f = path.join(dir, 'flow.mjs');

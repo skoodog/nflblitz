@@ -912,7 +912,8 @@ L('\n=== THE FLOW MACHINE AND THE PLAY CALLER ===');
     .replace(/import PLAYERS from '[^']*players\.json';/, `const PLAYERS = JSON.parse(fs.readFileSync('${R}src/data/players.json','utf8'));`)
     .replace(/from '\.\.\/\.\.\/foundation\/rng\.js'/, `from '${R}src/foundation/rng.js'`)
     .replace(/from '\.\.\/play-sim\/sim\.js'/, `from '${R}src/pieces/play-sim/sim.js'`)
-    .replace(/from '\.\/(coach|kick|rules|pad)\.js'/g, `from '${R}src/pieces/game-flow/$1.js'`);
+    .replace(/from '\.\/(coach|kick|rules|pad)\.js'/g, `from '${R}src/pieces/game-flow/$1.js'`)
+    .replace(/from '\.\.\/touch-controller\/tuning\.js'/, `from '${R}src/pieces/touch-controller/tuning.js'`);
   src = "import fs from 'node:fs';\n" + src;
   const tdir = fsx.mkdtempSync(path.join(osx.tmpdir(), 'gt-flow-'));
   const ff = path.join(tdir, 'flow.mjs');
@@ -1032,6 +1033,59 @@ L('\n=== THE FLOW MACHINE AND THE PLAY CALLER ===');
       JSON.stringify(kinds));
     const tot = Object.values(kinds).reduce((a, b) => a + b, 0);
     ok((kinds.run || 0) / tot > 0.06, 'it actually runs the ball', `${(((kinds.run || 0) / tot) * 100).toFixed(0)}%`);
+  }
+
+  // THE PLAYER'S HANDS ON THE GAME. Everything needed to play existed for a long time and
+  // none of it was connected: the touch bus drained, the controller resolved gestures into
+  // `action` on the right tick, pad.js mapped every Xbox button onto the same vocabulary --
+  // and a grep across the whole tree for a call site turning an input into a simulation
+  // action returned ZERO HITS. The game played itself while the controller resolved into a
+  // void. These assertions exist so that can never quietly become true again.
+  {
+    const T2 = await imp('src/pieces/touch-controller/tuning.js');
+    const { ACT, DIR } = T2;
+    const st = flow.create({ seed: 21 });
+    let t = 0, picked = 0, snapped = 0, threw = 0, juked = 0;
+    const seen = new Set();
+    while (!st.game.over && t < 200000) {
+      flow.step(st, t);
+      if (st.state === flow.STATE.PLAYCALL) {
+        const age = t - st.enteredTick;
+        if (age === 10 && flow.input(st, ACT.SWITCH_NEXT, DIR.NONE, t)) picked++;
+        if (age === 30 && flow.input(st, ACT.SNAP, DIR.NONE, t)) snapped++;
+      }
+      if (st.state === flow.STATE.PLAY && st.play && !seen.has(st.playCount)) {
+        const p = st.play;
+        if (p.tick === 25 && p.carrier === 'QB' && !p.ball
+            && flow.input(st, ACT.PASS, DIR.RIGHT, t)) { threw++; seen.add(st.playCount); }
+        if (p.carrier !== 'QB' && p.tick === 40 && flow.input(st, ACT.JUKE_R, DIR.NONE, t)) juked++;
+      }
+      t++;
+    }
+    ok(st.game.over, 'a player-driven game runs to the end');
+    ok(picked > 40, 'the play sheet responds to input', `${picked} selections`);
+    ok(snapped > 40, 'the player can snap the ball early', `${snapped} snaps`);
+    ok(threw > 40, 'the player can throw the ball', `${threw} passes`);
+    ok(juked > 0, 'the player can juke as a ball carrier', `${juked} jukes`);
+
+    // AND THE CALL HE PICKED IS THE ONE THAT RUNS. Accepting the input and then playing a
+    // different play would satisfy every count above.
+    const st2 = flow.create({ seed: 5 });
+    let u = 0;
+    while (st2.state !== flow.STATE.PLAYCALL && u < 9000) flow.step(st2, u++);
+    flow.input(st2, ACT.SWITCH_NEXT, DIR.NONE, u);
+    const page = playbook.offense.filter((pl) => (pl.page || 1) === (st2.callPage || 1));
+    const wanted = page[st2.callIndex].id;
+    flow.input(st2, ACT.SNAP, DIR.NONE, u);
+    eq(st2.state, flow.STATE.PLAY, 'snapping starts the down');
+    eq(st2.offense.id, wanted, 'the down that runs is the play the player highlighted');
+
+    // An unattended build must still play itself, or the demo has no attract mode.
+    const st3 = flow.create({ seed: 5 });
+    let w = 0;
+    while (st3.playCount < 3 && w < 9000) flow.step(st3, w++);
+    ok(st3.playCount >= 3, 'with no input at all, the coordinator still calls the game',
+      `${st3.playCount} downs unattended`);
   }
 
   const ypp = K.yards / K.resolved;
