@@ -1,0 +1,124 @@
+<title>BLITZ RELOADED — playable build</title>
+<style>
+/* The game's own shell CSS, verbatim from the build: every one of the touch properties
+   below is load-bearing on a phone (kill scroll, pinch, the iOS long-press sheet, the
+   Android tap flash) and the stage transform is how 1920x1080 maps onto a real screen. */
+
+  html, body {
+    margin: 0; padding: 0; background: #05060a; color: #e6e6ea;
+    overflow: hidden; width: 100%; height: 100%;
+    font-family: "Liberation Sans", "DejaVu Sans", Arial, sans-serif;
+  }
+  /* TOUCH RULES — these five properties are load-bearing for a phone build.
+     touch-action:none      kill scroll/pan/pinch so a thumbstick drag is ours alone
+     overscroll-behavior    kill pull-to-refresh and the rubber-band bounce
+     -webkit-touch-callout  kill the long-press "copy image" sheet on iOS
+     user-select:none       kill text selection on a long press
+     tap-highlight          kill the grey flash Android paints on every tap */
+  html, body, #stage, #gl, #ui {
+    touch-action: none;
+    overscroll-behavior: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #stage {
+    position: absolute; left: 0; top: 0;
+    width: 1920px; height: 1080px;
+    transform-origin: 0 0;
+    background: #05060a;
+  }
+  /* Layer 1: the three.js world. Layer 2: the Canvas2D overlay. */
+  #gl, #ui {
+    position: absolute; left: 0; top: 0; display: block;
+    width: 100%; height: 100%;
+  }
+  #gl { z-index: 1; }
+  /* CAPTURE: the overlay is a passive image layer, exactly as before.
+     PLAY:    the stage is the TOUCH SURFACE — `touch.js` binds its pointer listeners to
+              it, so it must actually receive pointer events. */
+  #ui { z-index: 2; pointer-events: none; }
+  html[data-blitz-mode="play"] #stage { width: 100%; height: 100%; }
+  #fatal {
+    display: none; position: absolute; z-index: 99; left: 0; top: 0; right: 0;
+    padding: 24px; background: #1a0000; color: #ff8080;
+    font: 14px/1.5 "DejaVu Sans Mono", monospace; white-space: pre-wrap;
+  }
+
+
+/* ---- the shell around the game -------------------------------------------------
+   Committed to ONE visual world rather than themed: this is an arcade cabinet screen,
+   and a light mode for it would be a costume. Every colour is painted explicitly so the
+   page holds on whatever ground the viewer's host paints behind it. */
+:root {
+  --ground: #05060a;      /* the game's own backdrop, so shell and game share a floor */
+  --ink:    #e6e6ea;
+  --gold:   #f0b429;      /* the HUD's gold, not a new accent */
+  --slate:  #1b2534;      /* neutral pulled toward the field's night blue, not pure grey */
+}
+html, body { background: var(--ground); }
+#legend {
+  position: fixed; left: max(12px, env(safe-area-inset-left)); bottom: max(12px, env(safe-area-inset-bottom));
+  z-index: 40; pointer-events: none;          /* never steals a touch from the field */
+  display: grid; gap: 6px;
+  padding: 12px 14px; border: 1px solid var(--slate); border-radius: 3px;
+  background: rgba(5, 6, 10, 0.82);
+  font: 600 11px/1.35 "Liberation Sans", "DejaVu Sans", Arial, sans-serif;
+  color: var(--ink); letter-spacing: 0.07em; text-transform: uppercase;
+  transition: opacity 600ms ease;
+}
+#legend[hidden] { display: none; }
+#legend.gone { opacity: 0; }
+#legend b { color: var(--gold); font-weight: 700; letter-spacing: 0.09em; }
+#legend .row { display: flex; gap: 8px; align-items: baseline; }
+#legend .k {
+  font: 700 10px/1 "DejaVu Sans Mono", ui-monospace, monospace;
+  letter-spacing: 0; color: var(--ground); background: var(--gold);
+  padding: 3px 5px; border-radius: 2px; min-width: 1.1em; text-align: center;
+}
+#legend .t { opacity: 0.86; }
+@media (prefers-reduced-motion: reduce) { #legend { transition: none; } }
+</style>
+
+<div id="stage">
+  <canvas id="gl"></canvas>
+  <canvas id="ui"></canvas>
+  <pre id="fatal"></pre>
+</div>
+
+<!-- The controls, for the ten seconds before they are muscle memory. Fades on first input. -->
+<div id="legend">
+  <div class="row"><b>Touch</b><span class="t">— left pad moves, right pad acts</span></div>
+  <div class="row"><b>Play sheet</b><span class="k">&#8592;</span><span class="k">&#8594;</span><span class="t">cycle</span><span class="k">&#8593;</span><span class="t">page</span><span class="k">&#8595;</span><span class="t">snap</span></div>
+  <div class="row"><b>Passing</b><span class="k">J</span><span class="k">K</span><span class="k">L</span><span class="t">receiver 1 / 2 / 3</span><span class="k">I</span><span class="t">tuck &amp; run</span></div>
+  <div class="row"><b>Running</b><span class="k">&#8592;</span><span class="k">&#8594;</span><span class="t">juke</span><span class="k">&#8595;</span><span class="t">dive</span><span class="k">&#8679;</span><span class="t">turbo</span></div>
+  <div class="row"><span class="t">Hands off and it plays itself.</span></div>
+</div>
+</div>
+
+<script>
+// The artifact wrapper owns <head>, so the viewport meta -- which is what makes a phone
+// render this at device width with pinch-zoom disabled -- has to be installed at runtime.
+(function () {
+  var m = document.createElement('meta');
+  m.name = 'viewport';
+  m.content = 'width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover';
+  document.head.appendChild(m);
+  var l = document.getElementById('legend');
+  var fade = function () {
+    if (!l) return;
+    l.className = 'gone';
+    setTimeout(function () { if (l) l.hidden = true; }, 700);
+    window.removeEventListener('pointerdown', fade);
+    window.removeEventListener('keydown', fade);
+  };
+  window.addEventListener('pointerdown', fade, { once: false });
+  window.addEventListener('keydown', fade, { once: false });
+  setTimeout(fade, 15000);
+})();
+</script>
+
+<script type="module">
+/*BUNDLE*/
+</script>

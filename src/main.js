@@ -19,6 +19,7 @@ import { createClock, createPacer, TICK, rateSpec, pacingTargets } from './found
 import { createTelemetry, SPANS, budgetTable } from './foundation/telemetry.js';
 import { createLoop } from './foundation/loop.js';
 import { createTouch } from './foundation/touch.js';
+import { ACT, DIR } from './pieces/touch-controller/tuning.js';
 import {
   staticSignals, cpuProbe, gpuProbe, classify, createScaler,
   TIERS, RUNGS, tierOfRung, CHANGE_KIND, expensiveClass,
@@ -199,6 +200,35 @@ function bootPlay(glCanvas, uiCanvas) {
       // and not inside the scaler's 0.10 ms span.
       rt.commitActorLod();
     }
+    // THE KEYBOARD REACHES THE GAME TOO. `debugKeys` was created and update()d every tick
+    // and its state was read by NOTHING -- the same defect the touch controller had, in the
+    // same file, two lines apart. The game is meant to be played with thumbs and the pad is
+    // a convenience for a developer at a desk, but a convenience that does nothing is a
+    // lie in a keymap. `consume()` is edge-triggered, so a held key fires once.
+    if (REG.flow.input) {
+      const F = REG.flow;
+      const inPlaycall = flowState.state === F.STATE.PLAYCALL;
+      const carrying = flowState.play && flowState.play.carrier !== 'QB';
+      if (inPlaycall) {
+        if (debugKeys.consume('left')) F.input(flowState, ACT.SWITCH_PREV, DIR.NONE, tick);
+        if (debugKeys.consume('right')) F.input(flowState, ACT.SWITCH_NEXT, DIR.NONE, tick);
+        if (debugKeys.consume('up')) F.input(flowState, ACT.TURBO_ON, DIR.NONE, tick);
+        if (debugKeys.consume('down') || debugKeys.consume('a')) F.input(flowState, ACT.SNAP, DIR.NONE, tick);
+      } else if (carrying) {
+        if (debugKeys.consume('left')) F.input(flowState, ACT.JUKE_L, DIR.NONE, tick);
+        if (debugKeys.consume('right')) F.input(flowState, ACT.JUKE_R, DIR.NONE, tick);
+        if (debugKeys.consume('down')) F.input(flowState, ACT.DIVE, DIR.NONE, tick);
+      } else {
+        // The passer. J / K / L are receivers 1, 2 and 3 -- the C-button idiom pad.js
+        // records, laid out left-to-right under the fingers.
+        if (debugKeys.consume('a')) F.input(flowState, ACT.PASS, DIR.LEFT, tick);
+        if (debugKeys.consume('b')) F.input(flowState, ACT.PASS, DIR.UP, tick);
+        if (debugKeys.consume('x')) F.input(flowState, ACT.PASS, DIR.RIGHT, tick);
+        if (debugKeys.consume('y')) F.input(flowState, ACT.TUCK, DIR.NONE, tick);
+      }
+      if (debugKeys.consume('turbo')) F.input(flowState, ACT.TURBO_ON, DIR.NONE, tick);
+    }
+
     // THE PLAYER'S INPUT REACHES THE GAME. The controller resolves gestures into
     // `ctrlState.action` on the tick they happened; until this line existed nothing
     // anywhere read that field, so a fully-built touch controller resolved every swipe
