@@ -36,7 +36,7 @@ const SCREEN_FOR = [null, 'title', 'teamSelect', 'playcall', null, null];
 
 /** How long each non-play state holds, in ticks at 60 Hz. */
 export const HOLD = Object.freeze({
-  BOOT: 30, TITLE: 180, TEAM_SELECT: 150, PLAYCALL: 150, RESULT: 96,
+  BOOT: 30, TITLE: 210, TEAM_SELECT: 240, PLAYCALL: 300, RESULT: 120,
 });
 /** A play is abandoned after this many ticks. The sim's own cap is 600. */
 export const PLAY_CAP = 620;
@@ -46,6 +46,10 @@ const CLUBS = Object.keys(PLAYERS.byTeam);
 const impl = {
   piece: 'game-flow',
   STATE, STATE_NAME, PHASE,
+  // Published on the slot so the runtime can show a play clock that counts down the
+  // SAME number the state machine snaps the ball on, rather than a second copy of it.
+  get HOLD() { return HOLD; },
+  get PLAY_CAP() { return PLAY_CAP; },
 
   create(opts = {}) {
     const seed = opts.seed === undefined ? 7 : opts.seed;

@@ -36,11 +36,11 @@
 const HALF_W = 24.384;
 
 /** Metres behind the ball, along +x. */
-const BACK = 17.0;
-/** Camera height. 11 m over a 17 m stand-off is a 33 degree depression to the ball. */
-const HEIGHT = 11.0;
+const BACK = 12.5;
+/** Camera height. 8 m over a 12.5 m stand-off is a 33 degree depression to the ball. */
+const HEIGHT = 8.0;
 /** How far downfield of the ball the camera looks. This is what puts the routes on screen. */
-const AHEAD = 9.5;
+const AHEAD = 9.0;
 /** Aim height, roughly a receiver's shoulders. */
 const AIM_Y = 1.7;
 const FOV = 42;
@@ -50,7 +50,7 @@ const FOV = 42;
  * a runner cutting between the hashes stays inside the frame without the frame chasing
  * him. At 1.0 the picture swims; at 0 the ball leaves the frame on a wide route.
  */
-const LATERAL = 0.62;
+const LATERAL = 0.72;
 /**
  * The far end of that give, in metres either side of centre. The field is 24.384 m to a
  * sideline, so 9 m keeps both sidelines in shot at every legal ball position.

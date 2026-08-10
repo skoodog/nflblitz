@@ -268,9 +268,10 @@ function bootPlay(glCanvas, uiCanvas) {
    * pre-snap frame, which is ALSO what the un-synced world draws. The two are
    * indistinguishable on screen, so the only way to tell them apart is to count.
    */
-  const sync = { calls: 0, applied: 0, matched: 0, missed: 0, skip: null, err: null };
+  const sync = { calls: 0, applied: 0, matched: 0, missed: 0, skip: null, err: null, kits: 0 };
   /** The most recent snapshot applied to the world. The gameplay camera frames THIS. */
   let liveSnap = null;
+  let kitEpoch = -1;
   function syncWorldToPlay() {
     sync.calls++;
     const world = rt.world;
@@ -294,6 +295,7 @@ function bootPlay(glCanvas, uiCanvas) {
     // actually in the scene sat at their build positions. The counter even reported
     // `matched: 14` throughout, because the stale entries all resolved. Comparing the
     // first element by IDENTITY is what actually detects a rebuild.
+    let remapped = false;
     if (actorMapKey !== world.actors[0] || actorById.size === 0) {
       actorById.clear();
       for (const a of world.actors) {
@@ -301,6 +303,13 @@ function bootPlay(glCanvas, uiCanvas) {
         if (id) actorById.set(id, a);
       }
       actorMapKey = world.actors[0] || null;
+      remapped = true;
+    }
+    // The kits are re-read on a new down (possession can have flipped) and after an
+    // actor rebuild (the new actors were built from whatever the shot said at the time).
+    if (remapped || kitEpoch !== flowState.playCount) {
+      kitEpoch = flowState.playCount;
+      sync.kits = applyKits();
     }
 
     const pose = REG.world.pose;
@@ -331,6 +340,49 @@ function bootPlay(glCanvas, uiCanvas) {
   }
 
   /**
+   * THE KITS FOLLOW THE DOWN.
+   *
+   * An actor's materials are chosen when the actor is BUILT, from the shot's `team` and
+   * `variant`. The world is built once, from the boot shot — NYC against CHI — so every
+   * down after the first was played by two sides still wearing the boot shot's colours.
+   * On screen that reads as both teams in the same navy while the scoreboard says CIN
+   * and LAR, which is worse than a wrong colour: it makes the game unreadable, because
+   * telling your men from theirs is the single thing a football camera has to deliver.
+   *
+   * It also cannot be fixed by "set it once at boot". The adapter dresses the OFFENCE in
+   * `teamA`/home and the DEFENCE in `teamB`/away, so on a change of possession the men
+   * carrying the `o_*` ids belong to the other club. The kit has to be re-read whenever
+   * the down changes, which is why this runs at the play boundary.
+   *
+   * It is cheap: `uniform.materials()` is memoised per (club, variant, number, name), so
+   * a club that has already been dressed this session costs a map lookup and a material
+   * assignment. Nothing is compiled — the whole point of uniform-kit is that all 32 clubs
+   * share one program and differ only in uniforms. It still runs at the boundary rather
+   * than on the frame path, next to the actor-LOD commit, for the same reason that does.
+   */
+  function applyKits() {
+    const anatomy = REG.world.anatomy;
+    const uniform = REG.world.uniform;
+    if (!liveSnap || !anatomy || !uniform || !anatomy.setMaterials || !uniform.materials) return 0;
+    let n = 0;
+    for (const s2 of liveSnap.actors) {
+      const a = actorById.get(s2.id);
+      if (!a) continue;
+      const key = `${s2.team}|${s2.variant}|${s2.number}`;
+      if (a._kitKey === key) continue;
+      let set = null;
+      try {
+        set = uniform.materials(rt.ctx, s2.team, s2.variant, {
+          number: s2.number, name: s2.name, dirt: s2.dirt, wet: s2.wet,
+        });
+      } catch (e) { continue; }
+      if (!set) continue;
+      try { anatomy.setMaterials(a, set); a._kitKey = key; n++; } catch (e) { /* keep the frame */ }
+    }
+    return n;
+  }
+
+  /**
    * THE GAMEPLAY CAMERA, and why it is applied HERE rather than through the cinema slot.
    *
    * `world.update()` calls `REG.cinema.applyShot()` every single frame, and for a shot
@@ -343,11 +395,59 @@ function bootPlay(glCanvas, uiCanvas) {
    * still what `?mode=capture` and every hero frame go through. This overrides it on the
    * runtime path only, where a camera that needs the future cannot be used.
    */
+  /**
+   * THE SCREENS FOLLOW THE STATE MACHINE.
+   *
+   * `overlay.js` draws `shot.ui.screen` — and in play mode nothing ever set it. The flow
+   * machine has had `screenFor()` and `hudVisible()` since it was written, four fully
+   * built screens were registered in `REG.ui`, and none of them were ever asked to draw:
+   * a player booting the game watched eight seconds of an empty stadium go by before a
+   * down started, with no title, no team select and no play call. The pieces were not
+   * missing. The one line that asks for them was.
+   */
+  let lastScreen = -1;
+  function syncShotUI() {
+    const shot = rt.ctx.shot;
+    if (!shot || !REG.flow.screenFor) return;
+    const screen = REG.flow.screenFor(flowState);
+    if (shot.ui.screen !== screen) {
+      shot.ui.screen = screen;
+      rt.overlay.markFullDirty();
+    }
+    const g = flowState.game;
+    const st = shot.ui.state || (shot.ui.state = {});
+    if (screen === 'playcall') {
+      // The play clock is what is left of the hold, which is the same number the state
+      // machine is counting down — a screen showing a different clock from the one that
+      // is about to snap the ball is a lie the player pays for.
+      const hold = (REG.flow.HOLD && REG.flow.HOLD.PLAYCALL) || 300;
+      const left = Math.max(0, hold - (flowState.tick - flowState.enteredTick));
+      st.side = 'offense';
+      st.page = flowState.callPage;
+      st.selected = flowState.callIndex;
+      st.clock = `:${String(Math.ceil(left / 60)).padStart(2, '0')}`;
+      st.team = g.possession === 1 ? g.home : g.away;
+    } else if (screen === 'teamSelect') {
+      st.home = g.home;
+      st.away = g.away;
+      st.selected = g.home;
+    }
+    if (shot.hud) shot.hud.visible = REG.flow.hudVisible(flowState);
+    // The pad is live where the player has something to press: choosing a call, and
+    // playing the down. Not over the title card or the team sheet.
+    const S = REG.flow.STATE;
+    rt.ctx.controls = flowState.state === S.PLAY
+      || flowState.state === S.PLAYCALL
+      || flowState.state === S.RESULT;
+    if (lastScreen !== flowState.state) { lastScreen = flowState.state; rt.overlay.markFullDirty(); }
+  }
+
   const gameCam = playCam.createCamera();
   let lastAnimTime = -1;
   function onAnim(alpha, simTime) {
     if (params.mode !== 'play') { rt.update(simTime); return; }
     syncWorldToPlay();
+    syncShotUI();
     rt.update(simTime);
     if (liveSnap && rt.camera) {
       const dt = lastAnimTime < 0 ? 0 : simTime - lastAnimTime;
@@ -559,7 +659,7 @@ function bootPlay(glCanvas, uiCanvas) {
     get sync() {
       return {
         calls: sync.calls, applied: sync.applied, matched: sync.matched,
-        missed: sync.missed, skip: sync.skip, err: sync.err,
+        missed: sync.missed, skip: sync.skip, err: sync.err, kits: sync.kits,
         // `tick` is the simulation's own counter. `t` is a seconds field adapt.js keeps
         // and the flow machine does not, so it reads 0 for a live down and is not the
         // signal to test movement against.

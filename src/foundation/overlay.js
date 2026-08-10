@@ -300,6 +300,13 @@ export function createRuntimeOverlay(canvas, params) {
       }
       // The touch controller draws LAST and on top of everything: it is the layer the
       // player's thumbs live on and it must never be occluded by a menu.
+      //
+      // It is not, however, drawn over a screen that has no use for it. A stick, a PASS
+      // button and a JUKE cluster laid over the title card is not a control surface, it
+      // is clutter on the one frame that has to sell the game — and it advertises four
+      // controls that do nothing in that state. `ctx.controls` is set by the runtime from
+      // the flow machine's phase; unset (every capture) means draw, as it always did.
+      if (ctx.controls === false) { /* not this state */ } else
       if (REG.controller && typeof REG.controller.draw === 'function') {
         try { REG.controller.draw(c2d, t, ui); } catch (e) { overlayErr('controller', e); }
       }
