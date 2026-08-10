@@ -116,10 +116,18 @@ const impl = {
     st.offense = st.playerCall || callOffense(PLAYBOOK, g, salt);
     st.playerCall = null;
     st.defense = callDefense(PLAYBOOK, g, salt);
+    const offClub = g.possession === 1 ? g.home : g.away;
+    const defClub = g.possession === 1 ? g.away : g.home;
     st.play = sim.createPlay(salt, st.offense, st.defense,
-      PLAYERS.byTeam[g.possession === 1 ? g.home : g.away],
-      PLAYERS.byTeam[g.possession === 1 ? g.away : g.home],
-      PLAYBOOK.formation);
+      PLAYERS.byTeam[offClub], PLAYERS.byTeam[defClub], PLAYBOOK.formation);
+    // The renderer reads a down through adapt.js's snapshot(), which needs the club ids
+    // and a wall-clock-free `t` on the state. Without them every actor came back with an
+    // undefined team and the uniform piece fell through to plain grey.
+    st.play.teamA = offClub;
+    st.play.teamB = defClub;
+    st.play.seed = salt;
+    st.play.t = 0;
+    st.play.acc = 0;
     if (st.pendingRung >= 0) {
       st.committedRung = st.pendingRung;
       st.pendingRung = -1;

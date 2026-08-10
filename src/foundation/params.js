@@ -80,6 +80,13 @@ export function parseParams(search) {
     : modeRaw === 'play' ? 'play'
       : (p.quality === 'capture' ? 'capture' : 'play');
 
+  // THE PLAY PATH MUST NOT DEFAULT TO A POSED HERO SHOT. `DEFAULTS.scene` is 'truck',
+  // which is a STATIC capture scene: a frozen collision with a TRUCK! callout over it.
+  // Booting the game with no ?scene= therefore rendered that single frozen frame and
+  // animated nothing, on a path advertised as "play". It is what a player actually saw.
+  // `live_play` is the scene foundation/scenes.js drives from REG.sim.
+  if (p.mode === 'play' && !q.get('scene')) p.scene = 'live_play';
+
   const tierRaw = q.get('tier');
   p.tier = ['floor', 'low', 'mid', 'high'].includes(tierRaw) ? tierRaw : null;
 

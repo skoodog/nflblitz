@@ -20,6 +20,7 @@ import { createTelemetry, SPANS, budgetTable } from './foundation/telemetry.js';
 import { createLoop } from './foundation/loop.js';
 import { createTouch } from './foundation/touch.js';
 import { ACT, DIR } from './pieces/touch-controller/tuning.js';
+import * as playCam from './pieces/game-flow/camera.js';
 import {
   staticSignals, cpuProbe, gpuProbe, classify, createScaler,
   TIERS, RUNGS, tierOfRung, CHANGE_KIND, expensiveClass,
@@ -248,7 +249,114 @@ function bootPlay(glCanvas, uiCanvas) {
     }
   }
 
-  function onAnim(alpha, simTime) { rt.update(simTime); }
+  // THE RENDERED WORLD FOLLOWS THE LIVE DOWN.
+  //
+  // This is the wire whose absence made "play mode" a still life. Actors are built ONCE
+  // from the shot and positioned once; `world.update()` animates turf, lighting, fx and
+  // the camera, and calls each actor's own update -- but nothing ever moved an actor from
+  // the simulation. So the game rendered a frozen posed frame and the player's inputs,
+  // which by then really did reach the rule set, changed a scoreboard nobody could see.
+  //
+  // Matching is by actor id, which adapt.js mints as `o_<slot>` / `d_<slot>` and
+  // world.js stores on `actor.spec.id` -- so it survives a rebuild at a rung change.
+  const actorById = new Map();
+  let actorMapKey = null;
+  /**
+   * WHY THIS IS INSTRUMENTED. The first version of this wire was silent on every failure
+   * path — `catch (e) { return; }` and four early returns — and it failed on all of them
+   * while the game looked exactly like a game that had never been wired at all: a frozen
+   * pre-snap frame, which is ALSO what the un-synced world draws. The two are
+   * indistinguishable on screen, so the only way to tell them apart is to count.
+   */
+  const sync = { calls: 0, applied: 0, matched: 0, missed: 0, skip: null, err: null };
+  /** The most recent snapshot applied to the world. The gameplay camera frames THIS. */
+  let liveSnap = null;
+  function syncWorldToPlay() {
+    sync.calls++;
+    const world = rt.world;
+    const live = flowState.play;
+    if (!world || !world.actors) { sync.skip = 'no world'; return; }
+    if (!live) { sync.skip = 'no live play'; return; }
+    if (!REG.sim.snapshot) { sync.skip = 'no sim.snapshot'; return; }
+    let snap = null;
+    try { snap = REG.sim.snapshot(live); } catch (e) { sync.err = String(e && e.message); return; }
+    if (!snap || !snap.actors) { sync.skip = 'empty snapshot'; return; }
+    sync.skip = null;
+    liveSnap = snap;
+
+    // THE MAP IS KEYED ON ACTOR IDENTITY, NOT ON THE CAST'S SIZE.
+    //
+    // It used to be keyed on `world.actors.length`, and that is the bug that made this
+    // whole wire look like it had never been written. `commitActorLod()` disposes all
+    // fourteen actors at a play boundary and builds fourteen NEW ones; the length is
+    // fourteen before and after, so the map was never rebuilt and every frame after the
+    // first commit moved fourteen orphaned, detached objects while the fourteen actors
+    // actually in the scene sat at their build positions. The counter even reported
+    // `matched: 14` throughout, because the stale entries all resolved. Comparing the
+    // first element by IDENTITY is what actually detects a rebuild.
+    if (actorMapKey !== world.actors[0] || actorById.size === 0) {
+      actorById.clear();
+      for (const a of world.actors) {
+        const id = a.spec && a.spec.id;
+        if (id) actorById.set(id, a);
+      }
+      actorMapKey = world.actors[0] || null;
+    }
+
+    const pose = REG.world.pose;
+    let hit = 0, miss = 0;
+    for (const s2 of snap.actors) {
+      const a = actorById.get(s2.id);
+      if (!a || !a.root) { miss++; continue; }
+      hit++;
+      a.root.position.set(s2.pos[0], s2.pos[1], s2.pos[2]);
+      a.root.rotation.y = s2.rotY;
+      if (pose && pose.apply && a.skeleton) {
+        try { pose.apply(a.skeleton, s2.pose, s2.phase || 0, a.spec.seed || 0); } catch (e) { /* keep the frame */ }
+      }
+    }
+    if (world.ball && snap.ball && world.ball.mesh) {
+      const b = snap.ball;
+      world.ball.mesh.position.set(b.pos[0], b.pos[1], b.pos[2]);
+      if (b.rotQ) world.ball.mesh.quaternion.set(b.rotQ[0], b.rotQ[1], b.rotQ[2], b.rotQ[3]);
+      world.ball.mesh.visible = b.visible !== false;
+    }
+    // The camera and the overlay both read the shot, so keep it pointing at this down.
+    if (rt.ctx.shot) {
+      rt.ctx.shot.actors = snap.actors;
+      rt.ctx.shot.ball = snap.ball;
+      if (rt.ctx.shot.hud) Object.assign(rt.ctx.shot.hud, snap.hud);
+    }
+    sync.applied++; sync.matched = hit; sync.missed = miss;
+  }
+
+  /**
+   * THE GAMEPLAY CAMERA, and why it is applied HERE rather than through the cinema slot.
+   *
+   * `world.update()` calls `REG.cinema.applyShot()` every single frame, and for a shot
+   * marked `live: true` that runs the DIRECTOR — which frames a down it precomputed from
+   * `sim.create(ctx.seed)`, not the down being played. See the header of
+   * pieces/game-flow/camera.js. So the gameplay camera is applied AFTER `rt.update()`,
+   * which is the only ordering in which it survives the frame.
+   *
+   * The director is not disabled: it is still the camera for every capture, and it is
+   * still what `?mode=capture` and every hero frame go through. This overrides it on the
+   * runtime path only, where a camera that needs the future cannot be used.
+   */
+  const gameCam = playCam.createCamera();
+  let lastAnimTime = -1;
+  function onAnim(alpha, simTime) {
+    if (params.mode !== 'play') { rt.update(simTime); return; }
+    syncWorldToPlay();
+    rt.update(simTime);
+    if (liveSnap && rt.camera) {
+      const dt = lastAnimTime < 0 ? 0 : simTime - lastAnimTime;
+      // The down is the cut key: a new down cuts, everything inside one down is a move.
+      playCam.step(gameCam, liveSnap, dt, flowState.playCount);
+      playCam.apply(gameCam, rt.camera);
+    }
+    lastAnimTime = simTime;
+  }
   function onRender() { rt.render(); }
 
   /**
@@ -447,6 +555,19 @@ function bootPlay(glCanvas, uiCanvas) {
       };
     },
     get flow() { return { state: flowState.state, playCount: flowState.playCount, commits: flowState.commits }; },
+    /** The sim->world wire, counted. See the note on `syncWorldToPlay`. */
+    get sync() {
+      return {
+        calls: sync.calls, applied: sync.applied, matched: sync.matched,
+        missed: sync.missed, skip: sync.skip, err: sync.err,
+        // `tick` is the simulation's own counter. `t` is a seconds field adapt.js keeps
+        // and the flow machine does not, so it reads 0 for a live down and is not the
+        // signal to test movement against.
+        playTick: flowState.play ? flowState.play.tick : null,
+        playResult: flowState.play ? flowState.play.result : null,
+        rebuilds: rt.actorLod ? rt.actorLod.rebuilds : 0,
+      };
+    },
     get clock() {
       return {
         tick: clock.tick, simTime: clock.simTime, alpha: clock.alpha,
