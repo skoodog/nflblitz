@@ -402,6 +402,8 @@ void main(){
 export function classify(sig, cpu, gpu) {
   let tier = sig.tier;
   const notes = [];
+  /** Set when the GPU probe blew its deadline: boot at 30 whatever the tier says. */
+  let abortedRate = 0;
 
   // CPU: msPerFullPose is one full 14-actor x 26-bone pose evaluation. The `anim`
   // budget is 3.20 ms at 60 Hz; a device needing more than that for one pose cannot
@@ -428,8 +430,31 @@ export function classify(sig, cpu, gpu) {
       tier = tier === 'high' ? 'mid' : tier === 'mid' ? 'low' : 'floor';
     }
   } else if (gpu && gpu.aborted) {
-    tier = 'floor';
-    notes.push('gpu probe blew its deadline -> floor');
+    // A BLOWN DEADLINE IS NOT A SLOW GPU, and treating it as one cost this project a
+    // whole first impression.
+    //
+    // This used to read `tier = 'floor'`. The probe runs during boot, against a main
+    // thread that is still parsing a 1.6 MB bundle and a compositor that is still doing
+    // first paint; on a capable machine in a busy tab — an embedded frame, a page with
+    // other work on it — 250 ms is easy to blow for reasons that have nothing to do with
+    // fill rate. The result was a desktop GPU pinned to rung 1, which is a render scale
+    // of 0.28: a 900 px wide game rendered into a 252 px buffer and stretched back up.
+    // The report was "it looks blurry as fuck", and it was right.
+    //
+    // Slamming to the floor is also the WRONG DIRECTION for a signal this weak. The
+    // scaler moves DOWN fast — two windows, about a second — and UP slowly, eight windows
+    // behind a 3 s rate limit. So an over-optimistic boot costs one second of stutter and
+    // self-corrects; an over-pessimistic one costs thirty-six seconds of mush, which is
+    // longer than anybody's patience for a demo. Trusting the static signal and letting
+    // the scaler demote is the recoverable error.
+    //
+    // What is kept is the RATE. The header's promise — never boot at 60 on a device that
+    // cannot hold it — is about stutter, and 30 Hz is where the headroom is. A probe that
+    // could not finish boots at 30 whatever its tier, and the scaler promotes it once it
+    // has real frames to judge.
+    tier = tier === 'high' ? 'mid' : tier === 'mid' ? 'low' : tier;
+    notes.push(`gpu probe blew its deadline -> ${tier} at 30 Hz, scaler to decide`);
+    abortedRate = 30;
   } else if (gpu && !gpu.ok) {
     // The probe RAN and produced no usable slope. That used to fall through in silence,
     // which is how a broken probe (see the `gl.finish()` note in gpuProbe) went unnoticed
@@ -442,7 +467,7 @@ export function classify(sig, cpu, gpu) {
   // has headroom and we would rather be pretty in 3 s than stutter in the first 1 s.
   const T = TIERS[tier];
   const rung = Math.round((T.rungLo + T.rungHi) / 2);
-  const rate = T.bootRate;
+  const rate = abortedRate || T.bootRate;
   notes.push(`boot rate ${rate} Hz`);
   return { tier, rung, rate, notes: notes.join(' | ') };
 }

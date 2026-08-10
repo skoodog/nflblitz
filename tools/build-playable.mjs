@@ -15,6 +15,16 @@
 //   2. The artifact wrapper owns <head>, so the viewport meta cannot be written into the
 //      markup. Without it a phone renders the stage at desktop width and pinch-zoom stays
 //      live, which breaks the thumbstick. It is installed at runtime instead.
+//   3. THE SUBSTITUTION MUST USE A FUNCTION, NOT A STRING. `String.prototype.replace`
+//      with a string replacement interprets `$$`, `$&`, `` $` ``, `$'` and `$1`..`$9`
+//      inside that replacement. A 1.6 MB minified bundle contains those sequences by
+//      accident, so the inlined copy came out CORRUPTED -- and the corruption is a
+//      character or two deep inside minified code, which surfaces as nothing more useful
+//      than `SyntaxError: missing ) after argument list` with no line and no file. The
+//      page then dies before a single module runs: no __BLITZ_ERROR__, no fatal panel,
+//      no console message from us, just a blank canvas. Passing a function makes the
+//      replacement literal. The written file is checked against the source afterwards so
+//      this cannot come back silently.
 //
 //   node tools/build-playable.mjs [out.html]
 import fs from 'node:fs';
@@ -35,6 +45,21 @@ const style = /<style>([\s\S]*?)<\/style>/.exec(html)[1];
 
 const out = process.argv[2] || path.join(ROOT, 'dist', 'playable.html');
 const tpl = fs.readFileSync(path.join(ROOT, 'tools', 'playable-shell.html'), 'utf8');
-fs.writeFileSync(out, tpl.replace('/*STYLE*/', style).replace('/*BUNDLE*/', js));
+const page = tpl.replace('/*STYLE*/', () => style).replace('/*BUNDLE*/', () => js);
+
+// The guard for (3). A literal substitution means the bundle survives byte for byte;
+// anything else is the `$` bug back again, and it must fail the build rather than ship.
+if (!page.includes(js)) {
+  console.error('FATAL: the inlined bundle does not match the source byte for byte.');
+  console.error('       Something in the substitution is rewriting it. Do not ship this file.');
+  process.exit(1);
+}
+if (page.includes('/*BUNDLE*/') || page.includes('/*STYLE*/')) {
+  console.error('FATAL: a placeholder survived into the output.');
+  process.exit(1);
+}
+
+fs.writeFileSync(out, page);
 console.log(`wrote ${out}  ${(fs.statSync(out).size / 1048576).toFixed(2)} MB`);
 console.log(`escaped ${guarded} occurrence(s) of </script inside the bundle`);
+console.log('bundle verified byte-for-byte inside the page');
